@@ -180,7 +180,7 @@ export async function directory(sc, search = "", limit = 1000) {
   const { employees } = await listEmployees({ search, sc, pageSize: Math.min(limit, 1000), status: undefined });
   return employees.filter(e => e.status !== 'terminated').map(e => ({
     id: e.id, employee_no: e.emp_no, extension: e.extension, name_ar: e.full_name, name_en: e.name_en, job_title: e.job_title, job_title_en: e.job_title_en,
-    unit_name: e.unit_name, sector_name: e.sector_name, photo_url: e.photo ? `/portal/${e.photo}` : null,
+    unit_name: e.unit_name, sector_name: e.sector_name
   }));
 }
 export { inScope };

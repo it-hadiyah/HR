@@ -30,7 +30,8 @@ test('تعديل الموظف من الإدارة ينعكس فوراً في ا�
   const card = (await admin.get('/api/directory')).json.employees.find(e => e.id === emp.id);
   assert.equal(card.name_ar, 'سارة محمد الأحمد');
   assert.equal(card.name_en, 'Sarah Alahmad');
-  assert.equal(card.photo_url, '/portal/images/content/employee-info/5001.png');     // الصورة نفسها المخزنة في سجل الموظف
+  assert.equal(card.photo_url, undefined);                                           // الصورة يرفعها الموظف بنفسه ولا تُسحب من سجله
+  assert.equal(card.extension, 5001);
   const hr = (await admin.get('/api/employees')).json.rows.find(e => e.id === emp.id);
   assert.equal(hr.full_name, 'سارة محمد الأحمد');
   assert.equal((await t.q('SELECT count(*)::int AS n FROM employees WHERE extension = 5001')).rows[0].n, 1);

@@ -55,7 +55,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16p
       <label for="pick">ابحث عن الموظف (بالاسم أو الرقم الوظيفي أو التحويلة)</label>
       <input type="search" id="pick" list="peopleList" placeholder="اكتب للبحث ثم اختر من القائمة" autocomplete="off">
       <datalist id="peopleList"></datalist>
-      <p class="hint" id="pickStatus" role="status">تُجلب البيانات والصورة من سجل الموظف المركزي، ويمكنك تعديلها هنا قبل التصدير دون التأثير على السجل.</p>
+      <p class="hint" id="pickStatus" role="status">تُجلب الاسم والمسمى والقطاع والتحويلة من سجل الموظف المركزي (دون الصورة)، ويمكنك تعديلها هنا دون التأثير على السجل.</p>
     </div>
     <div class="row">
       <div><label for="arName">الاسم</label><input type="text" id="arName" placeholder="مثال: عامر فهد الحازمي"></div>
@@ -64,7 +64,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16p
       <div><label for="ext">رقم التحويلة</label><input type="text" id="ext" inputmode="numeric" placeholder="مثال: 1575"></div>
     </div>
 
-    <label>الصورة الشخصية</label>
+    <label>صورة الموظف (ارفعها من جهازك)</label>
     <div class="photo-box">
       <input type="file" id="photo" accept="image/*">
       <div class="modes" id="modes" hidden>
@@ -101,18 +101,18 @@ button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16p
 // التصميم مأخوذ من card_staff.pdf: الأبعاد بوحدات التصميم (153 × 243)
 const CARD_W = 153, CARD_H = 243;
 const PRINT_H = 242.25;                          // 54 × 85.5 مم
-const PHOTO = {cx: 76.5, cy: 121.9, r: 44.9};    // القرص الأخضر
-const FRAME = new Path2D('M 76.5 35.527344 C 47.972656 35.527344 24.84375 64.910156 24.84375 101.160156 C 24.84375 137.40625 47.972656 166.792969 76.5 166.792969 C 105.027344 166.792969 128.152344 137.40625 128.152344 101.160156 C 128.152344 64.910156 105.027344 35.527344 76.5 35.527344 Z M 76.5 35.527344');            // إطار الصورة البارزة (قوس يعلو الدائرة)
-const POP = {w: 103.3, bottom: 178.5};           // عرض الصورة البارزة الافتراضي وحافتها السفلية
+const PHOTO = {cx: 76.5, cy: 124.0, r: 42.1};    // القرص الأخضر
+const FRAME = new Path2D('M 76.5 43.039062 C 49.761719 43.039062 28.085938 70.582031 28.085938 104.558594 C 28.085938 138.53125 49.761719 166.074219 76.5 166.074219 C 103.238281 166.074219 124.914062 138.53125 124.914062 104.558594 C 124.914062 70.582031 103.238281 43.039062 76.5 43.039062 Z');            // إطار الصورة البارزة (قوس يعلو الدائرة)
+const POP = {w: 96.8, bottom: 177.14};          // عرض الصورة البارزة الافتراضي وحافتها السفلية
 const COLORS = {teal: '#38a792', ink: '#050404'};
 const FONT = '"IBM Plex Sans Arabic", Tahoma, sans-serif';
 const MAX_TEXT_W = 128;
 // خط الأساس والحجم والوزن واللون لكل سطر
 const LINES = {
-  arName:  {y: 180.19, size: 9.5, weight: 700, color: COLORS.teal},
-  arTitle: {y: 195.07, size: 7.5, weight: 400, color: COLORS.ink},
-  sector:  {y: 208.93, size: 7.5, weight: 400, color: COLORS.ink},
-  ext:     {y: 221.2,  size: 7.5, weight: 400, color: COLORS.ink},
+  arName:  {y: 178.64, size: 9.1, weight: 700, color: COLORS.teal},
+  arTitle: {y: 192.58, size: 7.2, weight: 400, color: COLORS.ink},
+  sector:  {y: 205.57, size: 7.2, weight: 400, color: COLORS.ink},
+  ext:     {y: 216.88, size: 7.2, weight: 400, color: COLORS.ink},
 };
 const DEFAULTS = {arName: 'اسم الموظف', arTitle: 'المسمى الوظيفي', sector: 'قطاع: ...', ext: ''};
 
@@ -250,14 +250,7 @@ const logIssue = format => {
     $('sector').value = p.sector_name ? `قطاع: ${p.sector_name}` : (p.unit_name || '');
     $('ext').value = p.extension || '';
     render();
-    if (!p.photo_url) { $('pickStatus').textContent = 'لا توجد صورة لهذا الموظف في سجله؛ ارفع صورة يدويًا.'; return; }
-    $('pickStatus').textContent = 'جارٍ تحميل صورة الموظف...';
-    try {
-      const res = await fetch(p.photo_url, {credentials: 'same-origin'});
-      if (!res.ok) throw new Error();
-      loadPhoto(await res.blob());
-      $('pickStatus').textContent = 'تم تحميل البيانات والصورة من سجل الموظف.';
-    } catch { $('pickStatus').textContent = 'تعذر تحميل الصورة، يمكنك رفعها يدويًا.'; }
+    $('pickStatus').textContent = 'تم جلب الاسم والمسمى والقطاع والتحويلة. ارفع صورة الموظف من جهازك بالأسفل.';
   });
 })();
 
