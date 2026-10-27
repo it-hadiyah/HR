@@ -20,6 +20,7 @@ input[type=text]:focus,input[type=search]:focus{outline:none;border-color:var(--
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .pick{background:#eef8f6;border:1px solid #cfe9e4;border-radius:12px;padding:12px 14px;margin-bottom:6px}
 .pick label{margin-top:0}
+input.locked{background:#eef2f1;color:#4b5b58;cursor:not-allowed}
 .photo-box{border:2px dashed #b9c6c2;border-radius:12px;padding:14px;text-align:center;margin-top:6px}
 .photo-box input[type=range]{width:100%;margin-top:8px}
 .check{display:flex;gap:8px;align-items:center;font-weight:500;margin-top:12px}
@@ -52,16 +53,16 @@ button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16p
   <section class="panel">
     <h2>بيانات الموظف</h2>
     <div id="pickBox" class="pick" hidden>
-      <label for="pick">ابحث عن الموظف (بالاسم أو الرقم الوظيفي أو التحويلة)</label>
+      <label for="pick">ابحث عن الموظف (بالاسم أو الرقم الوظيفي)</label>
       <input type="search" id="pick" list="peopleList" placeholder="اكتب للبحث ثم اختر من القائمة" autocomplete="off">
       <datalist id="peopleList"></datalist>
-      <p class="hint" id="pickStatus" role="status">تُجلب الاسم والمسمى والقطاع والتحويلة من سجل الموظف المركزي (دون الصورة)، ويمكنك تعديلها هنا دون التأثير على السجل.</p>
+      <p class="hint" id="pickStatus" role="status">يُجلب الاسم والمسمى والقطاع من سجل الموظف المركزي ولا يمكن تعديلها هنا (تُعدَّل من الإدارة المركزية). الرقم الوظيفي وحده يُدخل يدوياً.</p>
     </div>
     <div class="row">
-      <div><label for="arName">الاسم</label><input type="text" id="arName" placeholder="مثال: عامر فهد الحازمي"></div>
-      <div><label for="arTitle">المسمى الوظيفي</label><input type="text" id="arTitle" placeholder="مثال: أخصائي استقطاب ورواتب"></div>
-      <div><label for="sector">القطاع</label><input type="text" id="sector" placeholder="مثال: قطاع: الخدمات المشتركة"></div>
-      <div><label for="ext">رقم التحويلة</label><input type="text" id="ext" inputmode="numeric" placeholder="مثال: 1575"></div>
+      <div><label for="arName">الاسم</label><input type="text" id="arName" class="locked" readonly placeholder="يُجلب من سجل الموظف"></div>
+      <div><label for="arTitle">المسمى الوظيفي</label><input type="text" id="arTitle" class="locked" readonly placeholder="يُجلب من سجل الموظف"></div>
+      <div><label for="sector">القطاع</label><input type="text" id="sector" class="locked" readonly placeholder="يُجلب من سجل الموظف"></div>
+      <div><label for="ext">الرقم الوظيفي</label><input type="text" id="ext" inputmode="numeric" autocomplete="off" placeholder="أدخل الرقم الوظيفي"></div>
     </div>
 
     <label>صورة الموظف (ارفعها من جهازك)</label>
@@ -195,7 +196,7 @@ function setMode(mode) {
   photo.zoom = 1; photo.ox = photo.oy = 0; z.value = 1;
 }
 
-function loadPhoto(blob, file) {
+function loadPhoto(blob, file, msg) {
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = () => {
@@ -203,7 +204,7 @@ function loadPhoto(blob, file) {
     setMode(hasTransparency(img) ? 'pop' : 'circle');
     $('zoom').disabled = false; $('clearPhoto').hidden = false;
     $('modes').hidden = false; $('removeBg').hidden = false;
-    setStatus(photo.mode === 'circle' ? 'الصورة بخلفية، تظهر داخل الدائرة. اضغط «إزالة الخلفية» لتبرز فوقها.' : '');
+    setStatus(msg ?? (photo.mode === 'circle' ? 'الصورة بخلفية، تظهر داخل الدائرة. اضغط «إزالة الخلفية» لتبرز فوقها.' : ''));
     render();
   };
   img.src = url;
@@ -229,16 +230,19 @@ const logIssue = format => {
   fetch('/api/card/log', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({employee_id: selectedEmp, format})}).catch(() => {});
 };
 
-// ---- سجل الموظفين المركزي: يملأ الاسم والمسمى والقطاع والتحويلة والصورة ----
+// إن تعذّر جلب سجل الموظفين يُسمح بالإدخال اليدوي حتى لا تتعطل البطاقة
+function unlock() { for (const k of ['arName', 'arTitle', 'sector']) { $(k).readOnly = false; $(k).classList.remove('locked'); $(k).placeholder = ''; } }
+
+// ---- سجل الموظفين المركزي: يملأ الاسم والمسمى والقطاع (للقراءة فقط) ----
 (async () => {
   let people = [];
   try {
     const r = await fetch('/api/directory', {credentials: 'same-origin'});
-    if (!r.ok) return;
+    if (!r.ok) throw new Error('directory');
     people = (await r.json()).employees;
-  } catch { return; }
-  if (!people.length) return;
-  const label = p => `${p.name_ar} — ${p.employee_no || p.extension || p.id}`;
+  } catch { unlock(); return; }
+  if (!people.length) { unlock(); return; }
+  const label = p => `${p.name_ar} — ${p.employee_no || p.id}`;
   $('peopleList').replaceChildren(...people.map(p => Object.assign(document.createElement('option'), {value: label(p)})));
   $('pickBox').hidden = false;
   $('pick').addEventListener('change', async () => {
@@ -248,25 +252,74 @@ const logIssue = format => {
     $('arName').value = p.name_ar || '';
     $('arTitle').value = p.job_title || '';
     $('sector').value = p.sector_name ? `قطاع: ${p.sector_name}` : (p.unit_name || '');
-    $('ext').value = p.extension || '';
+    $('ext').value = '';              // الرقم الوظيفي يُدخل يدوياً ولا يُسحب من السجل
     render();
-    $('pickStatus').textContent = 'تم جلب الاسم والمسمى والقطاع والتحويلة. ارفع صورة الموظف من جهازك بالأسفل.';
+    $('pickStatus').textContent = 'تم جلب الاسم والمسمى والقطاع. أدخل الرقم الوظيفي ثم ارفع صورة الموظف من جهازك.';
   });
 })();
 
-// background removal runs in the browser; the model is downloaded on first use only
+// إزالة الخلفية: النموذج الذكي أولاً (يحتاج إنترنت)، وإن تعذّر نستخدم إزالة محلية للخلفيات الموحّدة اللون
+function localRemoveBg(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onerror = () => reject(new Error('image'));
+    img.onload = () => {
+      const k = Math.min(1, 1200 / Math.max(img.width, img.height));
+      const w = Math.round(img.width * k), h = Math.round(img.height * k);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0, w, h);
+      const im = g.getImageData(0, 0, w, h), d = im.data;
+      // لون الخلفية: وسيط بكسلات الإطار
+      const edge = []; const push = (x, y) => { const i = (y * w + x) * 4; edge.push([d[i], d[i + 1], d[i + 2]]); };
+      for (let x = 0; x < w; x += 3) { push(x, 0); push(x, h - 1); }
+      for (let y = 0; y < h; y += 3) { push(0, y); push(w - 1, y); }
+      const med = ch => edge.map(e => e[ch]).sort((a, b) => a - b)[edge.length >> 1];
+      const bg = [med(0), med(1), med(2)];
+      const dist = i => Math.hypot(d[i] - bg[0], d[i + 1] - bg[1], d[i + 2] - bg[2]);
+      const TOL = 46, seen = new Uint8Array(w * h), q = [];
+      const add = (x, y) => { const p = y * w + x; if (!seen[p] && dist(p * 4) < TOL) { seen[p] = 1; q.push(p); } };
+      for (let x = 0; x < w; x++) { add(x, 0); add(x, h - 1); }
+      for (let y = 0; y < h; y++) { add(0, y); add(w - 1, y); }
+      while (q.length) {
+        const p = q.pop(), x = p % w, y = (p / w) | 0;
+        if (x > 0) add(x - 1, y); if (x < w - 1) add(x + 1, y); if (y > 0) add(x, y - 1); if (y < h - 1) add(x, y + 1);
+      }
+      let cut = 0;
+      for (let p = 0; p < w * h; p++) if (seen[p]) { d[p * 4 + 3] = 0; cut++; }
+      // تنعيم الحافة: بكسل محتفظ به مجاور لبكسل محذوف يصير نصف شفاف
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const p = y * w + x;
+        if (!seen[p] && (seen[p - 1] || seen[p + 1] || seen[p - w] || seen[p + w])) d[p * 4 + 3] = 150;
+      }
+      URL.revokeObjectURL(url);
+      if (cut < w * h * 0.08) return reject(new Error('خلفية غير موحّدة'));
+      g.putImageData(im, 0, 0);
+      c.toBlob(b => (b ? resolve(b) : reject(new Error('blob'))), 'image/png');
+    };
+    img.src = url;
+  });
+}
+
 $('removeBg').addEventListener('click', async () => {
   if (!photo.file) return;
   const btn = $('removeBg');
   btn.disabled = true; setStatus('جارٍ إزالة الخلفية... قد تستغرق المرة الأولى دقيقة لتنزيل النموذج.');
   try {
-    const {removeBackground} = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
-    const out = await removeBackground(photo.file, {output: {format: 'image/png'}});
-    loadPhoto(out, photo.file);
-    setStatus('تمت إزالة الخلفية.');
+    const ai = (async () => {
+      const {removeBackground} = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+      return removeBackground(photo.file, {output: {format: 'image/png'}});
+    })();
+    const out = await Promise.race([ai, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 90000))]);
+    loadPhoto(out, photo.file, 'تمت إزالة الخلفية.');
   } catch (err) {
     console.error(err);
-    setStatus('تعذّرت إزالة الخلفية. استخدم صورة PNG شفافة الخلفية بدلًا منها.');
+    try {
+      const out = await localRemoveBg(photo.file);
+      loadPhoto(out, photo.file, 'تمت إزالة الخلفية بالطريقة المحلية (تناسب الخلفيات الموحّدة اللون). للصور المعقدة استخدم PNG شفاف.');
+    } catch (e2) {
+      console.error(e2);
+      setStatus('تعذّرت إزالة الخلفية: ' + (e2.message === 'خلفية غير موحّدة' ? 'الخلفية غير موحّدة اللون، ولم يتح الاتصال بخدمة الإزالة الذكية. ' : '') + 'استخدم صورة PNG شفافة الخلفية.');
+    }
   } finally {
     btn.disabled = false;
   }
