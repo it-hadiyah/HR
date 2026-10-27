@@ -82,3 +82,14 @@ nssm restart HadiyahPlatform     # عند الإقلاع: نسخة احتياط�
 - **النسخ الاحتياطي:** `pg_dump -Fc hadiyah > hadiyah.dump` يومياً، مع نسخ `modules/portal/policies` و`modules/portal/images`.
 - **التحديث:** `git pull && npm ci --omit=dev` ثم أعد تشغيل الخدمة (الجداول تُحدَّث تلقائياً عند الإقلاع، ولا تُحذف بيانات).
 - **استيراد موظفي الإجازات:** من نظام الإجازات ← «الاستيراد» (Excel) كما كان، ثم زر «ربط تلقائي» في الصفحة الرئيسية للمنصة.
+
+## تشغيل دائم على ويندوز + IIS (بدون `npm start`)
+
+1. **خدمة ويندوز** (PowerShell كمسؤول): `cd C:\apps\hadiyah-platform` ثم
+   `powershell -ExecutionPolicy Bypass -File scripts\install-service.ps1`
+   — ينزّل NSSM وينشئ الخدمة `HadiyahPlatform` بتشغيل تلقائي مع الإقلاع وإعادة تشغيل عند التعطل، والسجلات في `logs\`.
+2. **IIS كواجهة بالرابط الرسمي:** ثبّت *URL Rewrite* و*Application Request Routing*، ثم فعّل Proxy:
+   `%windir%\system32\inetsrv\appcmd.exe set config -section:system.webServer/proxy /enabled:"True" /commit:apphost`
+   وأنشئ موقعاً (أو عدّل الموقع القائم) مجلده الفعلي فيه الملف `deploy\web.config`. أوقف تطبيق البوابة القديم على الموقع نفسه.
+3. في `.env`: `TRUST_PROXY=1`، وعند HTTPS: `COOKIE_SECURE=1`، ثم `Restart-Service HadiyahPlatform`.
+4. التحديث لاحقاً: `git pull; npm install --omit=dev; Restart-Service HadiyahPlatform`.
