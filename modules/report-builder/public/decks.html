@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>العروض التقديمية</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="stylesheet" href="/report-builder/css/report.css">
+<link rel="stylesheet" href="/report-builder/css/deck.css">
+<link rel="stylesheet" href="/report-builder/css/studio.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<script src="/report-builder/js/guard.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong>منشئ التقارير والعروض</strong></div></div>
+  <div class="top-actions"><nav class="top-links"><a href="/report-builder/dashboard.html" class="nav-a">الرئيسية</a><a href="/report-builder/" class="nav-a">تقرير جديد</a><a href="/report-builder/list.html" class="nav-a">التقارير</a><a href="/report-builder/decks.html" class="nav-a on">العروض</a><a href="/report-builder/indicators.html" class="nav-a">المؤشرات</a><a href="/report-builder/admin.html" class="nav-a" id="admin-link" hidden>إدارة النظام</a></nav><span id="user-chip"></span></div>
+</header>
+<main class="page-wrap">
+  <h1>العروض التقديمية</h1>
+  <p class="muted">أنشئ عرضاً من قالب جاهز، أو حوّل تقريراً إلى عرض تقديمي تُستخرج شرائحه من بياناته الفعلية دون اختلاق أي رقم.</p>
+
+  <div class="db-banner" style="margin:12px 0"><a class="btn" href="/report-builder/list.html?type=deck">عروضي (القائمة والاعتماد والأرشيف)</a></div>
+
+  <h2 style="margin-top:32px" id="new">ابدأ عرضاً جديداً</h2>
+  <p class="muted">اختر قالباً، وسنرشدك لتعبئة كل شريحة بمعاينة مباشرة. «ببيانات تجريبية» يملأ القالب بأمثلة توضيحية.</p>
+  <div style="margin:8px 0 14px;max-width:260px"><label class="fld"><span>مقاس الشرائح</span><select id="ratio"><option value="16:9">عريض 16:9</option><option value="4:3">قياسي 4:3</option></select></label></div>
+  <div id="tpls"></div>
+
+  <h2 style="margin-top:32px" id="convert">تحويل تقرير إلى عرض</h2>
+  <div class="two" style="gap:16px;align-items:end">
+    <label class="fld"><span>التقرير</span><select id="rep"></select></label>
+    <label class="fld"><span>أقصى عدد للشرائح</span><input id="maxs" type="number" min="4" max="60" value="10"></label>
+  </div>
+  <p class="muted">تُختار الأقسام الأهم (مؤشرات، مقارنات، رسوم، حسابات) وتُنقل بياناتها كما هي. الأقسام النصية تُلخَّص إلى نقاط من نصّها نفسه.</p>
+  <button type="button" class="btn primary" id="conv">تحويل إلى عرض</button>
+</main>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script src="/report-builder/shared/templates.js"></script>
+<script src="/report-builder/shared/calc.js"></script>
+<script src="/report-builder/shared/render.js"></script>
+<script src="/report-builder/shared/studio.js"></script>
+<script src="/report-builder/shared/deck.js"></script>
+<script type="module">
+import { el, btn, toast, confirmDialog } from '/report-builder/js/ui.js';
+import { mountUserChip } from '/report-builder/js/userchip.js';
+import { buildTemplateGallery } from '/report-builder/js/template-gallery.js';
+const D = window.RBD;
+let me;
+const fmt = (s) => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' }); };
+const post = async (url, body) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const o = await r.json().catch(() => ({})); if (!r.ok) throw new Error(o.error || 'تعذر التنفيذ'); return o; };
+
+let cfg = {};
+async function create(t, sample) {
+  try {
+    const deck = D.createDeck(t.id, { sample, ratio: document.getElementById('ratio').value });
+    if (!deck.title) deck.title = t.name;
+    const o = await post('/report-builder/api/decks', deck); location.href = '/report-builder/deck.html?id=' + o.id;
+  } catch (e) { toast(e.message, { tone: 'err' }); }
+}
+// المعاينة تُرسم بالمُصيِّر نفسه الذي يستعمله المحرر ووضع العرض، وعلى البيانات نفسها التي ينشئها «استخدم القالب»
+function mountDeckThumb(box, item, ratio) {
+  const rt = D.RATIOS[ratio], deck = D.createDeck(item.id, { sample: false, ratio }), n = deck.slides.length;
+  box.setAttribute('style', `aspect-ratio:${rt.w} / ${rt.h};${D.rootStyle(deck)}`);
+  const idx = { 0: 0, 1: Math.min(2, n - 1), 2: Math.min(7, n - 1) };
+  const paint = (k) => { const i = idx[k] != null ? idx[k] : 0; box.innerHTML = D.renderSlide(deck, deck.slides[i], { config: cfg, index: i, total: n, preview: true }); fit(); };
+  const fit = () => { const s = box.firstElementChild; if (s) { s.style.position = 'absolute'; s.style.top = '0'; s.style.right = '0'; s.style.transformOrigin = 'top right'; s.style.pointerEvents = 'none'; s.style.transform = `scale(${box.clientWidth / rt.w})`; } };
+  new ResizeObserver(fit).observe(box); paint(0); return paint;
+}
+function drawTemplates() {
+  const ratio = document.getElementById('ratio').value, rt = D.RATIOS[ratio];
+  buildTemplateGallery(document.getElementById('tpls'), {
+    items: D.TEMPLATES.map((t) => ({ id: t.id, name: t.name, desc: t.desc, category: t.category || 'عام', palette: t.palette, meta: (t.layouts ? t.layouts.length : t.slides.length) + ' شريحة', raw: t })),
+    categories: ['الكل', 'رسمي هدية', 'إدارية', 'مالية', 'مشاريع', 'عام'], user: me.username, favPrefix: 'rb-fav-deck:',
+    thumb: { aspect: rt.w + ' / ' + rt.h, variants: [['0', 'الغلاف'], ['1', 'المحتوى'], ['2', 'شريحة أخرى']], mount: (box, item) => mountDeckThumb(box, item, ratio) },
+    onUse: (item, sample) => create(item.raw, sample),
+    details: (item) => {
+      const deck = D.createDeck(item.id, { sample: false, ratio }), n = deck.slides.length;
+      const grid = el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;max-height:60vh;overflow:auto;padding:4px' });
+      deck.slides.forEach((s, i) => {
+        const box = el('div', { class: 'thumb', style: `aspect-ratio:${rt.w} / ${rt.h};${D.rootStyle(deck)};border:1px solid var(--border);border-radius:8px` });
+        const fit = () => { const sl = box.firstElementChild; if (sl) { sl.style.position = 'absolute'; sl.style.top = '0'; sl.style.right = '0'; sl.style.transformOrigin = 'top right'; sl.style.transform = `scale(${box.clientWidth / rt.w})`; sl.style.pointerEvents = 'none'; } };
+        const io = new IntersectionObserver((en) => { if (en[0].isIntersecting) { io.disconnect(); box.innerHTML = D.renderSlide(deck, s, { config: cfg, index: i, total: n, preview: true }); fit(); new ResizeObserver(fit).observe(box); } }, { rootMargin: '200px' }); io.observe(box);
+        grid.append(el('figure', { style: 'margin:0' }, box, el('figcaption', { style: 'font-size:12px;color:var(--muted);padding:4px 2px' }, (i + 1) + '. ' + D.layoutName(s.layout) + (s.title ? ' — ' + s.title : ''))));
+      });
+      return grid;
+    },
+  });
+}
+document.getElementById('ratio').onchange = drawTemplates;
+
+document.getElementById('conv').onclick = async () => {
+  const id = document.getElementById('rep').value; if (!id) { toast('اختر تقريراً أولاً', { tone: 'err' }); return; }
+  try {
+    const rep = await (await fetch('/report-builder/api/reports/' + id)).json();
+    const deck = D.fromReport(rep, { maxSlides: parseInt(document.getElementById('maxs').value, 10) || 10, ratio: document.getElementById('ratio').value });
+    deck.title = rep.title || 'عرض من تقرير';
+    const o = await post('/report-builder/api/decks', deck); location.href = '/report-builder/deck.html?id=' + o.id;
+  } catch (e) { toast(e.message, { tone: 'err' }); }
+};
+
+(async () => {
+  me = await (await fetch('/report-builder/api/me')).json();
+  mountUserChip(document.getElementById('user-chip'), me);
+  if (me.role === 'admin') document.getElementById('admin-link').hidden = false;
+  try { cfg = await (await fetch('/report-builder/api/config')).json(); } catch (e) { cfg = {}; }
+  drawTemplates();
+  try { const reps = await (await fetch('/report-builder/api/reports?scope=mine')).json(); const sel = document.getElementById('rep'); reps.forEach((r) => sel.append(el('option', { value: r.id }, r.title || 'بدون عنوان'))); if (!reps.length) sel.append(el('option', { value: '' }, 'لا توجد تقارير')); } catch (e) { /* ignore */ }
+})();
+</script>
+</body>
+</html>

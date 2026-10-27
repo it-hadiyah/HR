@@ -2,11 +2,12 @@
 // تعديله هنا مرة واحدة يغيّر القائمة في كل الصفحات. الأيقونات من Lucide عبر /shared/icons.js (بدون emoji).
 (async () => {
   if (window.top !== window.self || document.getElementById('hd-appbar')) return;
-  let data, icons;
+  let data = null, icons;
   try {
     const [r, mod] = await Promise.all([fetch('/api/launcher', { credentials: 'same-origin' }), import('/shared/icons.js')]);
-    if (!r.ok) return;
-    data = await r.json(); icons = mod;
+    icons = mod;
+    if (r.ok) data = await r.json();            // بلا جلسة يظهر الزر للزائر ويعرض خيار تسجيل الدخول
+    else if (r.status !== 401) return;
   } catch { return; }
   const { icon } = icons;
 
@@ -34,6 +35,11 @@
     .who{min-width:0}
     .who b{display:block;font-size:.95em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .who span{display:block;color:var(--muted);font-size:.82em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cta{display:flex;flex-direction:column;gap:10px;padding:12px 12px 10px;text-align:right}
+    .cta p{margin:0;color:var(--muted);font-size:.9em}
+    .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600}
+    .btn:hover{filter:brightness(.92)}
+    @media (prefers-color-scheme:dark){.btn{color:#06332d}}
     .sep{height:1px;background:var(--line);margin:4px 6px}
     .lbl{padding:8px 10px 4px;color:var(--muted);font-size:.75em;font-weight:600;letter-spacing:.02em}
     .item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;background:none;border-radius:9px;text-align:right;text-decoration:none;cursor:pointer;color:var(--fg)}
@@ -59,25 +65,31 @@
   const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html !== undefined) n.innerHTML = html; return n; };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  if (!data) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    const cta = el('div', 'cta', `<p>سجّل الدخول لرؤية المنصات الأخرى والتنقل بينها.</p><a class="btn" role="menuitem" href="/login/?next=${next}">${icon('log-in', 17)}<span>تسجيل الدخول</span></a>`);
+    menu.append(cta);
+  } else {
   const u = data.user;
-  const name = u.employee?.full_name || u.full_name;
-  const head = el('div', 'head', `<div class="av">${esc([...name][0] || '؟')}</div><div class="who"><b>${esc(name)}</b><span>${esc(u.role_label)}</span></div>`);
-  menu.append(head, el('div', 'sep'), el('div', 'lbl', 'المنصات'));
-
-  const here = [...data.apps].sort((a, b) => b.path.length - a.path.length).find(a => location.pathname.startsWith(a.path));
-  for (const a of data.apps) {
-    const link = el('a', 'item' + (a === here ? ' cur' : ''), `<span class="ic">${icon(a.icon, 17)}</span><span class="t">${esc(a.title)}</span>${a === here ? `<span class="ck">${icon('check', 16)}</span>` : ''}`);
-    link.href = a.path; link.setAttribute('role', 'menuitem'); if (a === here) link.setAttribute('aria-current', 'page');
-    menu.append(link);
-  }
-  menu.append(el('div', 'sep'), el('div', 'lbl', 'الحساب'));
-  const home = el('a', 'item', `<span class="ic">${icon('house', 17)}</span><span class="t">الصفحة الرئيسية للمنصة</span>`);
-  home.href = '/login/'; home.setAttribute('role', 'menuitem');
-  const out = el('button', 'item out', `<span class="ic">${icon('log-out', 17)}</span><span class="t">تسجيل الخروج</span>`);
-  out.type = 'button'; out.setAttribute('role', 'menuitem');
-  out.addEventListener('click', async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { location.href = '/login/'; } });
-  menu.append(home, out);
-
+    const name = u.employee?.full_name || u.full_name;
+    const head = el('div', 'head', `<div class="av">${esc([...name][0] || '؟')}</div><div class="who"><b>${esc(name)}</b><span>${esc(u.role_label)}</span></div>`);
+    menu.append(head, el('div', 'sep'), el('div', 'lbl', 'المنصات'));
+  
+    const here = [...data.apps].sort((a, b) => b.path.length - a.path.length).find(a => location.pathname.startsWith(a.path));
+    for (const a of data.apps) {
+      const link = el('a', 'item' + (a === here ? ' cur' : ''), `<span class="ic">${icon(a.icon, 17)}</span><span class="t">${esc(a.title)}</span>${a === here ? `<span class="ck">${icon('check', 16)}</span>` : ''}`);
+      link.href = a.path; link.setAttribute('role', 'menuitem'); if (a === here) link.setAttribute('aria-current', 'page');
+      menu.append(link);
+    }
+    menu.append(el('div', 'sep'), el('div', 'lbl', 'الحساب'));
+    const home = el('a', 'item', `<span class="ic">${icon('house', 17)}</span><span class="t">الصفحة الرئيسية للمنصة</span>`);
+    home.href = '/login/'; home.setAttribute('role', 'menuitem');
+    const out = el('button', 'item out', `<span class="ic">${icon('log-out', 17)}</span><span class="t">تسجيل الخروج</span>`);
+    out.type = 'button'; out.setAttribute('role', 'menuitem');
+    out.addEventListener('click', async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { location.href = '/login/'; } });
+    menu.append(home, out);
+  
+    }
   const items = () => [...menu.querySelectorAll('.item')];
   const open = () => { menu.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); (menu.querySelector('.item.cur') || items()[0])?.focus(); };
   const close = (refocus = true) => { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); if (refocus) btn.focus(); };

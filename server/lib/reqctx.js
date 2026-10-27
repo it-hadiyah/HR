@@ -12,7 +12,7 @@ export function platformOf(url = '') {
   if (u.startsWith('/api/core') || u.startsWith('/admin')) return 'admin';
   if (u.startsWith('/portal') ) return 'portal';
   if (u.startsWith('/card') || u.startsWith('/api/directory') || u.startsWith('/api/card')) return 'card';
-  if (u.startsWith('/report')) return 'report';
+  if (u.startsWith('/report-builder')) return 'report-builder';
   if (u.startsWith('/hr') || /^\/api\/(org|employees|leaves|targets|dashboard|reports|import|admin)(\/|$)/.test(u)) return 'hr';
   return 'platform';
 }

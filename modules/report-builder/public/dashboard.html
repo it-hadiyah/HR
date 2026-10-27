@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الرئيسية</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<script src="/report-builder/js/guard.js"></script>
+<style>
+.db-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:16px}
+.db-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow-1)}
+.db-card h2{margin:0 0 10px;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.db-card h2 a{font-size:.85rem;font-weight:400}
+.db-kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:16px}
+.db-kpi{background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--brand);border-radius:14px;padding:12px 14px;text-decoration:none;color:inherit;display:block}
+.db-kpi b{display:block;font-size:1.9rem;line-height:1.2}.db-kpi span{font-size:.85rem;color:var(--muted)}
+.db-quick{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.db-li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border);align-items:center}
+.db-li:first-of-type{border-top:0}.db-li a.t{font-weight:600;text-decoration:none;color:inherit}.db-li small{color:var(--muted)}
+.db-empty{color:var(--muted);font-size:.9rem;padding:6px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong>منشئ التقارير والعروض</strong><small id="orgname"></small></div></div>
+  <div class="top-actions"><nav class="top-links"><a href="/report-builder/dashboard.html" class="nav-a on">الرئيسية</a><a href="/report-builder/" class="nav-a">تقرير جديد</a><a href="/report-builder/list.html" class="nav-a">التقارير</a><a href="/report-builder/decks.html" class="nav-a">العروض</a><a href="/report-builder/indicators.html" class="nav-a">المؤشرات</a><a href="/report-builder/admin.html" class="nav-a" id="admin-link" hidden>إدارة النظام</a></nav><span id="user-chip"></span></div>
+</header>
+<main class="page-wrap">
+  <h1 id="hello">مرحباً</h1>
+  <p class="muted">ملخص أعمالك وإجراءاتك السريعة.</p>
+  <div class="db-quick">
+    <a class="btn primary" href="/report-builder/">+ تقرير جديد</a><a class="btn primary" href="/report-builder/decks.html#new">+ عرض تقديمي جديد</a><a class="btn" href="/report-builder/decks.html#convert">تحويل تقرير إلى عرض</a><a class="btn" href="/report-builder/list.html">كل تقاريري</a>
+  </div>
+  <div class="db-kpis" id="kpis"></div>
+  <div class="db-grid" id="grid"></div>
+</main>
+<script type="module">
+import { el } from '/report-builder/js/ui.js';
+import { mountUserChip } from '/report-builder/js/userchip.js';
+import { statusChip } from '/report-builder/js/workflow-ui.js';
+const fmt = (s) => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ar-SA-u-ca-gregory', { month: 'short', day: 'numeric' }); };
+const kpi = (n, label, href) => el('a', { class: 'db-kpi', href }, el('b', {}, String(n)), el('span', {}, label));
+const card = (title, link, rows, emptyMsg) => el('section', { class: 'db-card' }, el('h2', {}, title, link ? el('a', { href: link[0] }, link[1]) : null), rows.length ? rows : el('div', { class: 'db-empty' }, emptyMsg));
+const rep = (r, extra) => el('div', { class: 'db-li' }, el('div', {}, el('a', { class: 't', href: (r.kind === 'deck' ? '/report-builder/decks/' : '/report-builder/reports/') + r.id + '.html' }, (r.kind === 'deck' ? '🖥 ' : '') + (r.title || 'بدون عنوان')), el('div', {}, el('small', {}, [extra, r.templateName, fmt(r.updatedAt)].filter(Boolean).join(' · ')))), statusChip(r.status));
+(async () => {
+  const me = await (await fetch('/report-builder/api/me')).json();
+  mountUserChip(document.getElementById('user-chip'), me);
+  if (me.role === 'admin') document.getElementById('admin-link').hidden = false;
+  document.getElementById('hello').textContent = 'مرحباً ' + me.name;
+  const d = await (await fetch('/report-builder/api/dashboard')).json(), c = d.counts;
+  const k = document.getElementById('kpis');
+  k.append(kpi(c.reports, 'تقاريري', '/report-builder/list.html'), kpi(c.drafts, 'مسودات', '/report-builder/list.html'), kpi(c.submitted, 'بانتظار الاعتماد', '/report-builder/list.html'), kpi(c.approved, 'معتمدة', '/report-builder/list.html'), kpi(c.returned, 'أُعيدت للتعديل', '/report-builder/list.html'), kpi(c.decks, 'عروضي', '/report-builder/list.html?type=deck'), kpi(c.shares, 'روابط مشاركة فعّالة', '/report-builder/decks.html'));
+  if (me.role !== 'employee') k.prepend(kpi(c.inbox, 'بانتظار اعتمادك', '/report-builder/list.html?scope=inbox'));
+  if (d.admin) k.append(kpi(d.admin.allReports, 'كل التقارير', '/report-builder/list.html?scope=all'), kpi(d.admin.allDecks, 'كل العروض', '/report-builder/decks.html'), kpi(d.admin.users, 'المستخدمون', '/report-builder/admin.html'));
+  const g = document.getElementById('grid');
+  if (me.role !== 'employee') g.append(card('بانتظار اعتمادك', ['/report-builder/list.html?scope=inbox', 'عرض الكل'], d.inbox.map((r) => rep(r, r.ownerName)), 'لا توجد تقارير بانتظار اعتمادك.'));
+  g.append(
+    card('آخر التقارير', ['/report-builder/list.html', 'الكل'], d.recentReports.map((r) => rep(r)), 'لم تنشئ تقارير بعد.'),
+    card('المسودات', null, d.drafts.map((r) => rep(r)), 'لا توجد مسودات.'),
+    card('أُعيدت للتعديل', null, d.returned.map((r) => rep(r)), 'لا توجد تقارير معادة.'),
+    card('آخر العروض التقديمية', ['/report-builder/list.html?type=deck', 'الكل'], d.recentDecks.map((x) => el('div', { class: 'db-li' }, el('div', {}, el('a', { class: 't', href: '/report-builder/deck.html?id=' + x.id }, x.title || 'بدون عنوان'), el('div', {}, el('small', {}, x.slides + ' شريحة · ' + fmt(x.updatedAt)))), el('a', { class: 'btn sm', href: '/report-builder/decks/' + x.id + '.html#present', target: '_blank', rel: 'noopener' }, 'عرض'))), 'لا توجد عروض بعد.'),
+    card('الملفات المشاركة', null, d.shares.map((s) => el('div', { class: 'db-li' }, el('div', {}, el('b', {}, s.title || (s.type === 'deck' ? 'عرض' : 'تقرير')), el('div', {}, el('small', {}, (s.mode === 'password' ? 'بكلمة مرور' : s.mode === 'users' ? 'مستخدمون محددون' : 'بعد الدخول') + ' · المشاهدات ' + s.views))), el('a', { class: 'btn sm ghost', href: s.url, target: '_blank', rel: 'noopener' }, 'فتح'))), 'لم تشارك أي ملف بعد.'),
+    card('القوالب الرسمية', null, [el('div', { class: 'db-li' }, el('span', {}, c.reportTemplates + ' قالب تقرير (مالية، إدارية، مشاريع، تقنية...)'), el('a', { class: 'btn sm', href: '/' }, 'تصفح')), el('div', { class: 'db-li' }, el('span', {}, c.deckTemplates + ' قالب عرض تقديمي'), el('a', { class: 'btn sm', href: '/report-builder/decks.html#new' }, 'تصفح'))], ''));
+})();
+</script>
+</body>
+</html>

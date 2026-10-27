@@ -77,11 +77,11 @@ test('نطاق البيانات: مدير قسم يرى موظفي قسمه فق
 test('تعطيل منصة يمنع الجميع، والإدارة المركزية لا تُعطَّل', { skip }, async () => {
   const a = await t.as('boss');
   assert.equal((await a.put('/api/core/platforms/admin', { active: false })).status, 400);
-  assert.equal((await a.put('/api/core/platforms/report', { active: false })).status, 200);
-  assert.equal((await a.get('/report/')).status, 403);
-  assert.equal((await a.get('/api/launcher')).json.apps.some(x => x.slug === 'report'), false);
-  await a.put('/api/core/platforms/report', { active: true });
-  assert.equal((await a.get('/report/')).status, 200);
+  assert.equal((await a.put('/api/core/platforms/report-builder', { active: false })).status, 200);
+  assert.equal((await a.get('/report-builder/')).status, 403);
+  assert.equal((await a.get('/api/launcher')).json.apps.some(x => x.slug === 'report-builder'), false);
+  await a.put('/api/core/platforms/report-builder', { active: true });
+  assert.equal((await a.get('/report-builder/')).status, 200);
 });
 
 test('الجلسات: الخروج وإنهاء الجلسة إدارياً وتعطيل الحساب وتغيير كلمة المرور تُسقط الجلسة فوراً', { skip }, async () => {

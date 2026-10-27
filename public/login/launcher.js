@@ -12,7 +12,7 @@ const nextUrl = () => {
   return n && n.startsWith('/') && !n.startsWith('//') ? n : null;
 };
 
-const TARGETS = { '/hr/': 'نظام الأرصدة', '/report/': 'نظام التقارير', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
+const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
 
 function showLogin() {
   $('home').hidden = true; $('login').hidden = false;

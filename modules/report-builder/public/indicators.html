@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مركز المؤشرات</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="stylesheet" href="/report-builder/css/components.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<script src="/report-builder/js/guard.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong>منشئ التقارير والعروض</strong></div></div>
+  <div class="top-actions"><nav class="top-links"><a href="/report-builder/dashboard.html" class="nav-a">الرئيسية</a><a href="/report-builder/" class="nav-a">تقرير جديد</a><a href="/report-builder/list.html" class="nav-a">التقارير</a><a href="/report-builder/decks.html" class="nav-a">العروض</a><a href="/report-builder/indicators.html" class="nav-a on">المؤشرات</a><a href="/report-builder/admin.html" class="nav-a" id="admin-link" hidden>إدارة النظام</a></nav><span id="user-chip"></span></div>
+</header>
+<main class="page-wrap">
+  <h1>مركز المؤشرات</h1>
+  <p class="muted">سلاسل بيانات مركزية (إيرادات شهرية، مستفيدون سنوياً...) تُدخَل مرة واحدة وتُربط بأي رسم في التقارير والعروض. عند تعديل المؤشر تتحدّث كل الرسوم المرتبطة تلقائياً، مع بقاء المصدر وتاريخ التحديث.</p>
+  <div class="btns" id="tools"></div>
+  <div id="list" class="rlist" style="margin-top:12px"></div>
+  <div id="empty" class="empty" hidden><b>لا توجد مؤشرات بعد</b><small>أضف أول مؤشر ثم اربطه بأي رسم من محرر التقرير.</small></div>
+</main>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script src="/report-builder/shared/templates.js"></script>
+<script src="/report-builder/shared/calc.js"></script>
+<script src="/report-builder/shared/render.js"></script>
+<script type="module">
+import { el, btn, toast, modal, confirmDialog } from '/report-builder/js/ui.js';
+import { mountUserChip } from '/report-builder/js/userchip.js';
+import { parseDelimited, parseXlsx } from '/report-builder/js/importer.js';
+let me, items = [];
+const fmt = (s) => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' }); };
+const call = async (url, method, body) => { const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); const o = await r.json().catch(() => ({})); if (!r.ok) throw new Error(o.error || 'تعذر التنفيذ'); return o; };
+const canEdit = () => me.role !== 'employee';
+
+function draw() {
+  const list = document.getElementById('list'); list.replaceChildren();
+  document.getElementById('empty').hidden = items.length > 0;
+  items.forEach((x) => list.append(el('div', { class: 'ritem' },
+    el('div', { class: 'rt' }, el('span', { class: 'ttl' }, x.name), el('div', { class: 'rm' }, x.category ? el('span', {}, x.category) : null, el('span', {}, x.series.length + ' قيمة'), x.unit ? el('span', {}, 'الوحدة: ' + x.unit) : null, x.source ? el('span', {}, 'المصدر: ' + x.source) : null, x.asOf ? el('span', {}, 'آخر تحديث: ' + x.asOf) : null, el('span', {}, 'عدّله: ' + (x.updatedByName || '') + ' · ' + fmt(x.updatedAt)))),
+    canEdit() ? el('div', { class: 'ra' }, btn('تعديل', { cls: 'sm', onclick: () => edit(x) }), btn('حذف', { cls: 'sm ghost', onclick: () => del(x) })) : null)));
+}
+async function load() { items = await (await fetch('/report-builder/api/indicators')).json(); draw(); }
+async function del(x) { if (!(await confirmDialog({ title: 'حذف المؤشر', text: 'الرسوم المرتبطة بـ«' + x.name + '» ستحتفظ بآخر قيم محفوظة داخلها فقط إن فُك ربطها، وإلا ستظهر فارغة. متابعة؟', ok: 'حذف', danger: true }))) return; try { await call('/report-builder/api/indicators/' + x.id, 'DELETE'); toast('تم الحذف'); load(); } catch (e) { toast(e.message, { tone: 'err' }); } }
+
+function edit(x) {
+  const d = x ? JSON.parse(JSON.stringify(x)) : { name: '', category: '', unit: '', source: '', asOf: new Date().toISOString().slice(0, 10), series: [{ label: '', value: '' }, { label: '', value: '' }, { label: '', value: '' }] };
+  const inp = (k, label, o = {}) => el('label', { class: 'imp-map' }, el('span', {}, label), el('input', { type: o.type || 'text', value: d[k] || '', placeholder: o.ph || '', 'aria-label': label, oninput: (e) => { d[k] = e.target.value; } }));
+  const grid = el('div', { class: 'tscroll', style: 'max-height:240px;overflow:auto' });
+  const drawGrid = () => {
+    grid.replaceChildren(el('table', { class: 'grid' }, el('thead', {}, el('tr', {}, el('th', {}, 'التسمية'), el('th', {}, 'القيمة (رقم)'), el('th', {}))), el('tbody', {}, d.series.map((p, i) => el('tr', {},
+      el('td', {}, el('input', { type: 'text', value: p.label, 'aria-label': 'التسمية ' + (i + 1), oninput: (e) => { p.label = e.target.value; } })),
+      el('td', {}, el('input', { type: 'text', inputmode: 'decimal', value: p.value, 'aria-label': 'القيمة ' + (i + 1), oninput: (e) => { p.value = e.target.value; } })),
+      el('td', {}, btn('×', { cls: 'sm ghost', onclick: () => { d.series.splice(i, 1); if (!d.series.length) d.series.push({ label: '', value: '' }); drawGrid(); } })))))));
+  };
+  drawGrid();
+  const file = el('input', { type: 'file', accept: '.xlsx,.csv,.tsv,.txt', 'aria-label': 'استيراد ملف' });
+  const take = (rows) => { const body = rows.filter((r) => r.length >= 2); const hasHead = body.length > 1 && !/^[-+]?[\d٠-٩.,٬\s%]+$/.test(String(body[0][1] || '')); const data = (hasHead ? body.slice(1) : body).slice(0, 60).map((r) => ({ label: r[0] || '', value: String(r[1] || '').replace(/[,٬\s]/g, '') })); if (data.length) { d.series = data; drawGrid(); toast('تم استيراد ' + data.length + ' قيمة (العمودان الأولان)'); } else toast('لم أجد عمودين صالحين', { tone: 'err' }); };
+  file.onchange = async () => { const f = file.files[0]; if (!f) return; try { take(/\.xlsx$/i.test(f.name) ? await parseXlsx(await f.arrayBuffer()) : parseDelimited(await f.text())); } catch (e) { toast('تعذّرت قراءة الملف: ' + e.message, { tone: 'err' }); } };
+  const ta = el('textarea', { rows: 2, placeholder: 'أو الصق عمودين من Excel (التسمية ثم القيمة)…', 'aria-label': 'لصق', dir: 'auto', style: 'width:100%', oninput: (e) => { if (e.target.value.trim()) take(parseDelimited(e.target.value)); } });
+  const msg = el('p', { role: 'alert', style: 'color:var(--danger);min-height:1.2em' });
+  const m = modal(x ? 'تعديل المؤشر' : 'مؤشر جديد', el('div', { class: 'imp' },
+    el('div', { class: 'imp-maps' }, inp('name', 'اسم المؤشر *', { ph: 'الإيرادات الشهرية' }), inp('category', 'التصنيف', { ph: 'مالي' }), inp('unit', 'الوحدة', { ph: 'ألف ريال' }), inp('source', 'المصدر', { ph: 'النظام المالي' }), inp('asOf', 'آخر تحديث', { type: 'date' })),
+    grid, btn('+ إضافة قيمة', { cls: 'sm ghost', onclick: () => { d.series.push({ label: '', value: '' }); drawGrid(); } }), file, ta, msg,
+    el('div', { class: 'dlg-actions' }, btn('إلغاء', { cls: 'ghost', onclick: () => m.close() }), btn('حفظ', { cls: 'primary', onclick: async () => { try { await call(x ? '/report-builder/api/indicators/' + x.id : '/report-builder/api/indicators', x ? 'PUT' : 'POST', d); m.close(); toast('تم الحفظ', { tone: 'ok' }); load(); } catch (e) { msg.textContent = e.message; } } }))));
+}
+
+(async () => {
+  me = await (await fetch('/report-builder/api/me')).json();
+  mountUserChip(document.getElementById('user-chip'), me);
+  if (me.role === 'admin') document.getElementById('admin-link').hidden = false;
+  if (canEdit()) document.getElementById('tools').append(btn('+ مؤشر جديد', { cls: 'primary', onclick: () => edit(null) }));
+  else document.getElementById('tools').append(el('span', { class: 'muted' }, 'التعديل للمدير أو المسؤول. يمكنك ربط الرسوم بالمؤشرات من محرر التقرير.'));
+  load();
+})();
+</script>
+</body>
+</html>

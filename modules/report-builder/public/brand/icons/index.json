@@ -1,0 +1,741 @@
+[
+ {
+  "id": "rites",
+  "label": "أداء النسك",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "jamarat",
+  "label": "الجمرات",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "quran",
+  "label": "القرآن",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "kaaba",
+  "label": "الكعبة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "madinah",
+  "label": "المدينة المنورة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "mushaf",
+  "label": "المصحف",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "woman",
+  "label": "امرأة",
+  "hex": true,
+  "plain": false,
+  "category": "official"
+ },
+ {
+  "id": "dates",
+  "label": "تمر",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "dua",
+  "label": "دعاء",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "man-sujud",
+  "label": "رجل ساجد",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "ihram-man",
+  "label": "رجل محرم",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "man-dua",
+  "label": "رجل يدعو",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "man-dua-2",
+  "label": "رجل يدعو (2)",
+  "hex": true,
+  "plain": false,
+  "category": "official"
+ },
+ {
+  "id": "man-praying",
+  "label": "رجل يصلي",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "ornament",
+  "label": "زخرفة إسلامية",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "prayer-rug",
+  "label": "سجادة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "water",
+  "label": "سقيا ماء",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "lady-pilgrim",
+  "label": "سيدة معتمرة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "saudi-man",
+  "label": "شخصية سعودية",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "hospitality",
+  "label": "ضيافة",
+  "hex": true,
+  "plain": false,
+  "category": "official"
+ },
+ {
+  "id": "tawaf",
+  "label": "طواف",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "arafah",
+  "label": "عرفة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "lantern",
+  "label": "فانوس",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "dome",
+  "label": "قبة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "coffee",
+  "label": "قهوة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "mosque",
+  "label": "مسجد",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "pilgrims",
+  "label": "معتمر ومعتمرة",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "crescent",
+  "label": "هلال",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "crescent-mosque",
+  "label": "هلال ومسجد",
+  "hex": true,
+  "plain": true,
+  "category": "official"
+ },
+ {
+  "id": "u-project",
+  "label": "مشروع",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-initiative",
+  "label": "مبادرة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-plan",
+  "label": "خطة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-goal",
+  "label": "هدف",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-milestone",
+  "label": "مرحلة / معلم",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-calendar",
+  "label": "جدول زمني",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-task",
+  "label": "مهمة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-progress",
+  "label": "نسبة الإنجاز",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-proposal",
+  "label": "اقتراح / فكرة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-innovation",
+  "label": "ابتكار",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-challenge",
+  "label": "تحدٍّ / عوائق",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-risk",
+  "label": "مخاطر",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-next",
+  "label": "الخطوات القادمة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-review",
+  "label": "مراجعة وتدقيق",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-monitor-eye",
+  "label": "متابعة ورقابة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-process",
+  "label": "إجراءات وعمليات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-time",
+  "label": "الوقت / المدة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-partnership",
+  "label": "شراكة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-team",
+  "label": "فريق العمل",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مشاريع ومبادرات"
+ },
+ {
+  "id": "u-report",
+  "label": "تقرير",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-summary",
+  "label": "ملخص تنفيذي",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-intro",
+  "label": "مقدمة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-conclusion",
+  "label": "خلاصة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-recommendation",
+  "label": "توصيات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-decision",
+  "label": "قرارات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-meeting",
+  "label": "اجتماع",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-contract",
+  "label": "عقد / اتفاقية",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-document-check",
+  "label": "وثيقة معتمدة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-archive",
+  "label": "أرشيف",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-numbers",
+  "label": "أرقام",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-search",
+  "label": "بحث ومنهجية",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-mail",
+  "label": "مراسلات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-chat",
+  "label": "تواصل وملاحظات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-announcement",
+  "label": "إعلام وإعلان",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-phone",
+  "label": "اتصال",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-location",
+  "label": "الموقع",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-building",
+  "label": "المبنى / الفرع",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-leadership",
+  "label": "الإدارة العليا",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "عناوين التقارير"
+ },
+ {
+  "id": "u-trophy",
+  "label": "إنجازات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-award",
+  "label": "جودة وتميّز",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-certificate",
+  "label": "شهادة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-star",
+  "label": "تقييم",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-satisfaction",
+  "label": "رضا المستفيدين",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-kpi",
+  "label": "مؤشرات الأداء",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-stats",
+  "label": "إحصائيات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-pie",
+  "label": "رسم دائري",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-growth",
+  "label": "نمو",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-bars-up",
+  "label": "تطور",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-shield",
+  "label": "امتثال وحماية",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "إنجازات وأداء"
+ },
+ {
+  "id": "u-wallet",
+  "label": "الميزانية",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مالية"
+ },
+ {
+  "id": "u-coins",
+  "label": "مبالغ وتبرعات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مالية"
+ },
+ {
+  "id": "u-receipt",
+  "label": "مصروفات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مالية"
+ },
+ {
+  "id": "u-revenue",
+  "label": "إيرادات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "مالية"
+ },
+ {
+  "id": "u-monitor",
+  "label": "تقنية المعلومات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "تقنية"
+ },
+ {
+  "id": "u-network",
+  "label": "الشبكات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "تقنية"
+ },
+ {
+  "id": "u-server",
+  "label": "الخوادم",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "تقنية"
+ },
+ {
+  "id": "u-database",
+  "label": "البيانات",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "تقنية"
+ },
+ {
+  "id": "u-heart",
+  "label": "المستفيدون",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-volunteer",
+  "label": "المتطوعون",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-training",
+  "label": "التدريب",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-book",
+  "label": "المعرفة والمحتوى",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-relief",
+  "label": "الإغاثة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-water-drop",
+  "label": "السقيا",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-home",
+  "label": "الإسكان",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-bus",
+  "label": "النقل",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-health",
+  "label": "الصحة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ },
+ {
+  "id": "u-leaf",
+  "label": "البيئة والاستدامة",
+  "hex": true,
+  "plain": true,
+  "category": "unofficial",
+  "group": "موارد وبرامج"
+ }
+]

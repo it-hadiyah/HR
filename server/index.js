@@ -18,6 +18,7 @@ import { initSchema } from './db/init.js';
 import authRoutes from './routes/auth.js';
 import platformRoutes from './routes/platform.js';
 import coreRoutes from './routes/core.js';
+import reportBuilderRoutes from './routes/reportBuilder.js';
 import portalAdminRoutes from './routes/portalAdmin.js';
 import { PORTAL_DIR } from './lib/uploads.js';
 import orgRoutes from './routes/org.js';
@@ -61,11 +62,12 @@ const looseCsp = helmet({
   },
   crossOriginEmbedderPolicy: false,
 });
-app.use((req, res, next) => (/^\/(portal|card|report)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
+app.use((req, res, next) => (/^\/(portal|card|report-builder)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
 app.use(cookieParser());
 app.use(requestContext);
 
 // ── واجهات API ──
+app.use('/report-builder', reportBuilderRoutes);                  // منشئ التقارير: يقرأ الجسم بنفسه فيُركَّب قبل express.json
 app.use('/api/portal-admin', authenticate, portalAdminRoutes);   // قبل express.json: يقرأ الجسم بنفسه (حتى 20MB)
 app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false }), authRoutes);
@@ -139,7 +141,6 @@ app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
 app.get('/', (req, res) => res.redirect('/portal/'));   // الرابط الرئيسي يفتح البوابة
 mount('/portal', 'portal', PORTAL_DIR);
 mount('/card', 'card', path.join(MODULES, 'card'));
-mount('/report', 'report', path.join(MODULES, 'report'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
 app.use('/admin', gate('admin'), withAppBar(path.join(root, 'public/admin')), express.static(path.join(root, 'public/admin')));

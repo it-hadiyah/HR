@@ -70,6 +70,7 @@ nssm restart HadiyahPlatform     # عند الإقلاع: نسخة احتياط�
 ```
 - إن تعذّر `pg_dump` تُحفظ لقطة JSON لكل الجداول بدلاً منه (تُذكر في السجل).
 - الاستعادة: `pg_restore --clean --if-exists --no-owner -d hadiyah backups\<الملف>.dump`.
+- **منشئ التقارير** يحفظ تقاريره في مجلد `data/report-builder` (أو `REPORT_BUILDER_DATA`) وليس في PostgreSQL؛ انسخه احتياطياً مع `backups\`. الدخول عبر تسجيل الدخول الموحّد (لا AD).
 - لإيقاف الترحيل التلقائي اضبط `AUTO_MIGRATE=0` ونفّذ `npm run db:migrate` عند الجاهزية.
 
 ## بعد التشغيل

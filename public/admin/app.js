@@ -353,7 +353,7 @@ async function auditPage() {
     const inp = (k, ph, type = 'search') => { const i = h('input', { type, placeholder: ph, value: audSt[k], 'aria-label': ph }); i.addEventListener('input', debounce(() => { audSt[k] = i.value; audSt.page = 1; guard(load); })); return i; };
     const sel = (k, opts) => { const s = select(opts, audSt[k], { 'aria-label': k }); s.addEventListener('change', () => { audSt[k] = s.value; audSt.page = 1; guard(load); }); return s; };
     bar.append(inp('q', 'بحث: مستخدم أو معرّف…'),
-      sel('platform', [['', 'كل المنصات'], ['platform', 'الدخول'], ['portal', 'البوابة'], ['hr', 'الإجازات'], ['card', 'البطاقة'], ['report', 'التقارير'], ['portal-admin', 'لوحة البوابة'], ['admin', 'الإدارة']]),
+      sel('platform', [['', 'كل المنصات'], ['platform', 'الدخول'], ['portal', 'البوابة'], ['hr', 'الإجازات'], ['card', 'البطاقة'], ['report-builder', 'منشئ التقارير'], ['portal-admin', 'لوحة البوابة'], ['admin', 'الإدارة']]),
       sel('action', [['', 'كل العمليات'], ...Object.entries(ACTION_LABEL)]), sel('result', [['', 'كل النتائج'], ['success', 'نجاح'], ['failure', 'فشل'], ['denied', 'مرفوض']]),
       inp('from', 'من تاريخ', 'date'), inp('to', 'إلى تاريخ', 'date'), h('span', { class: 'grow' }),
       can('audit_export') ? h('a', { class: 'btn', href: '/api/core/audit/export.csv' + qs({ ...audSt, tab: undefined, direct: undefined, page: undefined }), onClick: e => { e.currentTarget.href = '/api/core/audit/export.csv' + qs({ ...audSt, tab: undefined, direct: undefined, page: undefined }); } }, ico('file-down', 16), 'تصدير CSV') : null);

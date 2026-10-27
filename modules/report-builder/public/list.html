@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التقارير والعروض</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<script src="/report-builder/js/guard.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong>منشئ التقارير</strong></div></div>
+  <div class="top-actions"><nav class="top-links"><a href="/report-builder/dashboard.html" class="nav-a">الرئيسية</a><a href="/report-builder/" class="nav-a">تقرير جديد</a><a href="/report-builder/list.html" class="nav-a on">التقارير والعروض</a><a href="/report-builder/decks.html" class="nav-a">العروض</a><a href="/report-builder/indicators.html" class="nav-a">المؤشرات</a><a href="/report-builder/admin.html" class="nav-a" id="admin-link" hidden>إدارة النظام</a></nav><span id="user-chip"></span></div>
+</header>
+<main class="page-wrap">
+  <h1 id="h1">التقارير</h1>
+  <div class="seg" id="typesw" role="radiogroup" aria-label="النوع" style="margin:8px 0 12px"></div>
+  <div class="chips" id="tabs" role="tablist" aria-label="نطاق التقارير"></div>
+  <div class="search" style="margin-top:12px"><span id="si"></span><input id="q" type="search" placeholder="ابحث بالعنوان أو الموظف أو الإدارة..." aria-label="بحث في التقارير"></div>
+  <div id="list" class="rlist" aria-live="polite"><div class="skel" style="height:72px;border-radius:14px;position:relative"></div><div class="skel" style="height:72px;border-radius:14px;position:relative"></div></div>
+  <div id="empty" class="empty" hidden><b id="empty-t">لا توجد تقارير</b><small id="empty-s"></small><a class="btn primary" href="/report-builder/" id="empty-a">إنشاء تقرير</a></div>
+</main>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script type="module">
+import { icon } from '/report-builder/js/icons.js';
+import { el, btn, toast, modal } from '/report-builder/js/ui.js';
+import { call, statusChip } from '/report-builder/js/workflow-ui.js';
+import { mountUserChip } from '/report-builder/js/userchip.js';
+
+document.getElementById('si').innerHTML = icon('search', 16);
+const list = document.getElementById('list'), empty = document.getElementById('empty');
+let all = [], me, scope = 'mine', users = [], type = (new URLSearchParams(location.search).get('type') === 'deck' || localStorage.getItem('rb-list-type') === 'deck') && new URLSearchParams(location.search).get('type') !== 'report' ? 'deck' : 'report';
+const isDeck = () => type === 'deck';
+const NOUN = () => (isDeck() ? 'العرض' : 'التقرير');
+const fmt = (s) => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' }); };
+
+function draw() {
+  const q = document.getElementById('q').value.trim();
+  const rows = all.filter((r) => !q || [r.title, r.employee, r.department, r.templateName, r.ownerName].join(' ').includes(q));
+  list.replaceChildren();
+  const e = document.getElementById('empty');
+  e.hidden = all.length > 0;
+  document.getElementById('empty-t').textContent = scope === 'inbox' ? (isDeck() ? 'لا توجد عروض بانتظار اعتمادك' : 'لا توجد تقارير بانتظار اعتمادك') : scope === 'archive' ? 'الأرشيف فارغ' : (isDeck() ? 'لا توجد عروض' : 'لا توجد تقارير');
+  document.getElementById('empty-s').textContent = scope === 'inbox' ? 'عندما يرسل لك موظف تقريراً للاعتماد سيظهر هنا.' : scope === 'all' ? '' : 'ابدأ بإنشاء تقريرك الأول من أحد القوالب.';
+  { const ea = document.getElementById('empty-a'); ea.hidden = scope !== 'mine'; ea.href = isDeck() ? '/report-builder/decks.html#new' : '/'; ea.textContent = isDeck() ? 'إنشاء عرض' : 'إنشاء تقرير'; }
+  if (all.length && !rows.length) list.append(el('div', { class: 'empty' }, el('b', {}, 'لا نتائج مطابقة')));
+  rows.forEach((r) => list.append(el('div', { class: 'ritem' },
+    el('div', { class: 'rt' }, el('a', { class: 'ttl', href: (isDeck() ? '/report-builder/decks/' : '/report-builder/reports/') + r.id + '.html' }, r.title || 'بدون عنوان'),
+      el('div', { class: 'rm' }, statusChip(r.status), isDeck() ? el('span', {}, r.slides + ' شريحة') : null, scope !== 'mine' || r.owner !== me.username ? el('span', {}, 'صاحب التقرير: ' + (r.ownerName || r.owner || 'بدون مالك')) : null, r.sharedWithName && r.status !== 'draft' ? el('span', {}, 'عند: ' + r.sharedWithName) : null, el('span', {}, r.templateName || 'تقرير'), el('span', {}, 'آخر تعديل: ' + fmt(r.updatedAt || r.createdAt)))),
+    el('div', { class: 'ra' },
+      r.canEdit ? el('a', { class: 'btn sm', href: (isDeck() ? '/report-builder/deck.html?id=' : '/report-builder/?edit=') + r.id }, 'تعديل') : null,
+      scope === 'inbox' ? el('a', { class: 'btn sm primary', href: (isDeck() ? '/report-builder/decks/' : '/report-builder/reports/') + r.id + '.html' }, 'مراجعة') : null,
+      scope === 'mine' || me.role === 'admin' ? btn('مشاركة', { cls: 'sm ghost', onclick: async () => { const m = await import('/report-builder/js/share-ui.js'); m.openShareDialog({ type: isDeck() ? 'deck' : 'report', id: r.id, title: r.title, warn: r.status !== 'approved' ? 'هذا التقرير غير معتمد بعد.' : '' }); } }) : null,
+      scope === 'mine' || me.role === 'admin' ? btn('نسخة', { cls: 'sm ghost', onclick: () => dup(r.id) }) : null,
+      scope !== 'inbox' ? el('a', { class: 'btn sm ghost', href: (isDeck() ? '/report-builder/decks/' : '/report-builder/reports/') + r.id + '.html' + (isDeck() ? '#present' : ''), target: '_blank', rel: 'noopener' }, isDeck() ? 'عرض' : 'فتح') : null,
+      me.role === 'admin' ? btn('نقل', { cls: 'sm ghost', title: 'نقل الملكية لموظف آخر', onclick: () => reassign(r) }) : null))));
+}
+
+async function dup(id) {
+  try {
+    const d = await (await fetch((isDeck() ? '/report-builder/api/decks/' : '/report-builder/api/reports/') + id)).json();
+    delete d.id; d.title = (d.title || '') + ' (نسخة)';
+    const res = await fetch(isDeck() ? '/report-builder/api/decks' : '/report-builder/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+    if (!res.ok) throw new Error((await res.json()).error || 'تعذر النسخ');
+    toast('تم إنشاء نسخة (مسودة) باسمك', { tone: 'ok' }); if (scope === 'mine') load();
+  } catch (e) { toast(e.message, { tone: 'err' }); }
+}
+
+async function reassign(r) {
+  if (!users.length) users = await (await fetch('/report-builder/api/admin/users')).json();
+  const sel = el('select', { 'aria-label': 'المالك الجديد' }, users.filter((u) => !u.disabled).map((u) => el('option', { value: u.username, selected: u.username === r.owner }, u.name + ' (' + u.username + ')')));
+  const m = modal('نقل ملكية ' + NOUN(), el('div', {}, el('p', { class: 'muted' }, r.title), sel, el('div', { class: 'dlg-actions' }, btn('نقل', { cls: 'primary', onclick: async () => { try { await call(r.id, 'owner', { username: sel.value }, type); m.close(); toast('تم النقل', { tone: 'ok' }); load(); } catch (e) { toast(e.message, { tone: 'err' }); } } }), btn('إلغاء', { cls: 'ghost', onclick: () => m.close() }))));
+}
+
+async function load() {
+  list.replaceChildren(el('div', { class: 'skel', style: 'height:72px;border-radius:14px;position:relative' }));
+  try { const res = await fetch((isDeck() ? '/report-builder/api/decks?scope=' : '/report-builder/api/reports?scope=') + scope); all = res.ok ? await res.json() : []; } catch (e) { all = []; }
+  draw();
+}
+
+(async () => {
+  me = await (await fetch('/report-builder/api/me')).json();
+  mountUserChip(document.getElementById('user-chip'), me);
+  if (me.role === 'admin') document.getElementById('admin-link').hidden = false;
+  const box = document.getElementById('tabs'), sw = document.getElementById('typesw');
+  const initial = new URLSearchParams(location.search).get('scope');
+  const tabsOf = () => { const t = [['mine', isDeck() ? 'عروضي' : 'تقاريري'], ['archive', 'الأرشيف']]; if (me.role !== 'employee') t.push(['inbox', 'بانتظار اعتمادي' + (me.inbox ? ` (${me.inbox})` : '')]); if (me.role === 'admin') t.push(['all', isDeck() ? 'كل العروض' : 'كل التقارير']); return t; };
+  if (initial && tabsOf().some((t) => t[0] === initial)) scope = initial;
+  const paint = () => {
+    document.getElementById('h1').textContent = isDeck() ? 'العروض التقديمية' : 'التقارير';
+    document.getElementById('q').placeholder = isDeck() ? 'ابحث بعنوان العرض أو المالك...' : 'ابحث بالعنوان أو الموظف أو الإدارة...';
+    sw.replaceChildren(...[['report', 'التقارير'], ['deck', 'العروض التقديمية']].map(([k, n]) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(k === type), class: k === type ? 'on' : '', onclick: () => { if (type === k) return; type = k; try { localStorage.setItem('rb-list-type', k); } catch (e) { /* ignore */ } const u = new URL(location.href); u.searchParams.set('type', k); history.replaceState(null, '', u); if (!tabsOf().some((t) => t[0] === scope)) scope = 'mine'; paint(); load(); } }, n)));
+    box.replaceChildren(...tabsOf().map(([k, n]) => el('button', { type: 'button', role: 'tab', class: 'chip' + (k === scope ? ' on' : ''), 'aria-selected': String(k === scope), onclick: () => { scope = k; paint(); load(); } }, n)));
+  };
+  paint(); load();
+})();
+document.getElementById('q').oninput = draw;
+</script>
+</body>
+</html>

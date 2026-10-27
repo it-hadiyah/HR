@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منشئ التقارير</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script src="/report-builder/js/guard.js"></script>
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">تخطي إلى المحتوى</a>
+
+<header class="top" id="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong>منشئ التقارير</strong><small id="orgname"></small></div></div>
+  <div class="top-mid" id="top-mid" hidden>
+    <span class="status" id="status" role="status" aria-live="polite"></span><span class="chip-status" id="wf-chip"></span>
+    <div class="progress" title="اكتمال التقرير"><div class="bar"><i id="pbar"></i></div><span id="ptxt">0%</span></div>
+  </div>
+  <div class="top-actions" id="top-actions">
+    <nav class="top-links"><a href="/report-builder/dashboard.html" class="nav-a">الرئيسية</a><a href="/report-builder/" id="lnk-new" class="nav-a">تقرير جديد</a><a href="/report-builder/list.html" class="nav-a" id="lnk-list">التقارير</a><a href="/report-builder/decks.html" class="nav-a">العروض</a><a href="/report-builder/indicators.html" class="nav-a">المؤشرات</a><a href="/report-builder/admin.html" class="nav-a" id="admin-link" hidden>إدارة النظام</a></nav><span id="user-chip"></span>
+    <span id="editor-actions" hidden>
+      <button type="button" class="ibtn" id="b-undo" title="تراجع (Ctrl+Z)" aria-label="تراجع"></button>
+      <button type="button" class="ibtn" id="b-redo" title="إعادة (Ctrl+Y)" aria-label="إعادة"></button>
+      <button type="button" class="btn ghost" id="b-export" aria-haspopup="menu" aria-expanded="false"></button>
+      <button type="button" class="btn ghost" id="b-share" title="إرسال التقرير للمدير للاعتماد"></button>
+      <button type="button" class="btn primary" id="b-save"></button>
+    </span>
+    <button type="button" class="ibtn" id="b-help" title="اختصارات لوحة المفاتيح" aria-label="اختصارات لوحة المفاتيح"></button>
+    <button type="button" class="ibtn" id="b-theme" title="تبديل الوضع الفاتح/الداكن" aria-label="تبديل الوضع الفاتح والداكن"></button>
+  </div>
+</header>
+
+<main id="main">
+  <section id="view-gallery" class="gallery">
+    <div class="gal-head">
+      <div><h1>ابدأ تقريراً جديداً</h1><p class="muted">اختر قالباً احترافياً، وسنرشدك لتعبئة كل قسم مع معاينة مباشرة بصيغة A4.</p></div>
+      <div id="draft-banner" class="banner" hidden></div>
+    </div>
+    <div id="gallery-root"></div>
+  </section>
+
+  <section id="view-editor" class="editor" hidden>
+    <div class="tabs-m" role="tablist" aria-label="أجزاء المحرر">
+      <button type="button" role="tab" data-pane="nav" class="on">الأقسام</button>
+      <button type="button" role="tab" data-pane="edit">التحرير</button>
+      <button type="button" role="tab" data-pane="view">المعاينة</button>
+    </div>
+    <div class="panes" id="panes" data-nav="open" data-view="open">
+      <aside class="pane nav" id="pane-nav" aria-label="لوحة الأقسام والأدوات">
+        <div class="tabs" role="tablist" id="nav-tabs">
+          <button type="button" role="tab" data-tab="sections" class="on"></button>
+          <button type="button" role="tab" data-tab="library"></button>
+          <button type="button" role="tab" data-tab="design"></button>
+        </div>
+        <div class="nav-body" id="nav-body"></div>
+      </aside>
+      <section class="pane edit" id="pane-edit" aria-label="محرر المحتوى"><div id="editor-body" class="edit-body"></div></section>
+      <aside class="pane view" id="pane-view" aria-label="المعاينة المباشرة">
+        <div class="view-bar">
+          <div class="vb-group"><button type="button" class="ibtn" id="v-prev" title="الصفحة السابقة" aria-label="الصفحة السابقة"></button><span id="v-page" class="vlabel" aria-live="polite">صفحة 1 من 1</span><button type="button" class="ibtn" id="v-next" title="الصفحة التالية" aria-label="الصفحة التالية"></button></div>
+          <div class="vb-group"><button type="button" class="ibtn" id="v-zo" title="تصغير" aria-label="تصغير"></button><button type="button" class="vlabel btnlike" id="v-fit" title="ملاءمة العرض">100%</button><button type="button" class="ibtn" id="v-zi" title="تكبير" aria-label="تكبير"></button></div>
+          <div class="vb-group"><button type="button" class="ibtn" id="v-focus" title="وضع المعاينة الكامل" aria-label="وضع المعاينة الكامل" aria-pressed="false"></button></div>
+        </div>
+        <div class="frame-wrap"><iframe id="frame" title="معاينة التقرير بصيغة A4"></iframe></div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="menu-root"></div>
+
+<script src="/report-builder/shared/templates.js"></script>
+<script src="/report-builder/shared/calc.js"></script>
+<script src="/report-builder/shared/render.js"></script>
+<script type="module" src="/report-builder/js/app.js"></script>
+</body>
+</html>

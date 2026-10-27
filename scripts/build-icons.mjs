@@ -9,7 +9,7 @@ const dir = path.join(root, 'node_modules/lucide-static/icons');
 const NAMES = ['building-2', 'calendar-days', 'id-card', 'chart-column', 'layout-template', 'shield-check', 'settings', 'log-out', 'house', 'layout-grid', 'users', 'network',
   'user-cog', 'key-round', 'scroll-text', 'menu', 'chevron-down', 'search', 'plus', 'pencil', 'trash-2', 'check', 'x', 'download', 'eye', 'lock', 'monitor', 'history',
   'layout-dashboard', 'sliders-horizontal', 'user-round', 'refresh-cw', 'triangle-alert', 'ban', 'save', 'database', 'git-merge', 'shield-alert', 'activity', 'user-plus',
-  'folder-tree', 'badge-check', 'circle-check', 'clock', 'globe', 'power', 'file-down', 'arrow-left-right', 'moon', 'sun'];
+  'folder-tree', 'badge-check', 'circle-check', 'clock', 'globe', 'power', 'file-down', 'arrow-left-right', 'moon', 'sun', 'log-in', 'file-pen-line'];
 const out = {};
 for (const n of NAMES) {
   const f = path.join(dir, `${n}.svg`);

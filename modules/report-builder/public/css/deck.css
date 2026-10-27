@@ -1,0 +1,95 @@
+/* العروض التقديمية: شرائح ثابتة الحجم (1280×720 أو 960×720) تُكبَّر/تُصغَّر بالمقياس */
+.slide { width: var(--sw, 1280px); height: var(--sh, 720px); position: relative; overflow: hidden; background: #fff; color: #17212c; font-family: 'The Year of Handicrafts', 'IBM Plex Sans Arabic', Tahoma, Arial, sans-serif; direction: rtl; flex: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
+.slide * { box-sizing: border-box; }
+.slide.bg-light { background: #fff; } .slide.bg-tint { background: var(--s); }
+.slide.bg-dark { background: var(--d); color: #fff; }
+.slide.bg-brand { background: linear-gradient(135deg, var(--d) 0%, var(--a) 100%); color: #fff; }
+.s-logo { position: absolute; top: 34px; inset-inline-start: 56px; height: 54px; width: auto; z-index: 2; }
+.s-logo.big { position: static; height: 120px; margin-bottom: 18px; }
+.s-pattern { position: absolute; inset-inline: 0; bottom: 0; width: 100%; height: 150px; object-fit: cover; opacity: .16; pointer-events: none; }
+.s-ribbon { position: absolute; top: 40px; inset-inline-end: 56px; background: #e0b04a; color: #4a3500; font-size: 15px; font-weight: 700; padding: 4px 14px; border-radius: 999px; z-index: 3; }
+.s-cover { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 90px; }
+.s-ctext small { display: block; font-size: 24px; opacity: .85; margin-bottom: 18px; }
+.s-ctext h1 { font-size: 76px; line-height: 1.2; margin: 0 0 18px; font-weight: 700; max-width: 1000px; }
+.s-ctext p { font-size: 34px; margin: 0 0 30px; opacity: .92; }
+.s-meta { display: flex; gap: 28px; font-size: 22px; opacity: .85; }
+.s-sec { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 90px; }
+.s-sec h2 { font-size: 66px; margin: 0 0 14px; line-height: 1.25; font-weight: 700; } .s-sec p { font-size: 30px; margin: 0 0 8px; opacity: .9; }
+.s-close { align-items: center; text-align: center; } .s-close p { font-size: 24px; }
+.s-content { position: absolute; inset: 0; padding: 96px 64px 64px; display: flex; flex-direction: column; }
+.slide.bg-dark .s-content, .slide.bg-brand .s-content { color: #fff; }
+.s-title { font-size: 44px; line-height: 1.25; margin: 0 0 8px; color: var(--d); font-weight: 700; position: relative; padding-inline-start: 22px; }
+.s-title::before { content: ''; position: absolute; inset-inline-start: 0; top: .15em; bottom: .15em; width: 8px; border-radius: 4px; background: var(--x); }
+.slide.bg-dark .s-title, .slide.bg-brand .s-title { color: #fff; }
+.s-sub { font-size: 24px; margin: 0 0 8px; color: #5b6b7a; }
+.s-content .s-logo { top: 26px; height: 42px; }
+.s-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 24px; justify-content: flex-start; padding-top: 18px; overflow: hidden; }
+.s-body.two { flex-direction: row; align-items: center; } .s-body.two .s-list { flex: 0 0 38%; } .s-body.two .s-blocks { flex: 1; min-width: 0; }
+.s-list { margin: 0; padding-inline-start: 34px; font-size: 32px; line-height: 1.7; }
+.s-list li { margin-bottom: 10px; } .s-list li::marker { color: var(--x); }
+.s-block { zoom: 1.6; min-width: 0; } .s-block > * { margin: 0; }
+.s-block.b-chart svg, .s-block .chart svg { max-height: 330px; }
+.s-block .bt { display: none; }
+.s-ph { zoom: 1; border: 2px dashed #b9c4cf; border-radius: 16px; padding: 48px; text-align: center; color: #7b8996; font-size: 24px; }
+.s-block .tbl { font-size: 13px; } .s-block .kpis { grid-template-columns: repeat(auto-fit, minmax(30mm, 1fr)); }
+.s-foot { position: absolute; inset-inline: 64px; bottom: 22px; display: flex; justify-content: space-between; font-size: 15px; color: #7b8996; }
+.slide.bg-dark .s-foot, .slide.bg-brand .s-foot { color: rgba(255,255,255,.7); }
+
+/* صفحة العرض */
+body.deck-view { margin: 0; background: #1b2530; min-height: 100vh; }
+.dv-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; background: #fff; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,.2); font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+.dv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dv-stage { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 12px 60px; }
+.dv-stage .slide { box-shadow: 0 8px 30px rgba(0,0,0,.4); zoom: var(--fit, 1); }
+.dv-pres { position: fixed; inset: 0; background: #000; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.dv-pres[hidden] { display: none; }
+.dp-view { position: relative; }
+.dp-ctl { position: fixed; bottom: 12px; inset-inline: 0; display: flex; justify-content: center; gap: 10px; align-items: center; opacity: 0; transition: opacity .2s; color: #fff; font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+.dv-pres:hover .dp-ctl, .dp-ctl:focus-within { opacity: 1; }
+.dp-ctl button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; font-size: 16px; }
+.dp-notes { position: fixed; inset-inline: 0; bottom: 56px; background: rgba(0,0,0,.82); color: #fff; padding: 14px 24px; font: 18px/1.7 'IBM Plex Sans Arabic', Tahoma, sans-serif; max-height: 30vh; overflow: auto; }
+@media (max-width: 900px) { .dv-bar { flex-direction: column; align-items: stretch; } }
+@media print {
+  body.deck-view { background: #fff; }
+  .noprint { display: none !important; }
+  .dv-stage { display: block; padding: 0; gap: 0; }
+  .dv-stage .slide { box-shadow: none; zoom: 1; break-after: page; page-break-after: always; }
+  .dv-pres, .toasts { display: none !important; }
+  .dv-stage .slide:last-child { break-after: auto; page-break-after: auto; }
+  body.deck-view { min-height: 0; }
+}
+
+.s-block + .src-note, .s-body > .src-note { font-size: 15px; margin-top: 4px; color: #7b8996; }
+.slide.bg-dark .src-note, .slide.bg-brand .src-note { color: rgba(255,255,255,.75); }
+
+.s-blocks { display: flex; flex-wrap: wrap; gap: 14px 20px; flex: 1; min-width: 0; align-content: flex-start; width: 100%; }
+.s-wrap { flex: 1 1 100%; min-width: 0; } .s-wrap.w-half { flex: 1 1 calc(50% - 10px); }
+.s-bt { margin: 0 0 6px; font-size: 24px; color: var(--d); font-weight: 700; }
+.slide.bg-dark .s-bt, .slide.bg-brand .s-bt { color: #fff; }
+.s-blocks.multi .chart svg { max-height: 230px; } .s-blocks.multi .s-ph { padding: 24px; font-size: 18px; }
+
+/* ===== محرك العناصر (القوالب الرسمية) ===== */
+.slide .layer { position: absolute; inset: 0; overflow: hidden; }
+.slide .layer.extras { background: none; pointer-events: none; } .slide .layer.extras .el { pointer-events: auto; }
+.el { position: absolute; box-sizing: border-box; }
+._x{} .el-text { overflow: visible; } .el-text .tx { display: block; white-space: pre-line; overflow-wrap: anywhere; }
+.el-text.ph .tx { opacity: .5; font-weight: 500; }
+.el-photo { overflow: hidden; background: #dfeae7; } .el-photo > img { display: block; user-select: none; -webkit-user-drag: none; }
+.el-photo .ov { position: absolute; inset: 0; pointer-events: none; }
+.el-photo.empty { background: linear-gradient(135deg, var(--d), var(--a)); }
+.ph-photo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: rgba(255,255,255,.85); font-size: 18px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.16), transparent 60%); }
+.ph-photo b { font-size: 34px; font-weight: 400; line-height: 1; }
+.el-img img { display: block; }
+.el-block { overflow: hidden; } .el-block .s-block { zoom: 1; width: 100%; }
+.el-block.empty { border: 2px dashed #b9c9c5; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #7b8c88; font-size: 20px; text-align: center; padding: 12px; }
+.slide.official .s-ribbon { z-index: 5; }
+/* تحديد العناصر في المحرر */
+.dk-stage .el { cursor: pointer; }
+.dk-stage .el:hover { outline: 2px solid rgba(2,169,153,.55); outline-offset: -2px; }
+.dk-sel { position: absolute; border: 2px solid #1b6fd1; pointer-events: none; z-index: 20; box-sizing: border-box; }
+.dk-sel i { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid #1b6fd1; border-radius: 3px; pointer-events: auto; }
+.dk-guide { position: absolute; background: #e5398c; z-index: 19; pointer-events: none; }
+
+.dk-stage .el-text.over { outline: 2px dashed #d9822b; outline-offset: 2px; }
+.dk-stage .el-text.over::after { content: '⚠ النص أطول من المساحة'; position: absolute; top: -22px; right: 0; font: 600 13px/1 'IBM Plex Sans Arabic', sans-serif; color: #fff; background: #d9822b; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.dk-stage .el-text.over { overflow: visible; }

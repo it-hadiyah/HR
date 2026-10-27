@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محرر العرض</title>
+<link rel="stylesheet" href="/report-builder/css/tokens.css">
+<link rel="stylesheet" href="/report-builder/css/app.css">
+<link rel="stylesheet" href="/report-builder/css/report.css">
+<link rel="stylesheet" href="/report-builder/css/components.css">
+<link rel="stylesheet" href="/report-builder/css/deck.css">
+<link rel="stylesheet" href="/report-builder/css/studio.css">
+<link rel="icon" href="/report-builder/brand/logo-icon.png" type="image/png">
+<script>try{var t=localStorage.getItem('rb-theme');if(t)document.documentElement.setAttribute('data-theme',t);else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+<script src="/report-builder/js/guard.js"></script>
+<style>
+body.dk-page{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:var(--bg,#f3f6f8)}
+.dk-wrap{flex:1;min-height:0;display:grid;grid-template-columns:210px minmax(0,1fr) 380px}
+.dk-thumbs{overflow:auto;border-inline-end:1px solid var(--border,#dde3e8);padding:10px;display:flex;flex-direction:column;gap:10px;background:var(--surface,#fff)}
+.dk-tools{display:flex;gap:6px;flex-wrap:wrap}
+.dk-th{position:relative;border:2px solid transparent;border-radius:8px;cursor:pointer;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);flex:none}
+.dk-th.on{border-color:var(--brand,#1f7a5c)} .dk-th.over{outline:2px dashed var(--brand,#1f7a5c)}
+.dk-th .n{position:absolute;top:4px;inset-inline-start:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:0 6px;z-index:3}
+.dk-th .in{pointer-events:none;transform-origin:top right}
+.dk-th .n{top:auto;bottom:4px;inset-inline-start:auto;inset-inline-end:6px}
+.dk-canvas{overflow:auto;padding:18px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.dk-stage{background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.25);flex:none;position:relative}
+.dk-stage .slide{transform-origin:top right;position:absolute;top:0;right:0}
+.dk-props{overflow:auto;border-inline-start:1px solid var(--border,#dde3e8);padding:14px;background:var(--surface,#fff)}
+.dk-props h3{margin:14px 0 6px;font-size:1rem}
+.dk-props textarea{width:100%;font:inherit;padding:8px;border:1px solid var(--border,#d6dde3);border-radius:8px}
+.dk-sec-b .ed-head,.dk-sec-b .hint,.dk-sec-b .sec-ed>.fld{display:none}
+.dk-sec{border:1px solid var(--border,#dde3e8);border-radius:10px;margin-bottom:8px;background:var(--surface,#fff)}.dk-sec.open{border-color:var(--brand,#007f73)}
+.dk-sec-h{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;flex-wrap:wrap}.dk-sec-t{border:0;background:none;font:inherit;cursor:pointer;text-align:start;flex:1;min-width:120px;color:inherit}.dk-sec-a{display:flex;gap:2px}.dk-sec-b{padding:8px 10px 12px;border-top:1px solid var(--border,#dde3e8)}
+.dk-th .slide{transform-origin:top right}
+.dk-tabs{display:flex;gap:6px;margin-bottom:8px}
+@media(max-width:1000px){.dk-wrap{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;overflow:auto}.dk-thumbs{flex-direction:row;overflow-x:auto;border:0}.dk-th{width:150px}}
+</style>
+</head>
+<body class="dk-page">
+<header class="top">
+  <div class="brand"><img src="/report-builder/brand/logo-icon.png" alt="" width="30" height="30"><div><strong id="dk-name">محرر العرض</strong><small id="dk-status"></small> <small id="dk-prog" style="margin-inline-start:8px"></small></div></div>
+  <div class="top-actions"><nav class="top-links"><a href="/report-builder/decks.html" class="nav-a">العروض</a></nav><span id="user-chip"></span>
+    <button type="button" class="btn ghost sm" id="b-undo">تراجع</button><button type="button" class="btn ghost sm" id="b-redo">إعادة</button>
+    <button type="button" class="btn ghost" id="b-export" aria-haspopup="menu">تصدير ومشاركة</button>
+    <button type="button" class="btn" id="b-share" title="إرسال العرض للمدير للاعتماد">إرسال للاعتماد</button>
+    <button type="button" class="btn" id="b-present">عرض</button>
+    <button type="button" class="btn primary" id="b-save">حفظ</button></div>
+</header>
+<div class="dk-wrap">
+  <aside class="dk-thumbs" id="dk-thumbs" aria-label="الشرائح"></aside>
+  <main class="dk-canvas" id="dk-canvas"><div class="dk-toolbar" id="dk-toolbar" role="toolbar" aria-label="أدوات التصميم"></div><div class="dk-stage" id="dk-stage"></div><div class="muted" id="dk-hint">انقر عنصراً لتحديده واسحبه. انقر مرتين على النص لتحريره. اسحب الصورة لتحريكها داخل الإطار وبعجلة الفأرة لتكبيرها.</div></main>
+  <aside class="dk-props" id="dk-props" aria-label="خصائص الشريحة"></aside>
+</div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="menu-root"></div>
+<script src="/report-builder/shared/templates.js"></script>
+<script src="/report-builder/shared/calc.js"></script>
+<script src="/report-builder/shared/render.js"></script>
+<script src="/report-builder/shared/studio.js"></script>
+<script src="/report-builder/shared/deck.js"></script>
+<script type="module" src="/report-builder/js/deck-editor.js"></script>
+</body>
+</html>

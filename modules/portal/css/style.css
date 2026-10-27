@@ -713,8 +713,3 @@ html {
 .goals-more:hover {
   border-color: rgba(var(--dark-green-rgb), 0.35);
 }
-
-
-/* روابط الدخول إلى الأنظمة المحمية (الأرصدة والتقارير) */
-.navbar .nav-login{background:#0d7868;color:#fff !important;border-radius:999px;padding:.35rem 1rem !important;margin-inline-start:.4rem;font-weight:700;white-space:nowrap}
-.navbar .nav-login:hover{background:#0a5f52}

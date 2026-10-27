@@ -1,0 +1,26 @@
+/* HADIYAH Studio — طبقة التصميم المشتركة للمحررات (تقارير وعروض): شريط الأدوات، اللوحات القابلة للطي، بطاقات القوالب */
+/* رموز Studio (الألوان والزوايا والظلال) معرّفة في tokens.css وتُستعمل في التقارير والعروض معاً */
+.dk-wrap { transition: grid-template-columns .2s ease; }
+.dk-wrap.no-l { grid-template-columns: 0 minmax(0, 1fr) 380px; } .dk-wrap.no-r { grid-template-columns: 210px minmax(0, 1fr) 0; } .dk-wrap.no-l.no-r { grid-template-columns: 0 minmax(0, 1fr) 0; }
+.dk-wrap.no-l .dk-thumbs, .dk-wrap.no-r .dk-props { padding: 0; overflow: hidden; visibility: hidden; border: 0; }
+.dk-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; width: 100%; max-width: 1100px; background: var(--surface, #fff); border: 1px solid var(--border, #dde3e8); border-radius: var(--st-r); padding: 6px 8px; box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,.08)); }
+.dk-toolbar .sep { width: 1px; height: 22px; background: var(--border, #dde3e8); margin: 0 4px; }
+.dk-toolbar .btn.sm { padding: 4px 10px; }
+.dk-toolbar .zoom { min-width: 48px; text-align: center; font-size: 13px; color: var(--muted, #647385); }
+.dk-props .dk-block-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0 6px; }
+.dk-props .dk-block-h h3 { margin: 0; }
+.dk-card { border: 1px solid var(--border, #dde3e8); border-radius: var(--st-r-sm); padding: 10px; margin-bottom: 8px; background: var(--surface, #fff); }
+.dk-card.sel { border-color: #1b6fd1; box-shadow: 0 0 0 2px rgba(27,111,209,.15); }
+.dk-photo-row { display: flex; gap: 10px; align-items: center; }
+.dk-photo-row .th { width: 64px; height: 44px; border-radius: 6px; background: #dfeae7 center/cover no-repeat; flex: none; border: 1px solid var(--border, #dde3e8); }
+.dk-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dk-grid2 label, .dk-card label.f { display: grid; gap: 2px; font-size: 12px; color: var(--muted, #647385); }
+.dk-grid2 input, .dk-card input[type=number], .dk-card select, .dk-card input[type=text] { width: 100%; padding: 5px 8px; border: 1px solid var(--border, #d6dde3); border-radius: 6px; font: inherit; box-sizing: border-box; }
+.dk-card input[type=range] { width: 100%; }
+.dk-card input[type=color] { width: 100%; height: 32px; padding: 0; border: 1px solid var(--border, #d6dde3); border-radius: 6px; }
+.dk-layer { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.dk-layer:hover { background: var(--surface-2, #f3f6f8); } .dk-layer.on { background: #e6f0fd; }
+.dk-items-row { display: grid; gap: 4px; border: 1px dashed var(--border, #d6dde3); border-radius: 8px; padding: 6px; margin-bottom: 6px; }
+.dk-items-row textarea { width: 100%; font: inherit; padding: 5px 8px; border: 1px solid var(--border, #d6dde3); border-radius: 6px; box-sizing: border-box; }
+.dk-offbtn { background: linear-gradient(135deg, var(--st-green-d), var(--st-green)); color: #fff !important; border: 0; }
+@media (max-width: 1000px) { .dk-wrap.no-l, .dk-wrap.no-r { grid-template-columns: 1fr; } }

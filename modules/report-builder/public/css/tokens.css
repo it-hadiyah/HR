@@ -1,0 +1,51 @@
+/* رموز التصميم (Design Tokens): الألوان والمسافات والأحجام والظلال، مشتركة بين المحرر والتقرير */
+@font-face { font-family: 'The Year of Handicrafts'; font-weight: 400; font-display: swap; src: url('/report-builder/fonts/year-of-handicrafts-400.woff2') format('woff2'); }
+@font-face { font-family: 'The Year of Handicrafts'; font-weight: 500; font-display: swap; src: url('/report-builder/fonts/year-of-handicrafts-500.woff2') format('woff2'); }
+@font-face { font-family: 'The Year of Handicrafts'; font-weight: 600; font-display: swap; src: url('/report-builder/fonts/year-of-handicrafts-600.woff2') format('woff2'); }
+@font-face { font-family: 'The Year of Handicrafts'; font-weight: 700; font-display: swap; src: url('/report-builder/fonts/year-of-handicrafts-700.woff2') format('woff2'); }
+@font-face { font-family: 'The Year of Handicrafts'; font-weight: 900; font-display: swap; src: url('/report-builder/fonts/year-of-handicrafts-900.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 400; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-arabic-400-normal.woff2') format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0898-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 500; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-arabic-500-normal.woff2') format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0898-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 600; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-arabic-600-normal.woff2') format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0898-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 700; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-arabic-700-normal.woff2') format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0898-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 400; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 500; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-latin-500-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 600; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-latin-600-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 700; font-display: swap; src: url('/report-builder/fonts/ibm-plex-sans-arabic-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+:root {
+  --font: 'The Year of Handicrafts', 'IBM Plex Sans Arabic', Tahoma, 'Segoe UI', Arial, sans-serif;
+
+  /* الألوان (فاتح) */
+  --bg: #f3f5f8; --surface: #ffffff; --surface-2: #f7f9fb; --surface-3: #eef2f6;
+  --text: #17212c; --text-2: #4a5968; --muted: #647385;
+  --border: #dbe2ea; --border-strong: #c3ccd7;
+  --brand: #1f7a5c; --brand-d: #145a43; --brand-soft: #e6f4ee; --brand-x: #3cc79a; --on-brand: #ffffff;
+  --danger: #b3382a; --danger-soft: #fbeceb; --warn: #8a5a00; --warn-soft: #fdf3dc; --ok: #1f7a5c;
+  --focus: #1b6fd1;
+
+  /* المسافات والأحجام */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --r-1: 6px; --r-2: 10px; --r-3: 14px; --r-4: 20px;
+  --fs-1: 13px; --fs-2: 14px; --fs-3: 15px; --fs-4: 17px; --fs-5: 21px; --fs-6: 27px; --fs-7: 36px;
+  --shadow-1: 0 1px 2px rgba(16, 28, 40, .06), 0 1px 3px rgba(16, 28, 40, .06);
+  --shadow-2: 0 4px 12px rgba(16, 28, 40, .10);
+  --shadow-3: 0 12px 32px rgba(16, 28, 40, .16);
+  --ease: cubic-bezier(.2, .7, .2, 1); --t-1: 120ms; --t-2: 220ms;
+}
+:root[data-theme='dark'] {
+  --bg: #0e151d; --surface: #16202b; --surface-2: #1b2733; --surface-3: #223140;
+  --text: #e8eef4; --text-2: #b6c3d0; --muted: #8fa0b1;
+  --border: #2a3a4a; --border-strong: #3a4d60;
+  --brand: #3cc79a; --brand-d: #7be0bd; --brand-soft: #173a30; --brand-x: #3cc79a; --on-brand: #06231a;
+  --danger: #ff8a7a; --danger-soft: #3a1f1c; --warn: #f0c060; --warn-soft: #3a2f14; --ok: #3cc79a;
+  --focus: #6aa9ff;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4); --shadow-2: 0 4px 12px rgba(0, 0, 0, .45); --shadow-3: 0 12px 32px rgba(0, 0, 0, .55);
+}
+@media (prefers-reduced-motion: reduce) { :root { --t-1: 0ms; --t-2: 0ms; } * { scroll-behavior: auto !important; } }
+
+/* رموز HADIYAH Studio المشتركة بين التقارير والعروض: الأخضر المؤسسي والذهبي وسلالم الزوايا والمسافات والظل */
+:root {
+  --st-green: #007f73; --st-green-d: #005a52; --st-gold: #c9a24b; --st-mint: #eef6f4;
+  --st-r: 14px; --st-r-sm: 8px; --st-gap: 12px; --st-shadow: 0 6px 20px rgba(0, 60, 52, .12);
+}

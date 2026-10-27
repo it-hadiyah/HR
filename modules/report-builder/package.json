@@ -1,0 +1,1 @@
+{ "name": "report-builder", "private": true, "type": "commonjs", "description": "منشئ التقارير (يعمل داخل المنصة الموحّدة عبر server/routes/reportBuilder.js)" }

@@ -94,4 +94,4 @@ export const SCOPE_LABEL = { self: 'بياناته فقط', reports: 'التاب
 export const ACTION_LABEL = { login: 'دخول', login_failed: 'دخول فاشل', logout: 'خروج', create: 'إضافة', update: 'تعديل', delete: 'حذف', move: 'نقل', merge: 'دمج', export: 'تصدير',
   denied: 'رفض صلاحية', disable: 'تعطيل', update_grants: 'تغيير صلاحيات', revoke_session: 'إنهاء جلسة', revoke_sessions: 'إنهاء جلسات', adopt: 'ربط بسجل موجود', import: 'استيراد',
   upload: 'رفع ملف', update_photo: 'تغيير صورة', save: 'حفظ', restore: 'استعادة', resolve_conflict: 'حل تعارض' };
-export const PLATFORM_LABEL = { platform: 'تسجيل الدخول', portal: 'بوابة الموظفين', hr: 'أرصدة الإجازات', card: 'بطاقة الموظف', report: 'التقارير', 'portal-admin': 'لوحة البوابة', admin: 'الإدارة المركزية' };
+export const PLATFORM_LABEL = { platform: 'تسجيل الدخول', portal: 'بوابة الموظفين', hr: 'أرصدة الإجازات', card: 'بطاقة الموظف', 'report-builder': 'منشئ التقارير', 'portal-admin': 'لوحة البوابة', admin: 'الإدارة المركزية' };
