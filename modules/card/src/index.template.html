@@ -4,32 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>مصدر بطاقة الموظف | هدية الحاج</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;700&family=Tajawal:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--teal:#0d7868;--gold:#bb9a5f;--ink:#1d2b28;--line:#e3e8e6;--bg:#f4f7f6}
+__FONTS__
+:root{--teal:#38a792;--teal-d:#1f7f6d;--deep:#054d45;--gold:#bb9a5f;--ink:#16302d;--line:#e1e9e7;--bg:#f3f7f6}
 *{box-sizing:border-box}
-body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:var(--teal);color:#fff;padding:16px 24px;border-bottom:4px solid var(--gold)}
-header h1{margin:0;font-size:1.25rem}
+body{margin:0;font-family:"IBM Plex Sans Arabic",Tahoma,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(160deg,var(--teal-d),var(--deep));color:#fff;padding:16px 24px;border-bottom:4px solid var(--gold)}
+header h1{margin:0;font-size:1.2rem}
 main{max-width:980px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
-.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px}
-.panel h2{margin:0 0 14px;font-size:1.05rem;color:var(--teal)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px}
+.panel h2{margin:0 0 14px;font-size:1.05rem;color:var(--deep)}
 label{display:block;font-weight:700;font-size:.9rem;margin:12px 0 4px}
-input[type=text]{width:100%;padding:10px 12px;border:1px solid #cbd5d2;border-radius:8px;font:inherit}
-input[type=text]:focus{outline:2px solid var(--teal);border-color:transparent}
-.en{direction:ltr;text-align:left;font-family:Rubik,sans-serif}
+input[type=text],input[type=search]{width:100%;padding:10px 12px;border:1.5px solid #cbd5d2;border-radius:10px;font:inherit}
+input[type=text]:focus,input[type=search]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(56,167,146,.2)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.photo-box{border:2px dashed #b9c6c2;border-radius:10px;padding:14px;text-align:center;margin-top:6px}
+.pick{background:#eef8f6;border:1px solid #cfe9e4;border-radius:12px;padding:12px 14px;margin-bottom:6px}
+.pick label{margin-top:0}
+.photo-box{border:2px dashed #b9c6c2;border-radius:12px;padding:14px;text-align:center;margin-top:6px}
 .photo-box input[type=range]{width:100%;margin-top:8px}
 .check{display:flex;gap:8px;align-items:center;font-weight:500;margin-top:12px}
 .modes{display:flex;gap:16px;justify-content:center;margin:10px 0}
 .modes label{display:flex;gap:6px;align-items:center;margin:0;font-weight:500}
 .hint{font-size:.8rem;color:#667873;margin:6px 0 0}
-button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
-.primary{background:var(--teal);color:#fff}
-.secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal)}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;cursor:pointer}
+.primary{background:var(--teal-d);color:#fff}
+.primary:hover{background:var(--deep)}
+.secondary{background:#fff;color:var(--teal-d);border:1.5px solid var(--teal)}
 .ghost{background:none;color:#a33;padding:6px 0}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .preview{position:sticky;top:16px;text-align:center}
@@ -51,28 +51,28 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px
 <main>
   <section class="panel">
     <h2>بيانات الموظف</h2>
-    <div id="pickBox" hidden>
-      <label for="pick">اختيار من دليل الموظفين (اختياري)</label>
-      <input type="text" id="pick" list="peopleList" placeholder="ابحث بالاسم أو الرقم الداخلي" autocomplete="off">
+    <div id="pickBox" class="pick" hidden>
+      <label for="pick">ابحث عن الموظف (بالاسم أو الرقم الوظيفي أو التحويلة)</label>
+      <input type="search" id="pick" list="peopleList" placeholder="اكتب للبحث ثم اختر من القائمة" autocomplete="off">
       <datalist id="peopleList"></datalist>
-      <p class="hint" id="pickStatus" role="status"></p>
+      <p class="hint" id="pickStatus" role="status">تُجلب البيانات والصورة من سجل الموظف المركزي، ويمكنك تعديلها هنا قبل التصدير دون التأثير على السجل.</p>
     </div>
     <div class="row">
-      <div><label for="arName">الاسم (عربي)</label><input type="text" id="arName" placeholder="مثال: محمد عبدالله العتيبي"></div>
-      <div><label for="enName">Name (English)</label><input type="text" id="enName" class="en" placeholder="Mohammed Alotaibi"></div>
-      <div><label for="arTitle">المنصب الوظيفي (عربي)</label><input type="text" id="arTitle" placeholder="مثال: أخصائي تقنية معلومات"></div>
-      <div><label for="enTitle">Position (English)</label><input type="text" id="enTitle" class="en" placeholder="IT Specialist"></div>
+      <div><label for="arName">الاسم</label><input type="text" id="arName" placeholder="مثال: عامر فهد الحازمي"></div>
+      <div><label for="arTitle">المسمى الوظيفي</label><input type="text" id="arTitle" placeholder="مثال: أخصائي استقطاب ورواتب"></div>
+      <div><label for="sector">القطاع</label><input type="text" id="sector" placeholder="مثال: قطاع: الخدمات المشتركة"></div>
+      <div><label for="ext">رقم التحويلة</label><input type="text" id="ext" inputmode="numeric" placeholder="مثال: 1575"></div>
     </div>
 
     <label>الصورة الشخصية</label>
     <div class="photo-box">
       <input type="file" id="photo" accept="image/*">
       <div class="modes" id="modes" hidden>
-        <label><input type="radio" name="mode" value="pop" checked> بارزة فوق الدائرة</label>
+        <label><input type="radio" name="mode" value="pop" checked> بارزة (صورة بخلفية شفافة)</label>
         <label><input type="radio" name="mode" value="circle"> داخل الدائرة</label>
       </div>
       <input type="range" id="zoom" min="0.5" max="2.5" step="0.01" value="1" disabled aria-label="تكبير الصورة">
-      <p class="hint">للصورة البارزة استخدم صورة بخلفية شفافة (PNG)، أو اضغط «إزالة الخلفية». اسحب الصورة لتحريكها، والشريط للتكبير.</p>
+      <p class="hint">للصورة البارزة استخدم صورة PNG بخلفية شفافة، أو اضغط «إزالة الخلفية». اسحب الصورة على المعاينة لتحريكها، والشريط للتكبير. الصورة الأصلية لا تتغير.
       <button type="button" class="secondary" id="removeBg" hidden>إزالة الخلفية تلقائيًا</button>
       <p class="hint" id="status" role="status"></p>
       <button type="button" class="ghost" id="clearPhoto" hidden>إزالة الصورة</button>
@@ -98,75 +98,71 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px
 <img id="printBack" class="printImg" src="__CARD_BACK__" alt="">
 
 <script>
-const CARD_W = 153, CARD_H = 242.25;           // card units (SVG viewBox)
-const PHOTO = {cx: 76.5, cy: 109.08, r: 39.1};  // photo circle in card units
-const COLORS = {teal: '#0d7868', gold: '#bb9a5f'};
-const MAX_TEXT_W = 128;                         // widest a line may get before shrinking
-// baseline y, default font size, weight, color for each field
+// التصميم مأخوذ من card_staff.pdf: الأبعاد بوحدات التصميم (153 × 243)
+const CARD_W = 153, CARD_H = 243;
+const PRINT_H = 242.25;                          // 54 × 85.5 مم
+const PHOTO = {cx: 76.5, cy: 121.9, r: 44.9};    // القرص الأخضر
+const FRAME = new Path2D('M 76.5 35.527344 C 47.972656 35.527344 24.84375 64.910156 24.84375 101.160156 C 24.84375 137.40625 47.972656 166.792969 76.5 166.792969 C 105.027344 166.792969 128.152344 137.40625 128.152344 101.160156 C 128.152344 64.910156 105.027344 35.527344 76.5 35.527344 Z M 76.5 35.527344');            // إطار الصورة البارزة (قوس يعلو الدائرة)
+const POP = {w: 103.3, bottom: 178.5};           // عرض الصورة البارزة الافتراضي وحافتها السفلية
+const COLORS = {teal: '#38a792', ink: '#050404'};
+const FONT = '"IBM Plex Sans Arabic", Tahoma, sans-serif';
+const MAX_TEXT_W = 128;
+// خط الأساس والحجم والوزن واللون لكل سطر
 const LINES = {
-  arName:  {y: 166.86, size: 11.5, font: 'Tajawal', weight: 700, color: COLORS.teal, rtl: true},
-  enName:  {y: 179.50, size: 9.8,  font: 'Rubik',   weight: 700, color: COLORS.gold, upper: true},
-  arTitle: {y: 194.94, size: 9.2,  font: 'Tajawal', weight: 700, color: COLORS.teal, rtl: true},
-  enTitle: {y: 204.25, size: 7.6,  font: 'Rubik',   weight: 600, color: COLORS.gold, upper: true},
+  arName:  {y: 180.19, size: 9.5, weight: 700, color: COLORS.teal},
+  arTitle: {y: 195.07, size: 7.5, weight: 400, color: COLORS.ink},
+  sector:  {y: 208.93, size: 7.5, weight: 400, color: COLORS.ink},
+  ext:     {y: 221.2,  size: 7.5, weight: 400, color: COLORS.ink},
 };
-const DEFAULTS = {arName: 'الاسم هنا يكتب', enName: 'Write name here', arTitle: 'المنصب الوظيفي', enTitle: 'Position'};
+const DEFAULTS = {arName: 'اسم الموظف', arTitle: 'المسمى الوظيفي', sector: 'قطاع: ...', ext: ''};
 
 const $ = id => document.getElementById(id);
 const canvas = $('card'), ctx = canvas.getContext('2d');
 const bg = new Image();
+bg.onload = () => render();
 bg.src = '__CARD_BG__';
+if (document.fonts) document.fonts.ready.then(() => render());
 
-// mode 'pop': cut-out photo stands on the circle's bottom edge and may rise above it
-// mode 'circle': photo fills the circle (cover). ox/oy: offset in card units
+// pop: صورة بخلفية شفافة تبرز فوق الدائرة داخل الإطار  |  circle: الصورة تملأ الدائرة
 const photo = {img: null, file: null, mode: 'pop', zoom: 1, ox: 0, oy: 0};
-const POP_HEIGHT = 102;                           // default cut-out height in card units
 
 function draw(c, scale) {
   c.canvas.width = Math.round(CARD_W * scale);
-  c.canvas.height = Math.round(CARD_H * scale);
+  c.canvas.height = Math.round(PRINT_H * scale);
+  c.setTransform(scale, 0, 0, scale * PRINT_H / CARD_H, 0, 0);   // كل الإحداثيات بوحدات التصميم
   c.fillStyle = '#fff';
-  c.fillRect(0, 0, c.canvas.width, c.canvas.height);
-  c.drawImage(bg, 0, 0, c.canvas.width, c.canvas.height);
+  c.fillRect(0, 0, CARD_W, CARD_H);
+  if (bg.complete && bg.naturalWidth) c.drawImage(bg, 0, 0, CARD_W, CARD_H);
 
-  // template's green disc, then the photo on top
-  const cx = PHOTO.cx * scale, cy = PHOTO.cy * scale, r = PHOTO.r * scale;
-  c.fillStyle = COLORS.teal;
-  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
   if (photo.img) {
     const iw = photo.img.width, ih = photo.img.height;
     c.save();
-    c.beginPath();
     if (photo.mode === 'pop') {
-      c.rect(0, 0, c.canvas.width, cy);           // everything above the centre line stays visible
-    }
-    c.moveTo(cx + r, cy);
-    c.arc(cx, cy, r, 0, Math.PI * 2);              // the lower half is cut by the circle
-    c.clip();
-    if (photo.mode === 'pop') {
-      const h = POP_HEIGHT * photo.zoom, w = h * iw / ih;
-      c.drawImage(photo.img, (PHOTO.cx - w / 2 + photo.ox) * scale, (PHOTO.cy + PHOTO.r - h + photo.oy) * scale, w * scale, h * scale);
+      c.clip(FRAME);
+      const w = POP.w * photo.zoom, h = w * ih / iw;
+      c.drawImage(photo.img, PHOTO.cx - w / 2 + photo.ox, POP.bottom - h + photo.oy, w, h);
     } else {
+      c.beginPath(); c.arc(PHOTO.cx, PHOTO.cy, PHOTO.r, 0, Math.PI * 2); c.clip();
       const base = Math.max(PHOTO.r * 2 / iw, PHOTO.r * 2 / ih) * photo.zoom;
       const w = iw * base, h = ih * base;
-      c.drawImage(photo.img, (PHOTO.cx - w / 2 + photo.ox) * scale, (PHOTO.cy - h / 2 + photo.oy) * scale, w * scale, h * scale);
+      c.drawImage(photo.img, PHOTO.cx - w / 2 + photo.ox, PHOTO.cy - h / 2 + photo.oy, w, h);
     }
     c.restore();
   }
 
-  // text
   c.textAlign = 'center';
   c.textBaseline = 'alphabetic';
+  c.direction = 'rtl';
   for (const [key, L] of Object.entries(LINES)) {
-    let text = $(key).value.trim() || DEFAULTS[key];
-    if (L.upper) text = text.toUpperCase();
-    c.direction = L.rtl ? 'rtl' : 'ltr';
+    const text = $(key).value.trim() || DEFAULTS[key];
+    if (!text) continue;
     c.fillStyle = L.color;
     let size = L.size;
-    const font = s => `${L.weight} ${s * scale}px ${L.font}, Tajawal, sans-serif`;
+    const font = s => `${L.weight} ${s}px ${FONT}`;
     c.font = font(size);
-    const w = c.measureText(text).width / scale;
+    const w = c.measureText(text).width;
     if (w > MAX_TEXT_W) { size *= MAX_TEXT_W / w; c.font = font(size); }
-    c.fillText(text, CARD_W / 2 * scale, L.y * scale);
+    c.fillText(text, CARD_W / 2, L.y);
   }
 }
 
@@ -175,7 +171,6 @@ function render() {
   draw(ctx, scale);
 }
 
-// ---- inputs ----
 for (const k of Object.keys(LINES)) $(k).addEventListener('input', render);
 
 const setStatus = t => { $('status').textContent = t; };
@@ -204,7 +199,7 @@ function loadPhoto(blob, file) {
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = () => {
-    photo.img = img; photo.file = file;
+    photo.img = img; photo.file = file || blob;
     setMode(hasTransparency(img) ? 'pop' : 'circle');
     $('zoom').disabled = false; $('clearPhoto').hidden = false;
     $('modes').hidden = false; $('removeBg').hidden = false;
@@ -228,30 +223,33 @@ $('clearPhoto').addEventListener('click', () => {
   setStatus(''); render();
 });
 
-// ---- employee directory (platform database): fills name, title and photo ----
+// ---- سجل الموظفين المركزي: يملأ الاسم والمسمى والقطاع والتحويلة والصورة ----
 (async () => {
   let people = [];
   try {
-    const r = await fetch('/api/people', {credentials: 'same-origin'});
+    const r = await fetch('/api/directory', {credentials: 'same-origin'});
     if (!r.ok) return;
-    people = (await r.json()).people;
+    people = (await r.json()).employees;
   } catch { return; }
   if (!people.length) return;
-  const label = p => p.full_name + ' — ' + p.extension;
+  const label = p => `${p.name_ar} — ${p.employee_no || p.extension || p.id}`;
   $('peopleList').replaceChildren(...people.map(p => Object.assign(document.createElement('option'), {value: label(p)})));
   $('pickBox').hidden = false;
   $('pick').addEventListener('change', async () => {
     const p = people.find(x => label(x) === $('pick').value);
     if (!p) return;
-    $('arName').value = p.full_name; $('arTitle').value = p.job_title || '';
-    $('pickStatus').textContent = p.photo_url ? 'جارٍ تحميل صورة الموظف...' : 'لا توجد صورة لهذا الموظف في الدليل. أضف الاسم الإنجليزي والمنصب بالإنجليزية يدويًا.';
+    $('arName').value = p.name_ar || '';
+    $('arTitle').value = p.job_title || '';
+    $('sector').value = p.sector_name ? `قطاع: ${p.sector_name}` : (p.unit_name || '');
+    $('ext').value = p.extension || '';
     render();
-    if (!p.photo_url) return;
+    if (!p.photo_url) { $('pickStatus').textContent = 'لا توجد صورة لهذا الموظف في سجله؛ ارفع صورة يدويًا.'; return; }
+    $('pickStatus').textContent = 'جارٍ تحميل صورة الموظف...';
     try {
       const res = await fetch(p.photo_url, {credentials: 'same-origin'});
       if (!res.ok) throw new Error();
       loadPhoto(await res.blob());
-      $('pickStatus').textContent = 'تم تحميل البيانات والصورة. أضف الاسم الإنجليزي والمنصب بالإنجليزية يدويًا.';
+      $('pickStatus').textContent = 'تم تحميل البيانات والصورة من سجل الموظف.';
     } catch { $('pickStatus').textContent = 'تعذر تحميل الصورة، يمكنك رفعها يدويًا.'; }
   });
 })();
@@ -274,7 +272,7 @@ $('removeBg').addEventListener('click', async () => {
   }
 });
 
-// keep the photo from drifting away from the circle
+// يبقي الصورة قريبة من الإطار
 function clampOffset() {
   if (!photo.img) return;
   if (photo.mode === 'pop') {
@@ -314,8 +312,8 @@ function exportCanvas() {
   return c;
 }
 function fileName() {
-  const n = ($('enName').value.trim() || $('arName').value.trim() || 'employee').replace(/[\\/:*?"<>|\s]+/g, '-');
-  return `card-${n}.png`;
+  const n = ($('arName').value.trim() || 'employee').replace(/[\\/:*?"<>|\s]+/g, '-');
+  return `card-${n}${$('ext').value.trim() ? '-' + $('ext').value.trim() : ''}.png`;
 }
 $('dl').addEventListener('click', () => {
   exportCanvas().toBlob(b => {
@@ -409,10 +407,9 @@ $('print').addEventListener('click', () => {
 
 // ---- boot ----
 const fontsReady = Promise.all([
-  document.fonts.load('700 20px Tajawal', 'ع'), document.fonts.load('500 20px Tajawal', 'ع'),
-  document.fonts.load('700 20px Rubik', 'A'), document.fonts.load('600 20px Rubik', 'A'),
+  document.fonts.load('700 20px "IBM Plex Sans Arabic"', 'ع'), document.fonts.load('400 20px "IBM Plex Sans Arabic"', 'ع1'),
 ]).catch(() => {});
-Promise.all([bg.decode(), fontsReady]).then(render);
+Promise.all([bg.decode().catch(() => {}), fontsReady]).then(render);
 </script>
 </body>
 </html>
