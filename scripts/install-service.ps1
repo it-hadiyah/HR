@@ -3,13 +3,22 @@
 # Keep this file ASCII only (Windows PowerShell 5 breaks on other encodings).
 param(
   [string]$Name = 'HadiyahPlatform',
-  [int]$Port = 3000
+  [int]$Port = 0
 )
 $ErrorActionPreference = 'Stop'
 $dir = (Resolve-Path "$PSScriptRoot\..").Path
 $node = (Get-Command node -ErrorAction Stop).Source
 if (-not (Test-Path "$dir\.env")) { throw ".env not found in $dir - create it first (copy .env.example)" }
 New-Item -ItemType Directory -Force "$dir\logs", "$dir\tools" | Out-Null
+# the port comes from PORT in .env (default 3000); the service does not override it
+if ($Port -eq 0) {
+  $line = Get-Content "$dir\.env" | Where-Object { $_ -match '^\s*PORT\s*=\s*(\d+)' } | Select-Object -First 1
+  if ($line -match '(\d+)') { $Port = [int]$Matches[1] } else { $Port = 3000 }
+}
+"Using port $Port"
+# keep the IIS proxy rule in sync with that port
+$iisCfg = 'C:\inetpub\hadiyah\web.config'
+if (Test-Path $iisCfg) { (Get-Content $iisCfg -Raw) -replace 'http://localhost:\d+/', "http://localhost:$Port/" | Set-Content $iisCfg -Encoding UTF8 }
 
 # 1) free the port from any manually started copy (npm start)
 Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
@@ -29,7 +38,6 @@ if (-not (Test-Path $nssm)) {
 if (Get-Service $Name -ErrorAction SilentlyContinue) { & $nssm stop $Name | Out-Null; & $nssm remove $Name confirm | Out-Null }
 & $nssm install $Name $node 'server\index.js' | Out-Null
 & $nssm set $Name AppDirectory $dir | Out-Null
-& $nssm set $Name AppEnvironment "PORT=$Port" "NODE_ENV=production" | Out-Null
 & $nssm set $Name Start SERVICE_AUTO_START | Out-Null
 & $nssm set $Name AppExit Default Restart | Out-Null
 & $nssm set $Name AppRestartDelay 5000 | Out-Null
