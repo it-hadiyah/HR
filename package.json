@@ -1,7 +1,7 @@
 {
   "name": "hadiyah-platform",
   "version": "1.0.0",
-  "description": "المنصة الموحّدة لهدية الخير: بوابة الموظفين وأرصدة الإجازات وبطاقة الموظف والتقارير على PostgreSQL",
+  "description": "المنصة الموحّدة لهدية الحاج: بوابة الموظفين وأرصدة الإجازات وبطاقة الموظف والتقارير على PostgreSQL",
   "type": "module",
   "private": true,
   "scripts": {

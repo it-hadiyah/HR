@@ -6,7 +6,7 @@ import { initSchema } from './init.js';
 const demo = process.argv.includes('--demo');
 await initSchema();
 
-const orgName = process.env.ORG_NAME || 'هدية الخير';
+const orgName = process.env.ORG_NAME || 'هدية الحاج';
 let root = (await q("SELECT id FROM org_units WHERE unit_type = 'org' LIMIT 1")).rows[0];
 if (!root) root = (await q("INSERT INTO org_units(unit_type, name) VALUES ('org', $1) RETURNING id", [orgName])).rows[0];
 

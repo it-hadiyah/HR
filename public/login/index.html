@@ -3,36 +3,51 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>منصة هدية الخير</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d7868'/%3E%3Cpath d='M9 17l5 5 9-11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <title>منصة هدية الحاج</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2300a393'/%3E%3Cpath d='M9 17l5 5 9-11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/login/launcher.css">
 </head>
 <body>
-  <header class="top">
-    <div class="wrap top-in">
-      <h1>منصة هدية الخير</h1>
-      <div id="who" class="who" hidden>
-        <span id="whoName"></span>
-        <button id="logout" class="link">تسجيل الخروج</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <section id="login" class="card login" hidden>
-      <h2>تسجيل الدخول</h2>
-      <p class="muted">حساب واحد للدخول إلى جميع الأنظمة.</p>
+  <!-- حالة الدخول: بطاقة تسجيل الدخول فوق خلفية الهوية البصرية -->
+  <div id="login" class="stage" hidden>
+    <a class="back" href="/portal/">‹ العودة إلى بوابة الموظفين</a>
+    <section class="panel" aria-labelledby="loginTitle">
+      <img class="logo" src="/login/logo-color.svg" alt="هدية">
+      <div class="rule" aria-hidden="true"></div>
+      <h1 id="loginTitle">منصة هدية الحاج</h1>
+      <p class="sub">تسجيل الدخول إلى الأنظمة الداخلية</p>
+      <p id="target" class="target" hidden></p>
       <form id="loginForm" autocomplete="on">
         <label for="u">اسم المستخدم</label>
         <input id="u" name="username" autocomplete="username" required autofocus>
         <label for="p">كلمة المرور</label>
-        <input id="p" name="password" type="password" autocomplete="current-password" required>
+        <div class="pw">
+          <input id="p" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" id="showPw" class="eye" aria-label="إظهار كلمة المرور" aria-pressed="false">إظهار</button>
+        </div>
         <p id="err" class="err" role="alert"></p>
         <button class="primary" type="submit">دخول</button>
       </form>
+      <p class="hint">لا يوجد لديك حساب؟ تواصل مع إدارة تقنية المعلومات.</p>
     </section>
+    <div class="band" aria-hidden="true"></div>
+  </div>
 
-    <section id="home" hidden>
+  <!-- حالة ما بعد الدخول: الأنظمة المتاحة -->
+  <div id="home" hidden>
+    <header class="top">
+      <div class="wrap top-in">
+        <img src="/login/logo-white.svg" alt="هدية" class="top-logo">
+        <h1>منصة هدية الحاج</h1>
+        <div class="who">
+          <span id="whoName"></span>
+          <a class="link" href="/portal/">بوابة الموظفين</a>
+          <button id="logout" class="link" type="button">تسجيل الخروج</button>
+        </div>
+      </div>
+      <div class="band band--top" aria-hidden="true"></div>
+    </header>
+    <main class="wrap">
       <p class="lead" id="hello"></p>
       <div id="apps" class="apps"></div>
 
@@ -40,11 +55,11 @@
         <h2>ربط البيانات</h2>
         <p class="muted">يربط دليل الموظفين في البوابة بموظفي نظام الإجازات (بالرقم الوظيفي = الرقم الداخلي، أو بتطابق الاسم)، فتتشارك الأنظمة هوية واحدة لكل موظف.</p>
         <p id="linkStat"></p>
-        <button id="autoLink" class="secondary">ربط تلقائي للموظفين غير المربوطين</button>
+        <button id="autoLink" class="secondary" type="button">ربط تلقائي للموظفين غير المربوطين</button>
         <p id="linkMsg" class="muted"></p>
       </section>
-    </section>
-  </main>
+    </main>
+  </div>
   <script src="/login/launcher.js" type="module"></script>
 </body>
 </html>
