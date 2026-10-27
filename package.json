@@ -1,14 +1,18 @@
 {
-  "name": "hr-leave-balance",
+  "name": "hadiyah-platform",
   "version": "1.0.0",
-  "description": "نظام إدارة وتحليل أرصدة الإجازات وتكلفتها المالية",
+  "description": "المنصة الموحّدة لهدية الخير: بوابة الموظفين وأرصدة الإجازات وبطاقة الموظف والتقارير على PostgreSQL",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "node server/index.js",
+    "db:create": "node server/db/create-db.js",
     "db:init": "node server/db/init.js",
     "db:seed": "node server/db/seed.js",
     "db:seed:demo": "node server/db/seed.js --demo",
+    "db:import-legacy": "node server/db/import-legacy.js",
+    "setup": "npm run db:create && npm run db:seed && npm run db:import-legacy",
+    "build:card": "python3 modules/card/tools/build.py",
     "test": "node --test test/*.test.js"
   },
   "engines": {

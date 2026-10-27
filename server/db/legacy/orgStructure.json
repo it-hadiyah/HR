@@ -1,0 +1,103 @@
+{
+  "sections": [
+    {
+      "id": "board",
+      "title": "مجلس الإدارة",
+      "kind": "board",
+      "heads": [11],
+      "children": [
+        { "id": "board-secretariat", "title": "أمانة مجلس الإدارة", "heads": [12], "members": [13] }
+      ]
+    },
+    {
+      "id": "ceo",
+      "title": "الرئيس التنفيذي ومكاتبه",
+      "kind": "ceo",
+      "heads": [100],
+      "children": [
+        { "id": "ceo-office", "title": "مكتب الرئيس التنفيذي", "heads": [105], "members": [104, 125] },
+        { "id": "internal-audit", "title": "مكتب المراجعة الداخلية", "members": [112] },
+        { "id": "financial-control", "title": "مكتب الرقابة المالية", "members": [115] },
+        { "id": "governance", "title": "مكتب الحوكمة والالتزام", "members": [120] },
+        { "id": "strategy", "title": "مكتب الإستراتيجية والتميز المؤسسي", "heads": [130], "members": [131, 132] },
+        { "id": "endowment", "title": "مكتب إدارة الأوقاف والاستثمار", "members": [140] }
+      ]
+    },
+    {
+      "id": "programs",
+      "title": "قطاع البرامج والعمليات التشغيلية",
+      "kind": "sector",
+      "heads": [400],
+      "children": [
+        { "id": "beneficiaries", "title": "إدارة المشاريع وخدمات المستفيدين", "heads": [401], "members": [402, 403, 405, 406] },
+        { "id": "social-investment", "title": "قسم الاستثمار الاجتماعي", "heads": [410] },
+        { "id": "innovation", "title": "قسم الابتكار وتطوير الأعمال", "heads": [414] },
+        { "id": "aid", "title": "قسم المساعدات", "heads": [420], "members": [421, 422, 423] },
+        { "id": "volunteering", "title": "قسم التطوع", "heads": [430], "members": [431] },
+        { "id": "factory", "title": "المصنع", "members": [435] }
+      ]
+    },
+    {
+      "id": "comms",
+      "title": "قطاع التسويق والاتصال المؤسسي",
+      "kind": "sector",
+      "heads": [300],
+      "children": [
+        {
+          "id": "corporate-comms",
+          "title": "إدارة الاتصال المؤسسي",
+          "children": [
+            { "id": "media", "title": "قسم الإعلام", "heads": [303], "members": [304, 305, 306] },
+            { "id": "pr", "title": "قسم العلاقات العامة", "heads": [310], "members": [311, 312, 313] },
+            { "id": "design", "title": "قسم التصميم", "members": [316, 317] }
+          ]
+        },
+        { "id": "fundraising", "title": "إدارة تنمية الموارد المالية", "heads": [330], "members": [332, 333, 334] },
+        { "id": "partnerships", "title": "قسم الشراكات", "heads": [320], "members": [321] }
+      ]
+    },
+    {
+      "id": "shared",
+      "title": "قطاع الخدمات المشتركة",
+      "kind": "sector",
+      "heads": [200],
+      "children": [
+        {
+          "id": "supply-chain",
+          "title": "إدارة سلاسل الإمداد",
+          "children": [
+            { "id": "procurement", "title": "قسم المشتريات والعقود", "heads": [240], "members": [241, 242] },
+            { "id": "warehouses", "title": "المستودعات", "members": [250] }
+          ]
+        },
+        { "id": "human-capital", "title": "إدارة رأس المال البشري", "heads": [211], "members": [212, 213] },
+        { "id": "it", "title": "قسم التقنية والتحول الرقمي", "heads": [220], "members": [221, 222, 224] },
+        { "id": "legal", "title": "قسم الشؤون القانونية", "heads": [230] }
+      ]
+    },
+    {
+      "id": "finance",
+      "title": "الإدارة المالية",
+      "kind": "sector",
+      "heads": [500],
+      "children": [
+        { "id": "accounts", "title": "قسم الحسابات", "heads": [501], "members": [505, 507, 508, 509, 510] },
+        { "id": "planning", "title": "قسم التخطيط والتحليل المالي", "heads": [502] },
+        { "id": "tax-assets", "title": "قسم الضرائب والأصول الثابتة", "heads": [503], "members": [504, 506] }
+      ]
+    },
+    {
+      "id": "madinah",
+      "title": "إدارة فرع المدينة المنورة",
+      "kind": "sector",
+      "heads": [600]
+    },
+    {
+      "id": "company",
+      "title": "شركة هدية الخير",
+      "kind": "company",
+      "heads": [800],
+      "members": [801, 808, 810, 811, 812, 818, 820, 821]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { q } from '../db/pool.js';
-import { signToken, authenticate, wrap, ROLE_LABELS, can } from '../lib/auth.js';
+import { signToken, authenticate, wrap, ROLE_LABELS, can, COOKIE } from '../lib/auth.js';
 import { httpError } from '../lib/util.js';
 
 const r = Router();
@@ -12,7 +12,7 @@ r.post('/login', wrap(async (req, res) => {
   const { rows } = await q('SELECT * FROM users WHERE username = $1 AND active', [String(username).trim().toLowerCase()]);
   const u = rows[0];
   if (!u || !(await bcrypt.compare(String(password), u.password_hash))) throw httpError(401, 'بيانات الدخول غير صحيحة');
-  res.cookie('token', signToken(u), { httpOnly: true, sameSite: 'strict', secure: process.env.COOKIE_SECURE === '1', maxAge: 12 * 3600 * 1000 });
+  res.cookie('token', signToken(u), COOKIE);
   res.json({ ok: true });
 }));
 

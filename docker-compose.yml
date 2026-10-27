@@ -1,7 +1,23 @@
+# تشغيل المنصة كاملة (التطبيق + PostgreSQL) بأمر واحد:  docker compose up -d
+# بعد أول تشغيل:  docker compose exec app npm run db:seed && docker compose exec app npm run db:import-legacy
 services:
   db:
     image: postgres:16
-    environment: { POSTGRES_USER: hr, POSTGRES_PASSWORD: hr, POSTGRES_DB: hr }
-    ports: ["5432:5432"]
+    restart: unless-stopped
+    environment: { POSTGRES_USER: hadiyah, POSTGRES_PASSWORD: "${DB_PASSWORD:-hadiyah}", POSTGRES_DB: hadiyah }
     volumes: [pgdata:/var/lib/postgresql/data]
-volumes: { pgdata: {} }
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on: [db]
+    ports: ["${PORT:-3000}:3000"]
+    environment:
+      DATABASE_URL: "postgres://hadiyah:${DB_PASSWORD:-hadiyah}@db:5432/hadiyah"
+      JWT_SECRET: "${JWT_SECRET:?اضبط JWT_SECRET}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-0}"
+      PORTAL_PUBLIC: "${PORTAL_PUBLIC:-0}"
+    volumes:
+      - portal-policies:/app/modules/portal/policies
+      - portal-images:/app/modules/portal/images
+volumes: { pgdata: {}, portal-policies: {}, portal-images: {} }

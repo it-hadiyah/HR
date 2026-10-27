@@ -48,7 +48,7 @@ r.delete('/holidays/:id', requirePerm('settings'), wrap(async (req, res) => {
 
 // ---- المستخدمون والأدوار ----
 r.get('/users', adminOnly, wrap(async (req, res) => {
-  const { rows } = await q('SELECT u.id, u.username, u.full_name, u.role, u.org_unit_id, u.active, o.name AS unit_name FROM users u LEFT JOIN org_units o ON o.id = u.org_unit_id ORDER BY u.id');
+  const { rows } = await q('SELECT u.id, u.username, u.full_name, u.role, u.org_unit_id, u.person_id, u.active, o.name AS unit_name FROM users u LEFT JOIN org_units o ON o.id = u.org_unit_id ORDER BY u.id');
   res.json({ users: rows, roles: ROLE_LABELS });
 }));
 
@@ -60,8 +60,8 @@ function checkUser(b, isNew) {
 }
 r.post('/users', adminOnly, wrap(async (req, res) => {
   const b = req.body; checkUser(b, true);
-  const { rows } = await q('INSERT INTO users(username, full_name, password_hash, role, org_unit_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, full_name, role, org_unit_id, active',
-    [String(b.username).trim().toLowerCase(), b.full_name || b.username, await bcrypt.hash(b.password, 10), b.role, b.org_unit_id || null]);
+  const { rows } = await q('INSERT INTO users(username, full_name, password_hash, role, org_unit_id, person_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, username, full_name, role, org_unit_id, person_id, active',
+    [String(b.username).trim().toLowerCase(), b.full_name || b.username, await bcrypt.hash(b.password, 10), b.role, b.org_unit_id || null, b.person_id || null]);
   await audit(req, 'create', 'user', rows[0].id, null, rows[0]);
   res.status(201).json(rows[0]);
 }));
@@ -72,8 +72,8 @@ r.put('/users/:id', adminOnly, wrap(async (req, res) => {
   if (old.id === req.user.id && (b.active === false || (b.role && b.role !== 'admin'))) throw httpError(400, 'لا يمكنك تعطيل حسابك أو تغيير دورك');
   const hash = b.password ? await bcrypt.hash(b.password, 10) : null;
   const { rows } = await q(`UPDATE users SET full_name = COALESCE($2, full_name), role = COALESCE($3, role), org_unit_id = $4, active = COALESCE($5, active),
-    password_hash = COALESCE($6, password_hash) WHERE id = $1 RETURNING id, username, full_name, role, org_unit_id, active`,
-    [old.id, b.full_name || null, b.role || null, b.org_unit_id === undefined ? old.org_unit_id : (b.org_unit_id || null), b.active ?? null, hash]);
+    password_hash = COALESCE($6, password_hash), person_id = CASE WHEN $7::boolean THEN $8 ELSE person_id END WHERE id = $1 RETURNING id, username, full_name, role, org_unit_id, person_id, active`,
+    [old.id, b.full_name || null, b.role || null, b.org_unit_id === undefined ? old.org_unit_id : (b.org_unit_id || null), b.active ?? null, hash, b.person_id !== undefined, b.person_id || null]);
   await audit(req, 'update', 'user', old.id, old, { ...rows[0], password_changed: !!b.password });
   res.json(rows[0]);
 }));

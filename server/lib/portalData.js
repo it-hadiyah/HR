@@ -1,0 +1,209 @@
+// بيانات بوابة الموظفين في قاعدة البيانات: التحويل من/إلى نفس صيغة ملفات JSON القديمة،
+// فتعمل صفحات البوابة ولوحة التحكم دون تغيير في طريقة قراءتها للبيانات.
+import { httpError } from './util.js';
+
+export const FILES = ['employeeInfo.json', 'orgStructure.json', 'linksLibrary.json', 'PoliciesLibrary.json', 'locations.json', 'home.json', 'committees.json', 'recognition.json'];
+export const READ_ONLY_FILES = ['brand.json'];
+const ARRAY_FILES = ['employeeInfo.json', 'locations.json'];
+const DOC_DEFAULTS = { home: {}, committees: { committees: [] }, recognition: { awards: [] }, brand: {} };
+const HOME_GROUPS = ['oprations', 'orders', 'list'];
+const EMP_KEYS = ['Extension', 'Name', 'Section', 'JobName', 'Photo', 'email'];
+
+const str = v => (v === null || v === undefined ? null : String(v));
+const orEmpty = v => v ?? '';
+const slugify = s => String(s).trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || `unit-${Date.now()}`;
+const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+
+// ───────────── التصدير (قاعدة البيانات ← JSON) ─────────────
+async function exportEmployees(db) {
+  const { rows } = await db.query('SELECT * FROM people WHERE extension IS NOT NULL ORDER BY sort_order, id');
+  return rows.map(p => ({
+    Extension: p.extension, Name: p.full_name, Section: orEmpty(p.section), JobName: orEmpty(p.job_title),
+    Photo: orEmpty(p.photo), email: orEmpty(p.email), ...p.extra,
+  }));
+}
+
+async function exportOrg(db) {
+  const { rows: units } = await db.query('SELECT id, parent_id, slug, name, portal_kind FROM org_units WHERE slug IS NOT NULL AND active ORDER BY sort_order, id');
+  const { rows: ppl } = await db.query('SELECT extension, org_unit_id, unit_role FROM people WHERE org_unit_id IS NOT NULL AND extension IS NOT NULL ORDER BY unit_order, id');
+  const ids = new Set(units.map(u => u.id));
+  const kids = new Map();
+  for (const u of units) { const k = ids.has(u.parent_id) ? u.parent_id : 0; (kids.get(k) || kids.set(k, []).get(k)).push(u); }
+  const staff = new Map();
+  for (const p of ppl) (staff.get(p.org_unit_id) || staff.set(p.org_unit_id, []).get(p.org_unit_id)).push(p);
+  const build = u => {
+    const node = { id: u.slug, title: u.name };
+    if (u.portal_kind) node.kind = u.portal_kind;
+    const s = staff.get(u.id) || [];
+    const heads = s.filter(p => p.unit_role === 'head').map(p => p.extension);
+    const members = s.filter(p => p.unit_role !== 'head').map(p => p.extension);
+    if (heads.length) node.heads = heads;
+    if (members.length) node.members = members;
+    const ch = (kids.get(u.id) || []).map(build);
+    if (ch.length) node.children = ch;
+    return node;
+  };
+  return { sections: (kids.get(0) || []).map(build) };
+}
+
+async function exportLinks(db) {
+  const cats = (await db.query('SELECT id, name FROM link_categories ORDER BY sort_order, id')).rows;
+  const links = (await db.query('SELECT * FROM links ORDER BY sort_order, id')).rows;
+  const item = (l, full) => {
+    const o = { name: l.name, description: orEmpty(l.description), url: orEmpty(l.url) };
+    if (l.image || full) o.image = orEmpty(l.image);
+    return o;
+  };
+  const categories = {};
+  for (const c of cats) categories[c.name] = links.filter(l => l.category_id === c.id).map(l => item(l));
+  const most_important = {};
+  for (const g of HOME_GROUPS) most_important[g] = links.filter(l => l.home_group === g).map(l => item(l));
+  return { categories, most_important };
+}
+
+async function exportPolicies(db) {
+  const cats = (await db.query('SELECT id, name FROM policy_categories ORDER BY sort_order, id')).rows;
+  const pol = (await db.query('SELECT * FROM policies ORDER BY sort_order, id')).rows;
+  const categories = {};
+  for (const c of cats) categories[c.name] = pol.filter(p => p.category_id === c.id).map(p => ({ name: p.name, file: orEmpty(p.file), description: orEmpty(p.description) }));
+  return { categories };
+}
+
+async function exportLocations(db) {
+  const { rows } = await db.query('SELECT * FROM locations ORDER BY sort_order, id');
+  return rows.map(l => ({ branch: l.branch, branchPhoto: orEmpty(l.photo), mapLink: orEmpty(l.map_link) }));
+}
+
+export async function exportFile(db, file) {
+  switch (file) {
+    case 'employeeInfo.json': return exportEmployees(db);
+    case 'orgStructure.json': return exportOrg(db);
+    case 'linksLibrary.json': return exportLinks(db);
+    case 'PoliciesLibrary.json': return exportPolicies(db);
+    case 'locations.json': return exportLocations(db);
+    default: {
+      const name = file.replace(/\.json$/, '');
+      if (!(name in DOC_DEFAULTS)) throw httpError(400, 'ملف غير مسموح.');
+      const { rows } = await db.query('SELECT data FROM portal_docs WHERE name = $1', [name]);
+      return rows[0]?.data ?? DOC_DEFAULTS[name];
+    }
+  }
+}
+
+// ───────────── الحفظ (JSON ← قاعدة البيانات)؛ يُستدعى داخل معاملة ─────────────
+async function saveEmployees(c, arr) {
+  const seen = new Set();
+  for (const [i, e] of arr.entries()) {
+    if (!isObj(e)) throw httpError(400, 'بنية الموظفين غير صحيحة.');
+    const ext = Number(e.Extension);
+    if (!Number.isInteger(ext)) throw httpError(400, `الرقم الداخلي غير صالح للموظف «${e.Name ?? i + 1}».`);
+    if (seen.has(ext)) throw httpError(400, `الرقم الداخلي ${ext} مكرر.`);
+    if (!String(e.Name ?? '').trim()) throw httpError(400, `اسم الموظف صاحب التحويلة ${ext} فارغ.`);
+    seen.add(ext);
+    const extra = Object.fromEntries(Object.entries(e).filter(([k]) => !EMP_KEYS.includes(k)));
+    await c.query(`INSERT INTO people(extension, full_name, section, job_title, photo, email, sort_order, extra)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (extension) DO UPDATE SET full_name = EXCLUDED.full_name, section = EXCLUDED.section, job_title = EXCLUDED.job_title,
+        photo = EXCLUDED.photo, email = EXCLUDED.email, sort_order = EXCLUDED.sort_order, extra = EXCLUDED.extra, updated_at = now()`,
+    [ext, String(e.Name).trim(), str(e.Section), str(e.JobName), str(e.Photo), str(e.email), i, JSON.stringify(extra)]);
+  }
+  await c.query('DELETE FROM people WHERE extension IS NOT NULL AND extension <> ALL($1::int[])', [[...seen]]);
+}
+
+async function saveOrg(c, doc) {
+  const root = (await c.query("SELECT id FROM org_units WHERE unit_type = 'org' ORDER BY id LIMIT 1")).rows[0];
+  if (!root) throw httpError(500, 'لا توجد وحدة جذر للمنشأة؛ شغّل db:seed أولاً.');
+  const keep = new Set();
+  const placements = [];
+  let order = 0;
+  const walk = async (node, parentId, depth) => {
+    if (!isObj(node) || !String(node.title ?? '').trim()) throw httpError(400, 'وحدة تنظيمية بلا اسم.');
+    const slug = String(node.id || slugify(node.title));
+    if (keep.has(slug)) throw httpError(400, `معرّف الوحدة «${slug}» مكرر.`);
+    keep.add(slug);
+    const type = depth === 1 ? 'sector' : depth === 2 ? 'department' : 'section';
+    const found = (await c.query('SELECT id FROM org_units WHERE slug = $1', [slug])).rows[0];
+    let id;
+    if (found) {
+      id = found.id;
+      await c.query('UPDATE org_units SET parent_id=$2, unit_type=$3, name=$4, portal_kind=$5, sort_order=$6, active=TRUE WHERE id=$1',
+        [id, parentId, type, String(node.title).trim(), node.kind || null, order++]);
+    } else {
+      id = (await c.query('INSERT INTO org_units(parent_id, unit_type, name, slug, portal_kind, sort_order) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+        [parentId, type, String(node.title).trim(), slug, node.kind || null, order++])).rows[0].id;
+    }
+    (node.heads || []).forEach((ext, i) => placements.push([id, 'head', i, ext]));
+    (node.members || []).forEach((ext, i) => placements.push([id, 'member', i, ext]));
+    for (const ch of node.children || []) await walk(ch, id, depth + 1);
+  };
+  for (const s of doc.sections || []) await walk(s, root.id, 1);
+
+  // الوحدات المحذوفة: تُحذف إن لم يرتبط بها موظفو الموارد البشرية، وإلا تُخفى من البوابة فقط
+  const stale = (await c.query('SELECT id FROM org_units WHERE slug IS NOT NULL AND slug <> ALL($1::text[])', [[...keep]])).rows.map(r => r.id);
+  await c.query('UPDATE people SET org_unit_id = NULL, unit_role = NULL, unit_order = 0 WHERE org_unit_id IN (SELECT id FROM org_units WHERE slug IS NOT NULL)');
+  for (const [unit, role, i, ext] of placements) {
+    await c.query('UPDATE people SET org_unit_id=$1, unit_role=$2, unit_order=$3 WHERE extension=$4', [unit, role, i, Number(ext)]);
+  }
+  let pending = stale;
+  for (let pass = 0; pass < 6 && pending.length; pass++) {
+    const left = [];
+    for (const id of pending) {
+      await c.query('SAVEPOINT del');
+      try { await c.query('DELETE FROM org_units WHERE id = $1', [id]); await c.query('RELEASE SAVEPOINT del'); }
+      catch (err) { await c.query('ROLLBACK TO SAVEPOINT del'); if (err.code !== '23503') throw err; left.push(id); }
+    }
+    pending = left;
+  }
+  if (pending.length) await c.query('UPDATE org_units SET slug = NULL, portal_kind = NULL WHERE id = ANY($1::int[])', [pending]);
+}
+
+async function saveLinks(c, doc) {
+  await c.query('DELETE FROM links');
+  await c.query('DELETE FROM link_categories');
+  let ci = 0;
+  for (const [name, list] of Object.entries(doc.categories || {})) {
+    const cat = (await c.query('INSERT INTO link_categories(name, sort_order) VALUES ($1,$2) RETURNING id', [name, ci++])).rows[0];
+    for (const [i, l] of (list || []).entries())
+      await c.query('INSERT INTO links(category_id, name, description, url, image, sort_order) VALUES ($1,$2,$3,$4,$5,$6)', [cat.id, l.name, str(l.description), str(l.url), str(l.image), i]);
+  }
+  for (const g of HOME_GROUPS)
+    for (const [i, l] of ((doc.most_important || {})[g] || []).entries())
+      await c.query('INSERT INTO links(home_group, name, description, url, image, sort_order) VALUES ($1,$2,$3,$4,$5,$6)', [g, l.name, str(l.description), str(l.url), str(l.image), i]);
+}
+
+async function savePolicies(c, doc) {
+  await c.query('DELETE FROM policy_categories');
+  let ci = 0;
+  for (const [name, list] of Object.entries(doc.categories || {})) {
+    const cat = (await c.query('INSERT INTO policy_categories(name, sort_order) VALUES ($1,$2) RETURNING id', [name, ci++])).rows[0];
+    for (const [i, p] of (list || []).entries())
+      await c.query('INSERT INTO policies(category_id, name, file, description, sort_order) VALUES ($1,$2,$3,$4,$5)', [cat.id, p.name, str(p.file), str(p.description), i]);
+  }
+}
+
+async function saveLocations(c, arr) {
+  await c.query('DELETE FROM locations');
+  for (const [i, l] of arr.entries())
+    await c.query('INSERT INTO locations(branch, photo, map_link, sort_order) VALUES ($1,$2,$3,$4)', [l.branch, str(l.branchPhoto), str(l.mapLink), i]);
+}
+
+export async function saveFile(c, file, data, user) {
+  if (!FILES.includes(file)) throw httpError(400, 'ملف غير مسموح.');
+  if (ARRAY_FILES.includes(file) ? !Array.isArray(data) : !isObj(data)) throw httpError(400, 'بنية البيانات غير صحيحة لهذا الملف، لم يُحفظ شيء.');
+  switch (file) {
+    case 'employeeInfo.json': return saveEmployees(c, data);
+    case 'orgStructure.json': return saveOrg(c, data);
+    case 'linksLibrary.json': return saveLinks(c, data);
+    case 'PoliciesLibrary.json': return savePolicies(c, data);
+    case 'locations.json': return saveLocations(c, data);
+    default:
+      return c.query(`INSERT INTO portal_docs(name, data, updated_by) VALUES ($1,$2,$3)
+        ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [file.replace(/\.json$/, ''), JSON.stringify(data), user ?? null]);
+  }
+}
+
+export async function saveDoc(c, name, data, user) {
+  await c.query(`INSERT INTO portal_docs(name, data, updated_by) VALUES ($1,$2,$3)
+    ON CONFLICT (name) DO UPDATE SET data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = now()`, [name, JSON.stringify(data), user ?? null]);
+}

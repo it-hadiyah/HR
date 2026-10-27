@@ -1,12 +1,21 @@
+import './lib/env.js';
+// المنصة الموحّدة: نقطة دخول واحدة (رابط واحد) تجمع بوابة الموظفين وأرصدة الإجازات وبطاقة الموظف والتقارير
+// فوق قاعدة بيانات PostgreSQL واحدة وحسابات دخول واحدة.
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { authenticate } from './lib/auth.js';
+import { authenticate, userFromRequest } from './lib/auth.js';
+import { canUseApp, requireApp } from './lib/apps.js';
+import { exportFile, FILES, READ_ONLY_FILES } from './lib/portalData.js';
+import { pool } from './db/pool.js';
 import { initSchema } from './db/init.js';
 import authRoutes from './routes/auth.js';
+import platformRoutes from './routes/platform.js';
+import portalAdminRoutes, { PORTAL_DIR } from './routes/portalAdmin.js';
 import orgRoutes from './routes/org.js';
 import employeeRoutes from './routes/employees.js';
 import leaveRoutes from './routes/leaves.js';
@@ -17,27 +26,116 @@ import importRoutes from './routes/importer.js';
 import adminRoutes from './routes/admin.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '..');
+const MODULES = path.join(root, 'modules');
+const secure = process.env.COOKIE_SECURE === '1';
+
 export const app = express();
 app.disable('x-powered-by');
-app.use(helmet({
-  contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], fontSrc: ["'self'", 'data:'] } },
-}));
-app.use(express.json({ limit: '2mb' }));
+if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : process.env.TRUST_PROXY);
+
+// سياسة أمان صارمة للصفحة الموحّدة وأرصدة الإجازات، ومخففة للوحدات المضمّنة (تستخدم سكربتات وأنماط داخلية وخطوطاً خارجية)
+const strictCsp = helmet({
+  contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'], fontSrc: ["'self'", 'data:'], upgradeInsecureRequests: secure ? [] : null } },
+});
+const looseCsp = helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", 'https://cdn.jsdelivr.net', 'blob:'],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'blob:', 'data:', 'https://api.aladhan.com', 'https://cdn.jsdelivr.net', 'https://staticimgly.com'],
+      workerSrc: ["'self'", 'blob:'],
+      mediaSrc: ["'self'", 'blob:'],
+      frameSrc: ["'self'"],
+      objectSrc: ["'self'"],
+      upgradeInsecureRequests: secure ? [] : null,
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+});
+app.use((req, res, next) => (/^\/(portal|card|report)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
 app.use(cookieParser());
 
+// ── واجهات API ──
+app.use('/api/portal-admin', authenticate, portalAdminRoutes);   // قبل express.json: يقرأ الجسم بنفسه (حتى 20MB)
+app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false }), authRoutes);
 app.use('/api', authenticate);
-app.use('/api/org', orgRoutes);
-app.use('/api/employees', employeeRoutes);
-app.use('/api/leaves', leaveRoutes);
-app.use('/api/targets', targetRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/import', importRoutes);
+app.use('/api', platformRoutes);
+const hr = requireApp('hr');
+app.use('/api/org', hr, orgRoutes);
+app.use('/api/employees', hr, employeeRoutes);
+app.use('/api/leaves', hr, leaveRoutes);
+app.use('/api/targets', hr, targetRoutes);
+app.use('/api/dashboard', hr, dashboardRoutes);
+app.use('/api/reports', hr, reportRoutes);
+app.use('/api/import', hr, importRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.use('/vendor/chart.js', express.static(path.join(here, '../node_modules/chart.js/dist/chart.umd.js')));
-app.use(express.static(path.join(here, '../public')));
+// ── بوابة الدخول للوحدات الثابتة ──
+const wantsPage = req => req.method === 'GET' && (req.path.endsWith('/') || req.path.endsWith('.html'));
+const gate = slug => async (req, res, next) => {
+  try {
+    const appSlug = slug === 'portal' && req.path.startsWith('/admin') ? 'portal-admin' : slug;
+    if (slug === 'portal' && appSlug === 'portal' && process.env.PORTAL_PUBLIC === '1') return next();
+    const user = await userFromRequest(req);
+    if (!user) {
+      if (wantsPage(req)) return res.redirect(`/?next=${encodeURIComponent(req.baseUrl + req.url)}`);
+      return res.status(401).json({ error: 'غير مسجّل الدخول' });
+    }
+    if (!(await canUseApp(user, appSlug))) {
+      if (wantsPage(req)) return res.status(403).type('html').send('<meta charset="utf-8"><body dir="rtl" style="font-family:Tahoma;padding:40px"><h2>لا تملك صلاحية الوصول إلى هذا النظام</h2><p><a href="/">العودة إلى الصفحة الرئيسية للمنصة</a></p>');
+      return res.status(403).json({ error: 'لا تملك صلاحية الوصول إلى هذا النظام' });
+    }
+    req.user = user;
+    next();
+  } catch (e) { next(e); }
+};
+
+// يحقن شريط التنقل الموحّد (العودة للمنصة والتنقل بين الأنظمة) في صفحات HTML للوحدات
+const htmlCache = new Map();
+const withAppBar = dir => (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  let rel;
+  try { rel = decodeURIComponent(req.path); } catch { return next(); }
+  if (rel.endsWith('/')) rel += 'index.html';
+  if (!rel.endsWith('.html')) return next();
+  const file = path.resolve(dir, '.' + rel);
+  if (!file.startsWith(dir + path.sep)) return next();
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return next();
+    let hit = htmlCache.get(file);
+    if (!hit || hit.mtime !== st.mtimeMs) {
+      let html = fs.readFileSync(file, 'utf8');
+      const tag = '<script src="/appbar.js" defer></script>';
+      html = /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${tag}</body>`) : html + tag;
+      hit = { mtime: st.mtimeMs, html };
+      htmlCache.set(file, hit);
+    }
+    res.set('Cache-Control', 'no-cache').type('html').send(hit.html);
+  });
+};
+const mount = (url, slug, dir) => app.use(url, gate(slug), withAppBar(dir), express.static(dir, { index: 'index.html', dotfiles: 'ignore', maxAge: '5m' }));
+
+// بيانات البوابة تُقرأ من قاعدة البيانات بنفس صيغة ملفات JSON القديمة
+app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
+  try {
+    const f = req.params.file;
+    if (![...FILES, ...READ_ONLY_FILES].includes(f)) return res.status(404).json({ error: 'غير موجود' });
+    res.set('Cache-Control', 'no-store').json(await exportFile(pool, f));
+  } catch (e) { next(e); }
+});
+
+mount('/portal', 'portal', PORTAL_DIR);
+mount('/card', 'card', path.join(MODULES, 'card'));
+mount('/report', 'report', path.join(MODULES, 'report'));
+app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
+app.use('/hr', express.static(path.join(root, 'public/hr')));
+app.use(express.static(path.join(root, 'public')));
 
 app.use((err, req, res, _next) => {
   if (err.status) return res.status(err.status).json({ error: err.message });
@@ -51,5 +149,5 @@ app.use((err, req, res, _next) => {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await initSchema();
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`النظام يعمل على http://localhost:${port}`));
+  app.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`المنصة تعمل على http://localhost:${port}`));
 }

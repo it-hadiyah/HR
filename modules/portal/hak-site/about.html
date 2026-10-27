@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>من نحن | هدية الخير للاستثمار</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+
+<body data-page="about">
+  <!-- Header (نفسه في كل الصفحات) -->
+  <header class="topbar" id="top">
+    <div class="container topbar__inner">
+      <a class="topbar__cta" href="index.html#contact" id="headerCta">تواصل معنا</a>
+
+      <nav class="topbar__nav" aria-label="القائمة الرئيسية">
+        <button class="navToggle" id="navToggle" aria-expanded="false" aria-controls="navMenu">☰</button>
+        <ul class="navMenu" id="navMenu"></ul>
+      </nav>
+
+      <a class="brand" href="index.html" aria-label="العودة للرئيسية">
+        <div class="brand__text">
+          <div class="brand__name" id="brandTitle">هدية الخير للاستثمار</div>
+          <div class="brand__tag" id="brandTag">ذراع استثماري غير ربحي لخدمة ضيوف الرحمن</div>
+        </div>
+        <div class="brand__logoWrap" aria-hidden="true">
+          <img id="brandLogo" class="brand__logo" alt="شعار هدية الخير" />
+        </div>
+      </a>
+    </div>
+    <div class="progress" aria-hidden="true"><span id="scrollProgress"></span></div>
+  </header>
+
+  <!-- محتوى الصفحة (من نحن) -->
+  <main>
+    <section class="section section--alt" id="about">
+      <div class="container">
+        <div class="sectionHead">
+          <h1 class="sectionTitle" id="aboutTitle">من نحن</h1>
+          <p class="sectionLead" id="aboutLead"></p>
+        </div>
+        <div class="grid grid--3" id="aboutCards"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand" id="footerBrand">هدية الخير للاستثمار</div>
+      <div class="footer__copy" id="footerCopy"></div>
+    </div>
+  </footer>
+
+  <button class="toTop" id="toTop" aria-label="العودة للأعلى">↑</button>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

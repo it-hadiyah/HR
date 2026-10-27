@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/x-icon" href="../favicon_io/favicon.ico">
+  <title>لوحة التحكم | بوابة هدية</title>
+  <link href="../assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div id="gate" class="gate" hidden>
+    <div class="gate-card">
+      <span class="gate-icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+      <h1 id="gateTitle">لوحة التحكم</h1>
+      <p id="gateText"></p>
+      <a class="btn btn--ghost" href="../index.html">العودة إلى البوابة</a>
+    </div>
+  </div>
+
+  <div id="app" class="app" hidden>
+    <header class="top">
+      <div class="top-brand"><img src="../images/logo.png" alt="هدية" height="40"><strong>لوحة التحكم</strong></div>
+      <div class="top-actions">
+        <span class="top-user"><i class="fa-regular fa-user" aria-hidden="true"></i><bdi id="userName" dir="ltr"></bdi></span>
+        <a class="btn btn--ghost" href="../index.html" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> عرض البوابة</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="side" id="side" aria-label="الأقسام"></nav>
+
+      <main class="main">
+        <div class="head">
+          <div>
+            <h1 id="secTitle"></h1>
+            <p id="secHint" class="muted"></p>
+          </div>
+          <div class="head-actions">
+            <button type="button" class="btn btn--ghost" id="btnHistory"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> النسخ الاحتياطية</button>
+            <button type="button" class="btn btn--primary" id="btnAdd"><i class="fa-solid fa-plus" aria-hidden="true"></i> إضافة</button>
+          </div>
+        </div>
+
+        <div class="bar">
+          <div class="search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input type="search" id="q" placeholder="بحث..." aria-label="بحث"></div>
+          <span class="muted" id="count" aria-live="polite"></span>
+        </div>
+
+        <div class="table-wrap"><table class="table" id="table"></table></div>
+        <div class="empty" id="empty" hidden><i class="fa-solid fa-inbox" aria-hidden="true"></i><p>لا توجد عناصر.</p></div>
+      </main>
+    </div>
+
+    <div class="savebar" id="savebar" hidden>
+      <span><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> لديك تغييرات غير محفوظة</span>
+      <span class="savebar-actions">
+        <button type="button" class="btn btn--ghost" id="btnDiscard">تجاهل</button>
+        <button type="button" class="btn btn--primary" id="btnSave"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> حفظ التغييرات</button>
+      </span>
+    </div>
+  </div>
+
+  <dialog id="editor" class="dlg"><form method="dialog" id="editorForm" novalidate>
+    <h2 id="editorTitle"></h2>
+    <div class="fields" id="editorFields"></div>
+    <p class="error" id="editorError" role="alert" hidden></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn btn--danger" id="editorDelete" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> حذف</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--ghost" id="editorCancel">إلغاء</button>
+      <button type="submit" class="btn btn--primary" id="editorOk">تطبيق</button>
+    </div>
+  </form></dialog>
+
+  <dialog id="history" class="dlg"><div>
+    <h2>النسخ الاحتياطية</h2>
+    <p class="muted">كل حفظ ينشئ نسخة من الملف السابق. الاستعادة تنشئ نسخة جديدة من الحالي أيضًا.</p>
+    <div id="historyList" class="history"></div>
+    <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn btn--ghost" id="historyClose">إغلاق</button></div>
+  </div></dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

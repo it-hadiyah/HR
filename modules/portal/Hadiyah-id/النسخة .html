@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل الهوية البصرية - جمعية هدية</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* استدعاء ملفات الخطوط من نفس المجلد تلقائياً */
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Bold.otf') format('opentype');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        body { font-family: 'Handicrafts', sans-serif; }
+        .color-card:hover .copy-btn { opacity: 1; transform: translateY(0); }
+        .toast { transition: opacity 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased selection:bg-[#007468] selection:text-white">
+
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg opacity-0 pointer-events-none z-50 flex items-center gap-2">
+        <i class="fa-solid fa-check-circle text-green-400"></i>
+        <span id="toast-msg">تم نسخ كود اللون</span>
+    </div>
+
+    <header class="bg-white py-4 shadow-sm border-b border-gray-100 sticky top-0 z-40">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="ملون عرضي.svg" alt="شعار جمعية هدية" class="h-12 object-contain" onerror="this.style.display='none'">
+                <div class="h-8 w-px bg-gray-200 hidden sm:block"></div>
+                <h1 class="text-xl sm:text-2xl font-bold tracking-wide text-[#007468]">دليل الهوية البصرية</h1>
+            </div>
+            <nav class="hidden md:flex gap-6 font-bold text-gray-500">
+                <a href="#logos" class="hover:text-[#00A092] transition">الشعارات</a>
+                <a href="#colors" class="hover:text-[#00A092] transition">الألوان</a>
+                <a href="#patterns" class="hover:text-[#00A092] transition">النقوش</a>
+                <a href="#fonts" class="hover:text-[#00A092] transition">الخطوط</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-12 space-y-24">
+
+        <!-- قسم الشعارات -->
+        <section id="logos">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#007468] mb-4">الشعار الرسمي</h2>
+                <p class="text-gray-500 font-normal">حمل الشعار بالصيغة والوضع المناسب لتصميمك</p>
+            </div>
+
+            <!-- النماذج الملونة -->
+            <div class="mb-12">
+                <h3 class="text-xl font-bold mb-6 border-r-4 border-[#00A092] pr-3">النماذج الملونة</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-gray-50 rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ملون طولي.png" alt="شعار ملون طولي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون طولي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ملون طولي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون طولي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ملون طولي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ملون طولي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-gray-50 rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ملون عرضي.png" alt="شعار ملون عرضي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون عرضي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ملون عرضي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون عرضي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ملون عرضي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ملون عرضي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-gray-50 rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ملون وسطي.png" alt="شعار ملون وسطي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون وسطي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ملون وسطي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون وسطي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ملون وسطي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ملون وسطي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- النماذج البيضاء -->
+            <div>
+                <h3 class="text-xl font-bold mb-6 border-r-4 border-[#00A092] pr-3">النماذج البيضاء</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-[#007468] rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ابيض طولي.png" alt="شعار ابيض طولي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "ابيض طولي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ابيض طولي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض طولي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ابيض طولي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ابيض طولي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-[#00A092] rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ابيض عرضي.png" alt="شعار ابيض عرضي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "ابيض عرضي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ابيض عرضي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض عرضي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ابيض عرضي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ابيض عرضي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                        <div class="w-full h-48 bg-[#CEB26B] rounded-xl mb-6 flex items-center justify-center p-4">
+                            <img src="ابيض وسطي.png" alt="شعار ابيض وسطي" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "ابيض وسطي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-lg mb-4">ابيض وسطي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض وسطي.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                            <a href="ابيض وسطي.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                            <a href="ابيض وسطي.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم الألوان -->
+        <section id="colors" class="pt-12">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#007468] mb-4">ألوان الهوية</h2>
+                <p class="text-gray-500 font-normal">انقر على أي لون لنسخ الكود (HEX) مباشرة</p>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+                <!-- 1. الأخضر الفاتح -->
+                <div class="color-card relative group cursor-pointer" onclick="copyColor('#00A092')">
+                    <div class="h-32 rounded-t-2xl bg-[#00A092] shadow-inner transition-transform group-hover:scale-[1.02]"></div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-4 rounded-b-2xl text-center shadow-sm">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider" dir="ltr">#00A092</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300">
+                        <span class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ</span>
+                    </div>
+                </div>
+                <!-- 2. الأخضر الداكن -->
+                <div class="color-card relative group cursor-pointer" onclick="copyColor('#007468')">
+                    <div class="h-32 rounded-t-2xl bg-[#007468] shadow-inner transition-transform group-hover:scale-[1.02]"></div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-4 rounded-b-2xl text-center shadow-sm">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider" dir="ltr">#007468</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300">
+                        <span class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ</span>
+                    </div>
+                </div>
+                <!-- 3. الذهبي -->
+                <div class="color-card relative group cursor-pointer" onclick="copyColor('#CEB26B')">
+                    <div class="h-32 rounded-t-2xl bg-[#CEB26B] shadow-inner transition-transform group-hover:scale-[1.02]"></div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-4 rounded-b-2xl text-center shadow-sm">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider" dir="ltr">#CEB26B</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300">
+                        <span class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ</span>
+                    </div>
+                </div>
+                <!-- 4. التفاحي -->
+                <div class="color-card relative group cursor-pointer" onclick="copyColor('#84D3A4')">
+                    <div class="h-32 rounded-t-2xl bg-[#84D3A4] shadow-inner transition-transform group-hover:scale-[1.02]"></div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-4 rounded-b-2xl text-center shadow-sm">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider" dir="ltr">#84D3A4</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300">
+                        <span class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ</span>
+                    </div>
+                </div>
+                <!-- 5. الرمادي -->
+                <div class="color-card relative group cursor-pointer" onclick="copyColor('#E3E2E2')">
+                    <div class="h-32 rounded-t-2xl bg-[#E3E2E2] shadow-inner transition-transform group-hover:scale-[1.02]"></div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-4 rounded-b-2xl text-center shadow-sm">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider" dir="ltr">#E3E2E2</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300">
+                        <span class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم النقوش (الباترن) الجديد -->
+        <section id="patterns" class="pt-12">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#007468] mb-4">النقوش (الباترن)</h2>
+                <p class="text-gray-500 font-normal">حمل النقوش الرسمية لاستخدامها في الخلفيات والتصاميم</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <!-- باترن نخلة أخضر -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                    <div class="w-full h-32 bg-white rounded-xl mb-6 flex items-center justify-center p-2 border border-gray-100 overflow-hidden">
+                        <img src="باترن نخلة اخضر.png" alt="باترن نخلة اخضر" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "باترن نخلة اخضر.png"</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-[#007468]">باترن النخلة - أخضر</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن نخلة اخضر.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                        <a href="باترن نخلة اخضر.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                        <a href="باترن نخلة اخضر.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن نخلة أبيض -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                    <div class="w-full h-32 bg-[#007468] rounded-xl mb-6 flex items-center justify-center p-2 overflow-hidden">
+                        <img src="باترن نخلة ابيض.png" alt="باترن نخلة ابيض" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "باترن نخلة ابيض.png"</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-[#007468]">باترن النخلة - أبيض</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن نخلة ابيض.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                        <a href="باترن نخلة ابيض.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                        <a href="باترن نخلة ابيض.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن سداسي أخضر -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                    <div class="w-full h-32 bg-white rounded-xl mb-6 flex items-center justify-center p-2 border border-gray-100 overflow-hidden">
+                        <img src="باترن سداسي اخضر.png" alt="باترن سداسي اخضر" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "باترن سداسي اخضر.png"</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-[#007468]">باترن سداسي - أخضر</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن سداسي اخضر.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                        <a href="باترن سداسي اخضر.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                        <a href="باترن سداسي اخضر.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن سداسي أبيض -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover:shadow-md transition">
+                    <div class="w-full h-32 bg-[#007468] rounded-xl mb-6 flex items-center justify-center p-2 overflow-hidden">
+                        <img src="باترن سداسي ابيض.png" alt="باترن سداسي ابيض" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "باترن سداسي ابيض.png"</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-[#007468]">باترن سداسي - أبيض</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن سداسي ابيض.svg" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">SVG</a>
+                        <a href="باترن سداسي ابيض.pdf" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PDF</a>
+                        <a href="باترن سداسي ابيض.png" download class="flex-1 text-center block bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- قسم الخطوط -->
+        <section id="fonts" class="pt-12 pb-12">
+            <div class="bg-[#007468] rounded-3xl p-8 md:p-12 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+                <div class="absolute -right-20 -top-20 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
+                <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-[#CEB26B] opacity-10 rounded-full blur-2xl"></div>
+
+                <div class="relative z-10 w-full md:w-2/3 space-y-6">
+                    <h2 class="text-3xl font-bold text-[#CEB26B]">خط هدية الرسمي</h2>
+                    <p class="text-gray-200 font-normal">الخط المستخدم هو الأساس في إيصال صوت الجمعية. يرجى استخدام الأوزان المتوفرة حسب الحاجة في العناوين والنصوص.</p>
+                    
+                    <div class="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/20 space-y-4">
+                        <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                            <span class="font-normal text-2xl">جمعية هدية (Regular)</span>
+                            <span class="text-sm font-normal opacity-60">الوزن العادي</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                            <span class="font-medium text-2xl">جمعية هدية (Medium)</span>
+                            <span class="text-sm font-normal opacity-60">الوزن المتوسط</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-2xl">جمعية هدية (Bold)</span>
+                            <span class="text-sm font-normal opacity-60">الوزن العريض</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative z-10 flex flex-col items-center gap-4">
+                    <i class="fa-solid fa-font text-6xl text-[#84D3A4] mb-2"></i>
+                    <a href="خط هدية.zip" download class="bg-white text-[#007468] hover:bg-[#CEB26B] hover:text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 flex items-center gap-2 transform hover:-translate-y-1">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                        تحميل حزمة الخطوط
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-6 text-center text-sm font-normal">
+        <p>صنع بواسطة قسم الهوية المؤسسية لجمعية هدية 2026</p>
+    </footer>
+
+    <script>
+        function copyColor(hex) {
+            navigator.clipboard.writeText(hex).then(() => {
+                const toast = document.getElementById('toast');
+                const toastMsg = document.getElementById('toast-msg');
+                toastMsg.innerText = `تم نسخ اللون: ${hex}`;
+                toast.classList.remove('opacity-0');
+                setTimeout(() => { toast.classList.add('opacity-0'); }, 2000);
+            }).catch(err => { console.error('فشل النسخ: ', err); });
+        }
+    </script>
+</body>
+</html>

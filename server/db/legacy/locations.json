@@ -1,0 +1,27 @@
+[
+    {
+        "branch": "الفرع الإداري - مكة",
+        "branchPhoto": "images/content/locations/branch.png",
+        "mapLink": "https://maps.app.goo.gl/fjrsNtHpp8N4VZhq7"
+    },
+    {
+        "branch": "فرع التحصيل شركة مكة -  مكة",
+        "branchPhoto": "images/content/locations/branch.png",
+        "mapLink": "https://maps.app.goo.gl/peWNE5ASNDGxW1iD9"
+    },
+    {
+        "branch": "كشك شركة مكة - مكة",
+        "branchPhoto": "images/content/locations/branch.png",
+        "mapLink": "https://maps.app.goo.gl/peWNE5ASNDGxW1iD9"
+    },
+    {
+        "branch": "معرض شركة مكة - مكة",
+        "branchPhoto": "images/content/locations/branch.png",
+        "mapLink": "https://maps.app.goo.gl/peWNE5ASNDGxW1iD9"
+    },
+    {
+        "branch": "الفرع الإداري - المدينة المنورة",
+        "branchPhoto": "images/content/locations/branch.png",
+        "mapLink": "https://maps.app.goo.gl/GwgSXLp82mqDkd8V9"
+    }
+]
