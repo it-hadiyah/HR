@@ -145,3 +145,121 @@ CREATE TABLE IF NOT EXISTS audit_log (
   after       JSONB
 );
 CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log(at DESC);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- المنصة الموحّدة: البنية المشتركة بين الموارد البشرية والبوابة والبطاقات والتقارير
+-- ═══════════════════════════════════════════════════════════════════
+
+-- الهيكل التنظيمي واحد للجميع: الوحدات التي لها slug تظهر في بوابة الموظفين أيضاً
+ALTER TABLE org_units ADD COLUMN IF NOT EXISTS slug        TEXT UNIQUE;
+ALTER TABLE org_units ADD COLUMN IF NOT EXISTS portal_kind TEXT;
+ALTER TABLE org_units ADD COLUMN IF NOT EXISTS sort_order  INTEGER NOT NULL DEFAULT 0;
+
+-- دليل الأشخاص (الهوية المشتركة): البوابة والبطاقات تقرأ منه، ويُربط به موظف الموارد البشرية والمستخدم
+CREATE TABLE IF NOT EXISTS people (
+  id          SERIAL PRIMARY KEY,
+  extension   INTEGER UNIQUE,                 -- الرقم الداخلي (مفتاح الدليل في البوابة)
+  full_name   TEXT NOT NULL,
+  job_title   TEXT,
+  section     TEXT,
+  email       TEXT,
+  photo       TEXT,
+  org_unit_id INTEGER REFERENCES org_units(id) ON DELETE SET NULL,
+  unit_role   TEXT CHECK (unit_role IN ('head','member')),
+  unit_order  INTEGER NOT NULL DEFAULT 0,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  extra       JSONB NOT NULL DEFAULT '{}'::jsonb,   -- أي حقول إضافية في ملفات البوابة تُحفظ كما هي
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS people_unit_idx ON people(org_unit_id);
+CREATE INDEX IF NOT EXISTS people_email_idx ON people(lower(email));
+
+-- ربط موظف الموارد البشرية بالشخص في الدليل، وربط حساب الدخول بالشخص
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS person_id INTEGER UNIQUE REFERENCES people(id) ON DELETE SET NULL;
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS person_id INTEGER REFERENCES people(id) ON DELETE SET NULL;
+
+-- أدوار إضافية: employee (موظف عادي: البوابة والبطاقة) و content_admin (مدير محتوى البوابة)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN
+  ('admin','hr','finance','sector_manager','department_manager','section_manager','executive','employee','content_admin'));
+
+-- بوابة الموظفين: الروابط والسياسات والمواقع
+CREATE TABLE IF NOT EXISTS link_categories (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS links (
+  id          SERIAL PRIMARY KEY,
+  category_id INTEGER REFERENCES link_categories(id) ON DELETE CASCADE,
+  home_group  TEXT CHECK (home_group IN ('oprations','orders','list')),   -- روابط الصفحة الرئيسية
+  name        TEXT NOT NULL,
+  description TEXT,
+  url         TEXT,
+  image       TEXT,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  CHECK (category_id IS NOT NULL OR home_group IS NOT NULL)
+);
+CREATE TABLE IF NOT EXISTS policy_categories (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS policies (
+  id          SERIAL PRIMARY KEY,
+  category_id INTEGER NOT NULL REFERENCES policy_categories(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  file        TEXT,
+  description TEXT,
+  sort_order  INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS locations (
+  id         SERIAL PRIMARY KEY,
+  branch     TEXT NOT NULL,
+  photo      TEXT,
+  map_link   TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+-- محتوى مرن (الرئيسية، اللجان، موظف الشهر، الهوية البصرية)
+CREATE TABLE IF NOT EXISTS portal_docs (
+  name       TEXT PRIMARY KEY,
+  data       JSONB NOT NULL,
+  updated_by TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- نسخ احتياطية قبل كل حفظ من لوحة تحكم البوابة (بديل مجلد backup)
+CREATE TABLE IF NOT EXISTS portal_backups (
+  id       BIGSERIAL PRIMARY KEY,
+  file     TEXT NOT NULL,
+  data     JSONB NOT NULL,
+  saved_by TEXT,
+  saved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  note     TEXT
+);
+CREATE INDEX IF NOT EXISTS portal_backups_file_idx ON portal_backups(file, id DESC);
+
+-- التطبيقات التي تظهر في الصفحة الموحّدة وأدوار كل منها
+CREATE TABLE IF NOT EXISTS apps (
+  slug        TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  description TEXT,
+  icon        TEXT,
+  path        TEXT NOT NULL,
+  roles       TEXT[] NOT NULL,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  active      BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+INSERT INTO apps(slug, title, description, icon, path, roles, sort_order) VALUES
+ ('portal', 'بوابة الموظفين', 'دليل الموظفين والهيكل التنظيمي والروابط والسياسات والمواقع', '🏢', '/portal/',
+   ARRAY['admin','hr','finance','sector_manager','department_manager','section_manager','executive','employee','content_admin'], 1),
+ ('hr', 'أرصدة الإجازات', 'إدارة وتحليل أرصدة الإجازات وتكلفتها المالية', '🌴', '/hr/',
+   ARRAY['admin','hr','finance','sector_manager','department_manager','section_manager','executive'], 2),
+ ('card', 'بطاقة الموظف', 'إصدار بطاقة الموظف للطباعة (PDF / PNG)', '🪪', '/card/',
+   ARRAY['admin','hr','executive','content_admin','employee'], 3),
+ ('report', 'تقرير مراكز التوزيع', 'تقرير تقييم مراكز التوزيع الخيري', '📊', '/report/',
+   ARRAY['admin','executive','finance','sector_manager','department_manager'], 4),
+ ('portal-admin', 'لوحة تحكم البوابة', 'تعديل الموظفين والروابط والسياسات والمواقع', '⚙️', '/portal/admin/',
+   ARRAY['admin','content_admin'], 5)
+ON CONFLICT (slug) DO NOTHING;

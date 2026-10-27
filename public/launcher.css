@@ -1,0 +1,31 @@
+:root{--teal:#0d7868;--teal-d:#0a5f52;--gold:#bb9a5f;--ink:#1d2b28;--muted:#66767a;--line:#e3e8e6;--bg:#f4f7f6;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--ink:#e8efed;--muted:#9fb0ad;--line:#2a3a37;--bg:#0f1816;--card:#16231f}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.7}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+.top{background:var(--teal);color:#fff;border-bottom:4px solid var(--gold)}
+.top-in{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:14px;padding-bottom:14px}
+.top h1{margin:0;font-size:1.3rem}
+.who{display:flex;gap:14px;align-items:center;font-size:.92rem}
+.link{background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit}
+main{padding-top:28px;padding-bottom:40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-top:22px}
+.card h2{margin:0 0 6px;color:var(--teal);font-size:1.1rem}
+.muted{color:var(--muted);margin:.2em 0 1em}
+.login{max-width:420px;margin:40px auto}
+label{display:block;font-weight:700;font-size:.9rem;margin:14px 0 4px}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+input:focus{outline:2px solid var(--teal);border-color:transparent}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:11px 18px;cursor:pointer}
+.primary{background:var(--teal);color:#fff;width:100%;margin-top:14px}
+.primary:hover{background:var(--teal-d)}
+.secondary{background:var(--card);color:var(--teal);border:1.5px solid var(--teal)}
+.err{color:#b3261e;min-height:1.4em;margin:8px 0 0}
+.lead{font-size:1.15rem;margin:0 0 18px}
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.app{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;transition:.15s;border-top:4px solid var(--teal)}
+.app:hover,.app:focus-visible{transform:translateY(-3px);box-shadow:0 8px 24px rgba(13,120,104,.18);outline:none}
+.app .ic{font-size:2rem;line-height:1}
+.app h3{margin:10px 0 4px;font-size:1.05rem;color:var(--teal)}
+.app p{margin:0;color:var(--muted);font-size:.9rem}
+.empty{color:var(--muted)}

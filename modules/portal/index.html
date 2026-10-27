@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="page-home">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- favicon -->
+<link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+  <title>بوابة هدية | الرئيسية</title>
+  <!-- bootstarp  -->
+  <link href="assets/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- icons -->
+  <link href="assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/home.css" />
+  <!-- bootstarp js -->
+  <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./js/script.js"></script>
+</head>
+
+<body>
+  <div class="wrapper">
+  <header class="header">
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand p-0 m-0" href="index.html">
+          <img src="images/logo.png" alt="بوابة هدية" height="70" class="p-0 m-0">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-start ms-5 ps-5" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link active" href="index.html" aria-current="page">الرئيسية</a></li>
+            <li class="nav-item"><a class="nav-link" href="employee_info.html">معلومات الموظف</a></li>
+            <li class="nav-item"><a class="nav-link" href="committees.html">اللجان</a></li>
+            <li class="nav-item"><a class="nav-link" href="links_library.html">مكتبة الروابط</a></li>
+            <li class="nav-item"><a class="nav-link" href="locations.html">المواقع</a></li>
+            <li class="nav-item"><a class="nav-link" href="pdf_library.html">السياسات</a></li>
+            <li class="nav-item"><a class="nav-link" href="about.html">الرؤية والرسالة</a></li>
+            <li class="nav-item"><a class="nav-link" href="brand.html">دليل الهوية البصرية</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+<main>
+  <div class="container home-container">
+    <header class="home-welcome">
+      <h1 class="home-title">مرحبًا بك في بوابة هدية</h1>
+      <p class="home-lead">بوابتك للوصول السريع إلى الأنظمة والخدمات والمعلومات الداخلية للجمعية.</p>
+    </header>
+
+    <!-- Ads carousel: filled from data/home.json (hidden when there are no slides) -->
+    <div id="mainCarousel" class="carousel slide mb-3" data-bs-ride="carousel" hidden>
+      <div class="carousel-indicators"></div>
+      <div class="carousel-inner"></div>
+    </div>
+
+    <!-- Prayer Times strip -->
+    <section class="prayer-strip" aria-label="مواقيت الصلاة">
+      <div class="prayer-next">
+        <i class="fas fa-mosque" aria-hidden="true"></i>
+        <div>
+          <div class="prayer-next-label" id="prayer-next-label">جارٍ تحميل المواقيت...</div>
+          <div class="prayer-next-sub"><span id="today-date"></span><span id="prayer-countdown"></span></div>
+        </div>
+      </div>
+      <div class="prayer-chips" id="prayer-container"></div>
+    </section>
+
+
+    <!-- Employee of the month / year (data/recognition.json, edited from the control panel) -->
+    <section class="home-section" id="recognition" aria-labelledby="recoTitle" hidden>
+      <h2 class="home-h" id="recoTitle">نجوم الجمعية</h2>
+      <div class="reco-grid" id="recoGrid"></div>
+    </section>
+
+    <!-- Most Important Links -->
+      <div class="home-sec-head">
+      <h2 class="home-h">الطلبات</h2>
+    </div>
+    <div id="important-links-home3" class="row justify-content-center mt-4"></div>
+
+    <div class="home-sec-head">
+      <h2 class="home-h">التذاكر</h2>
+    </div>
+   <div id="important-links-home2" class="row row-cols-2 row-cols-md-3 row-cols-lg-6 mt-4"></div>
+    
+    <div class="home-sec-head">
+      <h2 class="home-h">أهم الروابط</h2>
+      <a class="more-link" href="links_library.html">عرض المزيد <i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
+    </div>
+    <div id="important-links-home" class="row justify-content-center mt-4"></div>
+  </div>
+
+
+</main>
+  <!-- Footer -->
+  <footer class="footer mt-5 py-4 text-white">
+    <div class="text-center">
+      <small>© 2025 جميع الحقوق محفوظة لجمعية هدية الحاج والمعتمر - بوابة هدية</small>
+    </div>
+  </footer>
+
+</div>
+</body>
+
+</html>

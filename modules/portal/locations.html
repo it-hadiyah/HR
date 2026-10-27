@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="page-locations">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- favicon -->
+<link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+  <title>مواقع الجمعية | بوابة هدية</title>
+  <!-- bootstarp  -->
+  <link href="assets/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- icons -->
+  <link href="assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/locations.css" />
+  <!-- bootstarp js -->
+  <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./js/script.js"></script>
+  <script src="./js/locations.js" defer></script>
+</head>
+
+<body>
+  <div class="wrapper">
+  <header class="header">
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand p-0 m-0" href="index.html">
+          <img src="images/logo.png" alt="بوابة هدية" height="70" class="p-0 m-0">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-start ms-5 ps-5" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="index.html">الرئيسية</a></li>
+            <li class="nav-item"><a class="nav-link" href="employee_info.html">معلومات الموظف</a></li>
+            <li class="nav-item"><a class="nav-link" href="committees.html">اللجان</a></li>
+            <li class="nav-item"><a class="nav-link" href="links_library.html">مكتبة الروابط</a></li>
+            <li class="nav-item"><a class="nav-link active" href="locations.html" aria-current="page">المواقع</a></li>
+            <li class="nav-item"><a class="nav-link" href="pdf_library.html">السياسات</a></li>
+            <li class="nav-item"><a class="nav-link" href="about.html">الرؤية والرسالة</a></li>
+            <li class="nav-item"><a class="nav-link" href="brand.html">دليل الهوية البصرية</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+<main class="loc">
+  <section class="loc-hero" aria-labelledby="locTitle">
+    <div class="container loc-container">
+      <div>
+        <h1 class="loc-title" id="locTitle">مواقع الجمعية</h1>
+        <p class="loc-lead">فروع ومكاتب جمعية هدية الحاج والمعتمر. اختر المدينة أو ابحث عن الموقع، ثم افتح الاتجاهات على الخريطة.</p>
+      </div>
+      <ul class="loc-stats" aria-label="إحصائيات">
+        <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-location-dot"></i></span><span class="stat-text"><strong id="locStatCount">0</strong><span>موقع</span></span></li>
+        <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-city"></i></span><span class="stat-text"><strong id="locStatCities">0</strong><span>مدينة</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="loc-controls" aria-label="البحث والمدن">
+    <div class="container loc-container">
+      <div class="loc-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" id="locationSearch" placeholder="ابحث باسم الفرع أو المدينة..." aria-label="بحث في المواقع" autocomplete="off">
+      </div>
+      <div class="loc-pills" id="locationPills" role="group" aria-label="المدن"></div>
+    </div>
+  </section>
+
+  <div class="container loc-container loc-body">
+    <div class="loc-meta" id="locationCount" aria-live="polite"></div>
+    <div id="locations-container" aria-busy="true"></div>
+  </div>
+</main>
+  <!-- Footer -->
+  <footer class="footer mt-5 py-4 text-white">
+      <div class="text-center">
+        <small>© 2025 جميع الحقوق محفوظة - بوابة هدية</small>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

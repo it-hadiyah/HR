@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="page-committees">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- favicon -->
+<link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+  <title>اللجان | بوابة هدية</title>
+  <!-- bootstarp  -->
+  <link href="assets/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- icons -->
+  <link href="assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/committees.css" />
+  <!-- bootstarp js -->
+  <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./js/script.js"></script>
+  <script src="./js/committees.js" defer></script>
+</head>
+
+<body>
+  <div class="wrapper">
+  <header class="header">
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand p-0 m-0" href="index.html">
+          <img src="images/logo.png" alt="بوابة هدية" height="70" class="p-0 m-0">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-start ms-5 ps-5" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="index.html">الرئيسية</a></li>
+            <li class="nav-item"><a class="nav-link" href="employee_info.html">معلومات الموظف</a></li>
+            <li class="nav-item"><a class="nav-link active" aria-current="page" href="committees.html">اللجان</a></li>
+            <li class="nav-item"><a class="nav-link" href="links_library.html">مكتبة الروابط</a></li>
+            <li class="nav-item"><a class="nav-link" href="locations.html">المواقع</a></li>
+            <li class="nav-item"><a class="nav-link" href="pdf_library.html">السياسات</a></li>
+            <li class="nav-item"><a class="nav-link" href="about.html">الرؤية والرسالة</a></li>
+            <li class="nav-item"><a class="nav-link" href="brand.html">دليل الهوية البصرية</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+<main class="cmt">
+  <section class="cmt-hero" aria-labelledby="cmtTitle">
+    <div class="container cmt-container">
+      <div>
+        <h1 class="cmt-title" id="cmtTitle">اللجان</h1>
+        <p class="cmt-lead">لجان الجمعية وأعضاؤها واختصاصاتها. ابحث باسم اللجنة أو العضو، وافتح قائمة الأعضاء.</p>
+      </div>
+      <ul class="cmt-stats" aria-label="إحصائيات">
+        <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-people-group"></i></span><span class="stat-text"><strong id="cmtStatCount">0</strong><span>لجنة</span></span></li>
+        <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-users"></i></span><span class="stat-text"><strong id="cmtStatPeople">0</strong><span>موظف مشارك</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cmt-controls" aria-label="البحث">
+    <div class="container cmt-container">
+      <div class="cmt-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" id="committeeSearch" placeholder="ابحث باسم اللجنة أو العضو..." aria-label="بحث في اللجان" autocomplete="off">
+      </div>
+      <div class="cmt-pills" id="committeePills" role="group" aria-label="النوع"></div>
+    </div>
+  </section>
+
+  <div class="container cmt-container cmt-body">
+    <div class="cmt-meta" id="committeeCount" aria-live="polite"></div>
+    <div id="committees-container" aria-busy="true"></div>
+  </div>
+</main>
+  <!-- Footer -->
+  <footer class="footer mt-5 py-4 text-white">
+      <div class="text-center">
+        <small>© 2025 جميع الحقوق محفوظة - بوابة هدية</small>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

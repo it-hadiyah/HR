@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل الهوية البصرية - جمعية هدية</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* استدعاء ملفات الخطوط من نفس المجلد تلقائياً */
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Handicrafts';
+            src: url('TheYearofHandicrafts-Bold.otf') format('opentype');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        body { 
+            font-family: 'Handicrafts', sans-serif; 
+            background-color: #fcfcfc;
+            overflow-x: hidden;
+        }
+
+        /* تأثيرات الحركة عند التمرير (Scroll Animations) */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+
+        /* تأثيرات البطاقات */
+        .hover-card {
+            transition: all 0.4s ease;
+        }
+        .hover-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 116, 104, 0.1), 0 10px 10px -5px rgba(0, 116, 104, 0.04);
+        }
+
+        .color-card:hover .copy-btn { opacity: 1; transform: translateY(0); }
+        .toast { transition: opacity 0.3s ease-in-out; }
+
+        /* تدرج لوني للنصوص */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to left, #007468, #00A092);
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased selection:bg-[#007468] selection:text-white">
+
+    <!-- رسالة النسخ -->
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none z-50 flex items-center gap-3 transition-opacity duration-300">
+        <i class="fa-solid fa-check-circle text-[#84D3A4] text-lg"></i>
+        <span id="toast-msg" class="font-medium">تم نسخ كود اللون</span>
+    </div>
+
+    <!-- الترويسة العائمة (تأثير زجاجي) -->
+    <header class="bg-white/80 backdrop-blur-lg border-b border-gray-100 sticky top-0 z-50 transition-all duration-300" id="navbar">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4 cursor-pointer" onclick="window.scrollTo(0,0)">
+                <img src="ملون عرضي.svg" alt="شعار جمعية هدية" class="h-10 md:h-12 object-contain" onerror="this.style.display='none'">
+                <div class="h-6 w-px bg-gray-300 hidden sm:block"></div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-wide text-[#007468]">دليل الهوية</h1>
+            </div>
+            <nav class="hidden lg:flex gap-8 font-bold text-gray-500 text-sm">
+                <a href="#guidelines" class="hover:text-[#00A092] transition">الإرشادات</a>
+                <a href="#logos" class="hover:text-[#00A092] transition">الشعارات</a>
+                <a href="#colors" class="hover:text-[#00A092] transition">الألوان</a>
+                <a href="#patterns" class="hover:text-[#00A092] transition">النقوش</a>
+                <a href="#icons" class="hover:text-[#00A092] transition">الأيقونات</a>
+                <a href="#templates" class="hover:text-[#00A092] transition">القوالب</a>
+                <a class="nav-link" href="http://gate.hadiyah.org.sa">بوابة هدية</a>
+            </nav>
+            <a href="#assets" class="hidden md:flex bg-[#007468] hover:bg-[#00A092] text-white px-5 py-2 rounded-full font-bold text-sm transition shadow-lg shadow-[#007468]/30">
+                تحميل الملحقات
+            </a>
+        </div>
+    </header>
+
+    <!-- قسم البداية (Hero Section & Guidelines) -->
+    <section id="guidelines" class="relative pt-24 pb-32 overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+        <!-- أشكال زخرفية في الخلفية -->
+        <div class="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-[#00A092] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+        <div class="absolute top-0 left-0 -ml-20 mt-32 w-72 h-72 bg-[#CEB26B] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center max-w-3xl mx-auto mb-16 reveal">
+                <span class="text-[#00A092] font-bold tracking-wider mb-2 block">جمعية هدية الحاج والمعتمر</span>
+                <h2 class="text-4xl md:text-7xl font-bold mb-6 text-gray-900 leading-tight">دليل الهوية البصرية <br> <span class="text-gradient"></span></h2>
+                <p class="text-gray-500 text-lg md:text-xl leading-relaxed">
+                    الهوية البصرية هي صوتنا وشكلنا أمام العالم، ويهدف هذا الدليل إلى توحيد الظهور الإعلامي والمؤسسي لجمعية هدية، لضمان استمرارية الاحترافية وبناء الثقة مع شركائنا والمستفيدين.
+                </p>
+            </div>
+
+            <!-- بطاقات الاستخدام الصحيح والخاطئ -->
+            <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+                <!-- المسموحات -->
+                <div class="bg-white rounded-3xl p-8 border border-green-100 shadow-xl shadow-green-900/5 reveal delay-100">
+                    <div class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-check text-2xl text-green-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">الاستخدام الصحيح</h3>
+                    <ul class="space-y-4 text-gray-600 font-medium">
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-check text-green-500 mt-1"></i> ترك مساحة آمنة حول الشعار ليبرز بوضوح.</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-check text-green-500 mt-1"></i> استخدام الشعار الأبيض على الخلفيات الداكنة والصور.</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-check text-green-500 mt-1"></i> الالتزام بألوان الهوية الرسمية (HEX/CMYK).</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-check text-green-500 mt-1"></i> استخدام خط "هدية" بالأوزان المحددة للعناوين والنصوص.</li>
+                    </ul>
+                </div>
+
+                <!-- الممنوعات -->
+                <div class="bg-white rounded-3xl p-8 border border-red-100 shadow-xl shadow-red-900/5 reveal delay-200">
+                    <div class="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-xmark text-2xl text-red-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">يُمنع منعاً باتاً</h3>
+                    <ul class="space-y-4 text-gray-600 font-medium">
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-xmark text-red-500 mt-1"></i> تغيير أبعاد الشعار (تمطيط أو ضغط الشعار).</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-xmark text-red-500 mt-1"></i> تغيير ألوان الشعار إلى ألوان غير معتمدة.</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-xmark text-red-500 mt-1"></i> إضافة تأثيرات (مثل الظل البارز أو الحدود) على الشعار.</li>
+                        <li class="flex gap-3 items-start"><i class="fa-solid fa-circle-xmark text-red-500 mt-1"></i> وضع الشعار الملون على خلفية مشتتة أو صورة مزدحمة.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-center reveal delay-300">
+                <a href="#assets" class="inline-flex items-center gap-3 bg-gray-900 hover:bg-gray-800 text-white px-8 py-4 rounded-full font-bold text-lg transition shadow-2xl hover:shadow-gray-900/40 hover:-translate-y-1">
+                    بدء تصفح الملحقات <i class="fa-solid fa-arrow-down"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- فاصل ونقطة بداية الملحقات -->
+    <div id="assets" class="h-px w-full bg-gray-200"></div>
+
+    <main class="container mx-auto px-6 py-20 space-y-32">
+
+        <!-- قسم الشعارات -->
+        <section id="logos" class="scroll-mt-24">
+            <div class="flex flex-col items-center mb-16 reveal">
+                <span class="bg-[#007468]/10 text-[#007468] px-4 py-1 rounded-full text-sm font-bold mb-3">01</span>
+                <h2 class="text-4xl font-bold text-gradient mb-4">الشعار الرسمي</h2>
+                <p class="text-gray-500 text-lg">الصيغ المعتمدة بجميع الوضعيات للطباعة والشاشات</p>
+            </div>
+
+            <!-- النماذج الملونة -->
+            <div class="mb-16">
+                <div class="flex items-center gap-4 mb-8 reveal">
+                    <div class="h-8 w-2 bg-[#00A092] rounded-full"></div>
+                    <h3 class="text-2xl font-bold text-gray-800">النماذج الملونة (للخلفيات الفاتحة)</h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- كرت الشعار -->
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-100">
+                        <div class="w-full h-48 bg-gray-50 rounded-2xl mb-6 flex items-center justify-center p-6 inner-shadow">
+                            <img src="ملون طولي.png" alt="شعار ملون طولي" class="max-w-full max-h-full object-contain drop-shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون طولي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">ملون طولي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون طولي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ملون طولي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ملون طولي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                    <!-- كرت الشعار -->
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-200">
+                        <div class="w-full h-48 bg-gray-50 rounded-2xl mb-6 flex items-center justify-center p-6 inner-shadow">
+                            <img src="ملون عرضي.png" alt="شعار ملون عرضي" class="max-w-full max-h-full object-contain drop-shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون عرضي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">ملون عرضي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون عرضي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ملون عرضي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ملون عرضي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                    <!-- كرت الشعار -->
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-300">
+                        <div class="w-full h-48 bg-gray-50 rounded-2xl mb-6 flex items-center justify-center p-6 inner-shadow">
+                            <img src="ملون وسطي.png" alt="شعار ملون وسطي" class="max-w-full max-h-full object-contain drop-shadow-sm" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ملون وسطي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">ملون وسطي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ملون وسطي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ملون وسطي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ملون وسطي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- النماذج البيضاء -->
+            <div>
+                <div class="flex items-center gap-4 mb-8 reveal">
+                    <div class="h-8 w-2 bg-[#CEB26B] rounded-full"></div>
+                    <h3 class="text-2xl font-bold text-gray-800">النماذج البيضاء (للخلفيات الداكنة والصور)</h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-100">
+                        <div class="w-full h-48 bg-[#007468] rounded-2xl mb-6 flex items-center justify-center p-6 shadow-inner relative overflow-hidden">
+                            <!-- لمسة جمالية خلف الشعار الأبيض -->
+                            <div class="absolute w-32 h-32 bg-white/10 rounded-full blur-xl top-0 right-0"></div>
+                            <img src="ابيض طولي.png" alt="شعار ابيض طولي" class="max-w-full max-h-full object-contain relative z-10" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal relative z-10">يرجى إضافة ملف "ابيض طولي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">أبيض طولي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض طولي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ابيض طولي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ابيض طولي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-200">
+                        <div class="w-full h-48 bg-[#00A092] rounded-2xl mb-6 flex items-center justify-center p-6 shadow-inner relative overflow-hidden">
+                            <div class="absolute w-32 h-32 bg-white/10 rounded-full blur-xl top-0 right-0"></div>
+                            <img src="ابيض عرضي.png" alt="شعار ابيض عرضي" class="max-w-full max-h-full object-contain relative z-10" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal relative z-10">يرجى إضافة ملف "ابيض عرضي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">أبيض عرضي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض عرضي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#00A092] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ابيض عرضي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#00A092] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ابيض عرضي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#00A092] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 hover-card reveal delay-300">
+                        <div class="w-full h-48 bg-[#CEB26B] rounded-2xl mb-6 flex items-center justify-center p-6 shadow-inner relative overflow-hidden">
+                            <div class="absolute w-32 h-32 bg-white/20 rounded-full blur-xl top-0 right-0"></div>
+                            <img src="ابيض وسطي.png" alt="شعار ابيض وسطي" class="max-w-full max-h-full object-contain relative z-10" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <span class="text-white/70 text-sm hidden font-normal relative z-10">يرجى إضافة ملف "ابيض وسطي.png"</span>
+                        </div>
+                        <h4 class="font-bold text-xl mb-4 text-center">أبيض وسطي</h4>
+                        <div class="flex gap-2 w-full">
+                            <a href="ابيض وسطي.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#CEB26B] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">SVG</a>
+                            <a href="ابيض وسطي.pdf" download class="flex-1 text-center block bg-gray-50 hover:bg-[#CEB26B] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PDF</a>
+                            <a href="ابيض وسطي.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#CEB26B] hover:text-white text-gray-700 border border-gray-100 py-2.5 rounded-xl text-sm font-bold transition duration-300">PNG</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم الألوان -->
+        <section id="colors" class="scroll-mt-24">
+            <div class="flex flex-col items-center mb-16 reveal">
+                <span class="bg-[#00A092]/10 text-[#00A092] px-4 py-1 rounded-full text-sm font-bold mb-3">02</span>
+                <h2 class="text-4xl font-bold text-gradient mb-4">ألوان الهوية</h2>
+                <p class="text-gray-500 text-lg">انقر على أي لون لنسخ الكود (HEX) مباشرة</p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+                <!-- 1. الأخضر الفاتح -->
+                <div class="color-card relative group cursor-pointer reveal delay-100" onclick="copyColor('#00A092')">
+                    <div class="h-36 rounded-t-3xl bg-[#00A092] transition-transform duration-500 group-hover:scale-[1.03] origin-bottom relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-5 rounded-b-3xl text-center shadow-lg shadow-gray-200/40 relative z-10">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider text-lg" dir="ltr">#00A092</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <span class="bg-white/90 text-[#00A092] px-5 py-2.5 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ الكود</span>
+                    </div>
+                </div>
+                <!-- 2. الأخضر الداكن -->
+                <div class="color-card relative group cursor-pointer reveal delay-200" onclick="copyColor('#007468')">
+                    <div class="h-36 rounded-t-3xl bg-[#007468] transition-transform duration-500 group-hover:scale-[1.03] origin-bottom relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-5 rounded-b-3xl text-center shadow-lg shadow-gray-200/40 relative z-10">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider text-lg" dir="ltr">#007468</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <span class="bg-white/90 text-[#007468] px-5 py-2.5 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ الكود</span>
+                    </div>
+                </div>
+                <!-- 3. الذهبي -->
+                <div class="color-card relative group cursor-pointer reveal delay-300" onclick="copyColor('#CEB26B')">
+                    <div class="h-36 rounded-t-3xl bg-[#CEB26B] transition-transform duration-500 group-hover:scale-[1.03] origin-bottom relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-5 rounded-b-3xl text-center shadow-lg shadow-gray-200/40 relative z-10">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider text-lg" dir="ltr">#CEB26B</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <span class="bg-white/90 text-[#CEB26B] px-5 py-2.5 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ الكود</span>
+                    </div>
+                </div>
+                <!-- 4. التفاحي -->
+                <div class="color-card relative group cursor-pointer reveal delay-400" onclick="copyColor('#84D3A4')">
+                    <div class="h-36 rounded-t-3xl bg-[#84D3A4] transition-transform duration-500 group-hover:scale-[1.03] origin-bottom relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-5 rounded-b-3xl text-center shadow-lg shadow-gray-200/40 relative z-10">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider text-lg" dir="ltr">#84D3A4</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <span class="bg-white/90 text-[#84D3A4] px-5 py-2.5 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ الكود</span>
+                    </div>
+                </div>
+                <!-- 5. الرمادي -->
+                <div class="color-card relative group cursor-pointer reveal delay-500" onclick="copyColor('#E3E2E2')">
+                    <div class="h-36 rounded-t-3xl bg-[#E3E2E2] transition-transform duration-500 group-hover:scale-[1.03] origin-bottom relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div class="bg-white border border-t-0 border-gray-100 p-5 rounded-b-3xl text-center shadow-lg shadow-gray-200/40 relative z-10">
+                        <p class="font-bold text-gray-800 font-sans tracking-wider text-lg" dir="ltr">#E3E2E2</p>
+                    </div>
+                    <div class="copy-btn absolute inset-0 flex items-center justify-center opacity-0 transform translate-y-4 transition-all duration-300 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <span class="bg-gray-900 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-xl backdrop-blur-sm"><i class="fa-regular fa-copy ml-1"></i> نسخ الكود</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم النقوش (الباترن) -->
+        <section id="patterns" class="scroll-mt-24">
+            <div class="flex flex-col items-center mb-16 reveal">
+                <span class="bg-[#CEB26B]/10 text-[#CEB26B] px-4 py-1 rounded-full text-sm font-bold mb-3">03</span>
+                <h2 class="text-4xl font-bold text-gradient mb-4">النقوش (الباترن)</h2>
+                <p class="text-gray-500 text-lg">النقوش الرسمية لتزيين الخلفيات وإضافة عمق للتصاميم</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- باترن نخلة أخضر -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-100">
+                    <div class="w-full h-40 bg-white rounded-2xl mb-6 flex items-center justify-center border border-gray-100 overflow-hidden relative">
+                        <img src="باترن نخلة اخضر.png" alt="باترن نخلة اخضر" class="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-110" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "باترن نخلة اخضر.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-4 text-[#007468]">باترن النخلة - أخضر</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن نخلة اخضر.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">SVG</a>
+                        <a href="باترن نخلة اخضر.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن نخلة أبيض -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-200">
+                    <div class="w-full h-40 bg-[#007468] rounded-2xl mb-6 flex items-center justify-center overflow-hidden relative">
+                        <img src="باترن نخلة ابيض.png" alt="باترن نخلة ابيض" class="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-110" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "باترن نخلة ابيض.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-4 text-[#007468]">باترن النخلة - أبيض</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن نخلة ابيض.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">SVG</a>
+                        <a href="باترن نخلة ابيض.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن سداسي أخضر -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-100">
+                    <div class="w-full h-40 bg-white rounded-2xl mb-6 flex items-center justify-center border border-gray-100 overflow-hidden relative">
+                        <img src="باترن سداسي اخضر.png" alt="باترن سداسي اخضر" class="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-110" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "باترن سداسي اخضر.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-4 text-[#007468]">باترن سداسي - أخضر</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن سداسي اخضر.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">SVG</a>
+                        <a href="باترن سداسي اخضر.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#007468] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+
+                <!-- باترن سداسي أبيض -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-200">
+                    <div class="w-full h-40 bg-[#00A092] rounded-2xl mb-6 flex items-center justify-center overflow-hidden relative">
+                        <img src="باترن سداسي ابيض.png" alt="باترن سداسي ابيض" class="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-110" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-white/70 text-sm hidden font-normal">يرجى إضافة ملف "باترن سداسي ابيض.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-4 text-[#007468]">باترن سداسي - أبيض</h4>
+                    <div class="flex gap-2 w-full">
+                        <a href="باترن سداسي ابيض.svg" download class="flex-1 text-center block bg-gray-50 hover:bg-[#00A092] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">SVG</a>
+                        <a href="باترن سداسي ابيض.png" download class="flex-1 text-center block bg-gray-50 hover:bg-[#00A092] hover:text-white text-gray-700 py-3 rounded-xl text-sm font-bold transition">PNG</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم الأيقونات -->
+        <section id="icons" class="scroll-mt-24">
+            <div class="flex flex-col items-center mb-16 reveal">
+                <span class="bg-[#84D3A4]/20 text-[#007468] px-4 py-1 rounded-full text-sm font-bold mb-3">04</span>
+                <h2 class="text-4xl font-bold text-gradient mb-4">الأيقونات</h2>
+                <p class="text-gray-500 text-lg">حزم الأيقونات الحصرية الجاهزة للاستخدام</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- أيقونات بخلفية سداسي -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-100">
+                    <div class="w-full h-64 bg-gray-50/50 rounded-2xl mb-6 flex items-center justify-center p-4 border border-dashed border-gray-200">
+                        <img src="ايقونات بخلفية سداسي.png" alt="أيقونات بخلفية سداسي" class="max-w-full max-h-full object-contain mix-blend-multiply" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ايقونات بخلفية سداسي.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-6 text-gray-800">أيقونات (بخلفية سداسي)</h4>
+                    <a href="ايقونات بخلفية سداسي.zip" download class="w-full text-center block bg-gray-900 hover:bg-[#007468] text-white py-4 rounded-xl text-base font-bold transition shadow-lg hover:shadow-[#007468]/30 flex justify-center items-center gap-3">
+                        <i class="fa-solid fa-cloud-arrow-down text-xl"></i> تحميل الحزمة كاملة (.zip)
+                    </a>
+                </div>
+
+                <!-- أيقونات بدون خلفية -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col items-center hover-card reveal delay-200">
+                    <div class="w-full h-64 bg-gray-50/50 rounded-2xl mb-6 flex items-center justify-center p-4 border border-dashed border-gray-200">
+                        <img src="ايقونات بدون خلفية.png" alt="أيقونات بدون خلفية" class="max-w-full max-h-full object-contain mix-blend-multiply" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal">يرجى إضافة ملف "ايقونات بدون خلفية.png"</span>
+                    </div>
+                    <h4 class="font-bold text-xl mb-6 text-gray-800">أيقونات (بدون خلفية)</h4>
+                    <a href="ايقونات بدون خلفية.zip" download class="w-full text-center block bg-gray-900 hover:bg-[#007468] text-white py-4 rounded-xl text-base font-bold transition shadow-lg hover:shadow-[#007468]/30 flex justify-center items-center gap-3">
+                        <i class="fa-solid fa-cloud-arrow-down text-xl"></i> تحميل الحزمة كاملة (.zip)
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم قوالب البوربوينت -->
+        <section id="templates" class="scroll-mt-24">
+            <div class="flex flex-col items-center mb-16 reveal">
+                <span class="bg-[#007468]/10 text-[#007468] px-4 py-1 rounded-full text-sm font-bold mb-3">05</span>
+                <h2 class="text-4xl font-bold text-gradient mb-4">قوالب العروض (PowerPoint)</h2>
+                <p class="text-gray-500 text-lg">قوالب احترافية موحدة لعروضك التقديمية والتقارير</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- قالب 1 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col items-center hover-card reveal delay-100 group">
+                    <div class="w-full h-44 bg-gray-100 rounded-2xl mb-5 flex items-center justify-center overflow-hidden relative shadow-inner">
+                        <img src="قالب عرض  نموذج 1.png" alt="قالب عرض 1" class="w-full h-full object-cover transition duration-700 group-hover:scale-105" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal text-center px-4">يرجى إضافة صورة "قالب عرض  نموذج 1.png"</span>
+                        <div class="absolute inset-0 bg-[#007468]/80 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+                            <i class="fa-solid fa-file-powerpoint text-4xl text-white"></i>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-gray-800">قالب العرض - نموذج 1</h4>
+                    <a href="قالب عرض  نموذج 1.pptx" download class="w-full text-center block bg-gray-50 hover:bg-[#007468] text-gray-700 hover:text-white py-3 rounded-xl text-sm font-bold transition">
+                        تحميل القالب (.pptx)
+                    </a>
+                </div>
+
+                <!-- قالب 2 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col items-center hover-card reveal delay-200 group">
+                    <div class="w-full h-44 bg-gray-100 rounded-2xl mb-5 flex items-center justify-center overflow-hidden relative shadow-inner">
+                        <img src="قالب عرض  نموذج 2.png" alt="قالب عرض 2" class="w-full h-full object-cover transition duration-700 group-hover:scale-105" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal text-center px-4">يرجى إضافة صورة "قالب عرض  نموذج 2.png"</span>
+                        <div class="absolute inset-0 bg-[#007468]/80 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+                            <i class="fa-solid fa-file-powerpoint text-4xl text-white"></i>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-gray-800">قالب العرض - نموذج 2</h4>
+                    <a href="قالب عرض  نموذج 2.pptx" download class="w-full text-center block bg-gray-50 hover:bg-[#007468] text-gray-700 hover:text-white py-3 rounded-xl text-sm font-bold transition">
+                        تحميل القالب (.pptx)
+                    </a>
+                </div>
+
+                <!-- قالب 3 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col items-center hover-card reveal delay-300 group">
+                    <div class="w-full h-44 bg-gray-100 rounded-2xl mb-5 flex items-center justify-center overflow-hidden relative shadow-inner">
+                        <img src="قالب عرض  نموذج 3.png" alt="قالب عرض 3" class="w-full h-full object-cover transition duration-700 group-hover:scale-105" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <span class="text-gray-400 text-sm hidden font-normal text-center px-4">يرجى إضافة صورة "قالب عرض  نموذج 3.png"</span>
+                        <div class="absolute inset-0 bg-[#007468]/80 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
+                            <i class="fa-solid fa-file-powerpoint text-4xl text-white"></i>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-lg mb-4 text-gray-800">قالب العرض - نموذج 3</h4>
+                    <a href="قالب عرض  نموذج 3.pptx" download class="w-full text-center block bg-gray-50 hover:bg-[#007468] text-gray-700 hover:text-white py-3 rounded-xl text-sm font-bold transition">
+                        تحميل القالب (.pptx)
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم الخطوط -->
+        <section id="fonts" class="pt-12 pb-12 scroll-mt-24 reveal">
+            <div class="bg-gradient-to-br from-[#007468] to-[#004d45] rounded-[3rem] p-10 md:p-16 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between gap-12 relative overflow-hidden">
+                <!-- زخارف متطورة -->
+                <div class="absolute -right-32 -top-32 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl"></div>
+                <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-[#CEB26B] opacity-20 rounded-full blur-3xl"></div>
+
+                <div class="relative z-10 w-full md:w-2/3 space-y-8">
+                    <div>
+                        <h2 class="text-4xl md:text-5xl font-bold text-white mb-4">خط هدية الرسمي</h2>
+                        <p class="text-gray-200 font-normal text-lg leading-relaxed max-w-xl">الخط هو البصمة الصوتية المكتوبة للجمعية. يرجى تثبيت واستخدام الأوزان المتوفرة حسب الحاجة في جميع المراسلات والتصاميم.</p>
+                    </div>
+                    
+                    <div class="bg-white/10 p-8 rounded-3xl backdrop-blur-md border border-white/20 space-y-6">
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center border-b border-white/10 pb-4 gap-2">
+                            <span class="font-normal text-3xl">جمعية هدية (Regular)</span>
+                            <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-full w-fit">الوزن العادي</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center border-b border-white/10 pb-4 gap-2">
+                            <span class="font-medium text-3xl">جمعية هدية (Medium)</span>
+                            <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-full w-fit">الوزن المتوسط</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                            <span class="font-bold text-3xl">جمعية هدية (Bold)</span>
+                            <span class="text-sm font-bold bg-[#CEB26B] text-gray-900 px-3 py-1 rounded-full w-fit">الوزن العريض</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative z-10 flex flex-col items-center gap-6">
+                    <div class="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20 mb-2">
+                        <i class="fa-solid fa-font text-6xl text-[#CEB26B]"></i>
+                    </div>
+                    <a href="خط هدية.zip" download class="bg-white text-[#007468] hover:bg-[#CEB26B] hover:text-white font-bold py-4 px-10 rounded-full shadow-2xl transition duration-300 flex items-center gap-3 transform hover:-translate-y-2 text-lg">
+                        <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                        تحميل الخطوط
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- شعار كدانة (دانه) -->
+        <div class="pt-8 pb-4 flex justify-center items-center w-full reveal">
+            <img src="Logokdc.svg" alt="شعار كدانة" class="h-14 md:h-20 object-contain grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500" onerror="this.style.display='none'">
+        </div>
+
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center text-sm font-normal">
+        <p>تم التصميم والتطوير بواسطة قسم الهوية المؤسسية لجمعية هدية &copy; 2026</p>
+    </footer>
+
+    <script>
+        // دالة نسخ كود اللون
+        function copyColor(hex) {
+            navigator.clipboard.writeText(hex).then(() => {
+                const toast = document.getElementById('toast');
+                const toastMsg = document.getElementById('toast-msg');
+                toastMsg.innerText = `تم نسخ اللون: ${hex}`;
+                toast.classList.remove('opacity-0');
+                setTimeout(() => { toast.classList.add('opacity-0'); }, 2500);
+            }).catch(err => { console.error('فشل النسخ: ', err); });
+        }
+
+        // تأثيرات الظهور عند التمرير (Scroll Reveal Animation)
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 100; // مسافة الظهور
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        reveal(); // تشغيل الدالة فور تحميل الصفحة
+
+        // تأثير شريط التنقل (Navbar) عند التمرير
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('shadow-md');
+                navbar.classList.remove('border-gray-100');
+            } else {
+                navbar.classList.remove('shadow-md');
+                navbar.classList.add('border-gray-100');
+            }
+        });
+    </script>
+</body>
+</html>

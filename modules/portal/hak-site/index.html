@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>هدية الخير للاستثمار</title>
+    <meta name="description" content="هدية الخير للاستثمار" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+
+  <body>
+    <!-- Header -->
+    <header class="topbar" id="top">
+      <div class="container topbar__inner">
+        <!-- Left CTA -->
+        <a class="topbar__cta" href="#contact" id="headerCta">تواصل معنا</a>
+
+        <!-- Center Nav -->
+        <nav class="topbar__nav" aria-label="القائمة الرئيسية">
+          <button class="navToggle" id="navToggle" aria-expanded="false" aria-controls="navMenu">☰</button>
+          <ul class="navMenu" id="navMenu"></ul>
+        </nav>
+
+        <!-- Right Brand -->
+        <a class="brand" href="#home" aria-label="العودة للرئيسية">
+          <div class="brand__text">
+            <div class="brand__name" id="brandTitle"></div>
+            <div class="brand__tag" id="brandTag"></div>
+          </div>
+
+          <div class="brand__logoWrap" aria-hidden="true">
+            <img id="brandLogo" class="brand__logo" alt="شعار هدية الخير" />
+          </div>
+        </a>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="scrollProgress"></span></div>
+    </header>
+
+    <main id="home">
+      <!-- Hero -->
+      <section class="hero" id="homeSection">
+        <div class="hero__bg" aria-hidden="true"></div>
+        <div class="container hero__inner">
+          <div class="hero__logoWrap reveal">
+            <img id="heroLogo" class="hero__logo" alt="شعار هدية الخير" />
+          </div>
+
+          
+          <h1 class="hero__title reveal">
+            <span class="hero__titlePrimary" id="heroTitlePrimary">نطور الاستثمار</span>
+            <span class="hero__titleAccent" id="heroTitleAccent">لنرتقي بالخدمة</span>
+          </h1>
+
+          <p class="hero__subtitle reveal" id="heroSubtitle">
+            الذراع الاستثماري الرسمي لجمعية هدية الحاج والمعتمر نحو استدامة مالية تخدم ضيوف الرحمن بأعلى معايير الجودة.
+          </p>
+
+          <div class="hero__actions reveal">
+            <a class="btn btn--outline" id="heroBtnOutline" href="#services">مجالات الاستثمار</a>
+            <a class="btn btn--solid" id="heroBtnSolid" href="#about">عن هدية الخير</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sections -->
+      <section class="section" id="services">
+        <div class="container">
+          <div class="sectionHead">
+            <h2 class="sectionTitle" id="servicesTitle">مجالات العمل</h2>
+            <p class="sectionLead" id="servicesLead">تطوير فرص استثمارية نوعية تُعزز الاستدامة وتخدم ضيوف الرحمن.</p>
+          </div>
+          <div class="grid grid--4" id="servicesGrid"></div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="about">
+        <div class="container">
+          <div class="sectionHead">
+            <h2 class="sectionTitle" id="aboutTitle">من نحن</h2>
+            <p class="sectionLead" id="aboutLead"></p>
+          </div>
+          <div class="grid grid--3" id="aboutCards"></div>
+        </div>
+      </section>
+
+      <section class="section" id="governance">
+        <div class="container">
+          <div class="sectionHead">
+            <h2 class="sectionTitle" id="governanceTitle">الشراكات والحوكمة</h2>
+            <p class="sectionLead" id="governanceLead"></p>
+          </div>
+          <div class="grid grid--2">
+            <article class="card" id="govCard1">
+              <h3 class="cardTitle">مبادئ الحوكمة</h3>
+              <ul class="bullets" id="governancePoints"></ul>
+            </article>
+            <article class="card" id="govCard2">
+              <h3 class="cardTitle">وثائق وروابط</h3>
+              <div class="links" id="governanceLinks"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="media">
+        <div class="container">
+          <div class="sectionHead">
+            <h2 class="sectionTitle" id="mediaTitle">المركز الإعلامي</h2>
+            <p class="sectionLead" id="mediaLead"></p>
+          </div>
+          <div class="grid grid--3" id="mediaGrid"></div>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <div class="container">
+          <div class="sectionHead">
+            <h2 class="sectionTitle" id="contactTitle">تواصل معنا</h2>
+            <p class="sectionLead" id="contactLead"></p>
+          </div>
+
+          <div class="grid grid--2">
+            <article class="card">
+              <h3 class="cardTitle">قنوات التواصل</h3>
+              <div class="kv" id="contactChannels"></div>
+            </article>
+
+            <article class="card">
+              <h3 class="cardTitle">إرسال رسالة</h3>
+              <form id="contactForm" class="form">
+                <label class="field">
+                  <span>الاسم</span>
+                  <input name="name" type="text" required minlength="2" />
+                </label>
+                <label class="field">
+                  <span>البريد الإلكتروني</span>
+                  <input name="email" type="email" required />
+                </label>
+                <label class="field">
+                  <span>الرسالة</span>
+                  <textarea name="message" rows="5" required minlength="10"></textarea>
+                </label>
+                <button class="btn btn--solid" type="submit">إرسال</button>
+                <p class="formNote" id="formNote" role="status" aria-live="polite"></p>
+              </form>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="footer__brand" id="footerBrand">هدية الخير للاستثمار</div>
+        <div class="footer__copy" id="footerCopy"></div>
+      </div>
+    </footer>
+
+    <button class="toTop" id="toTop" aria-label="العودة للأعلى">↑</button>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مصدر بطاقة الموظف | هدية الخير</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;700&family=Tajawal:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--teal:#0d7868;--gold:#bb9a5f;--ink:#1d2b28;--line:#e3e8e6;--bg:#f4f7f6}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--teal);color:#fff;padding:16px 24px;border-bottom:4px solid var(--gold)}
+header h1{margin:0;font-size:1.25rem}
+main{max-width:980px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px}
+.panel h2{margin:0 0 14px;font-size:1.05rem;color:var(--teal)}
+label{display:block;font-weight:700;font-size:.9rem;margin:12px 0 4px}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid #cbd5d2;border-radius:8px;font:inherit}
+input[type=text]:focus{outline:2px solid var(--teal);border-color:transparent}
+.en{direction:ltr;text-align:left;font-family:Rubik,sans-serif}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photo-box{border:2px dashed #b9c6c2;border-radius:10px;padding:14px;text-align:center;margin-top:6px}
+.photo-box input[type=range]{width:100%;margin-top:8px}
+.check{display:flex;gap:8px;align-items:center;font-weight:500;margin-top:12px}
+.modes{display:flex;gap:16px;justify-content:center;margin:10px 0}
+.modes label{display:flex;gap:6px;align-items:center;margin:0;font-weight:500}
+.hint{font-size:.8rem;color:#667873;margin:6px 0 0}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
+.primary{background:var(--teal);color:#fff}
+.secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal)}
+.ghost{background:none;color:#a33;padding:6px 0}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.preview{position:sticky;top:16px;text-align:center}
+#card{width:100%;max-width:300px;aspect-ratio:153/242.25;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);touch-action:none;cursor:grab;background:#fff}
+#back{width:100%;max-width:300px;aspect-ratio:153/242.25;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+#card.drag{cursor:grabbing}
+@media (max-width:820px){main{grid-template-columns:1fr}.preview{position:static;order:-1}}
+.printImg{display:none}
+@media print{
+  @page{size:54mm 85.5mm;margin:0}
+  body{background:#fff}
+  header,main{display:none}
+  .printImg{display:block;width:54mm;height:85.5mm;break-after:page}
+}
+</style>
+</head>
+<body>
+<header><h1>مصدر بطاقة الموظف — هدية الخير</h1></header>
+<main>
+  <section class="panel">
+    <h2>بيانات الموظف</h2>
+    <div id="pickBox" hidden>
+      <label for="pick">اختيار من دليل الموظفين (اختياري)</label>
+      <input type="text" id="pick" list="peopleList" placeholder="ابحث بالاسم أو الرقم الداخلي" autocomplete="off">
+      <datalist id="peopleList"></datalist>
+      <p class="hint" id="pickStatus" role="status"></p>
+    </div>
+    <div class="row">
+      <div><label for="arName">الاسم (عربي)</label><input type="text" id="arName" placeholder="مثال: محمد عبدالله العتيبي"></div>
+      <div><label for="enName">Name (English)</label><input type="text" id="enName" class="en" placeholder="Mohammed Alotaibi"></div>
+      <div><label for="arTitle">المنصب الوظيفي (عربي)</label><input type="text" id="arTitle" placeholder="مثال: أخصائي تقنية معلومات"></div>
+      <div><label for="enTitle">Position (English)</label><input type="text" id="enTitle" class="en" placeholder="IT Specialist"></div>
+    </div>
+
+    <label>الصورة الشخصية</label>
+    <div class="photo-box">
+      <input type="file" id="photo" accept="image/*">
+      <div class="modes" id="modes" hidden>
+        <label><input type="radio" name="mode" value="pop" checked> بارزة فوق الدائرة</label>
+        <label><input type="radio" name="mode" value="circle"> داخل الدائرة</label>
+      </div>
+      <input type="range" id="zoom" min="0.5" max="2.5" step="0.01" value="1" disabled aria-label="تكبير الصورة">
+      <p class="hint">للصورة البارزة استخدم صورة بخلفية شفافة (PNG)، أو اضغط «إزالة الخلفية». اسحب الصورة لتحريكها، والشريط للتكبير.</p>
+      <button type="button" class="secondary" id="removeBg" hidden>إزالة الخلفية تلقائيًا</button>
+      <p class="hint" id="status" role="status"></p>
+      <button type="button" class="ghost" id="clearPhoto" hidden>إزالة الصورة</button>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="dlPdf">حفظ PDF للطباعة (54×85.5 مم)</button>
+      <button type="button" class="secondary" id="dl">حفظ صورة PNG</button>
+      <button type="button" class="secondary" id="print">طباعة</button>
+    </div>
+    <label class="check"><input type="checkbox" id="withBack" checked> إضافة ظهر البطاقة كصفحة ثانية في ملف PDF</label>
+    <p class="hint" id="pdfStatus" role="status"></p>
+  </section>
+
+  <aside class="panel preview">
+    <h2>المعاينة</h2>
+    <canvas id="card"></canvas>
+    <h2 style="margin-top:20px">ظهر البطاقة</h2>
+    <img id="back" src="__CARD_BACK__" alt="ظهر البطاقة">
+  </aside>
+</main>
+<img id="printImg" class="printImg" alt="">
+<img id="printBack" class="printImg" src="__CARD_BACK__" alt="">
+
+<script>
+const CARD_W = 153, CARD_H = 242.25;           // card units (SVG viewBox)
+const PHOTO = {cx: 76.5, cy: 109.08, r: 39.1};  // photo circle in card units
+const COLORS = {teal: '#0d7868', gold: '#bb9a5f'};
+const MAX_TEXT_W = 128;                         // widest a line may get before shrinking
+// baseline y, default font size, weight, color for each field
+const LINES = {
+  arName:  {y: 166.86, size: 11.5, font: 'Tajawal', weight: 700, color: COLORS.teal, rtl: true},
+  enName:  {y: 179.50, size: 9.8,  font: 'Rubik',   weight: 700, color: COLORS.gold, upper: true},
+  arTitle: {y: 194.94, size: 9.2,  font: 'Tajawal', weight: 700, color: COLORS.teal, rtl: true},
+  enTitle: {y: 204.25, size: 7.6,  font: 'Rubik',   weight: 600, color: COLORS.gold, upper: true},
+};
+const DEFAULTS = {arName: 'الاسم هنا يكتب', enName: 'Write name here', arTitle: 'المنصب الوظيفي', enTitle: 'Position'};
+
+const $ = id => document.getElementById(id);
+const canvas = $('card'), ctx = canvas.getContext('2d');
+const bg = new Image();
+bg.src = '__CARD_BG__';
+
+// mode 'pop': cut-out photo stands on the circle's bottom edge and may rise above it
+// mode 'circle': photo fills the circle (cover). ox/oy: offset in card units
+const photo = {img: null, file: null, mode: 'pop', zoom: 1, ox: 0, oy: 0};
+const POP_HEIGHT = 102;                           // default cut-out height in card units
+
+function draw(c, scale) {
+  c.canvas.width = Math.round(CARD_W * scale);
+  c.canvas.height = Math.round(CARD_H * scale);
+  c.fillStyle = '#fff';
+  c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+  c.drawImage(bg, 0, 0, c.canvas.width, c.canvas.height);
+
+  // template's green disc, then the photo on top
+  const cx = PHOTO.cx * scale, cy = PHOTO.cy * scale, r = PHOTO.r * scale;
+  c.fillStyle = COLORS.teal;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
+  if (photo.img) {
+    const iw = photo.img.width, ih = photo.img.height;
+    c.save();
+    c.beginPath();
+    if (photo.mode === 'pop') {
+      c.rect(0, 0, c.canvas.width, cy);           // everything above the centre line stays visible
+    }
+    c.moveTo(cx + r, cy);
+    c.arc(cx, cy, r, 0, Math.PI * 2);              // the lower half is cut by the circle
+    c.clip();
+    if (photo.mode === 'pop') {
+      const h = POP_HEIGHT * photo.zoom, w = h * iw / ih;
+      c.drawImage(photo.img, (PHOTO.cx - w / 2 + photo.ox) * scale, (PHOTO.cy + PHOTO.r - h + photo.oy) * scale, w * scale, h * scale);
+    } else {
+      const base = Math.max(PHOTO.r * 2 / iw, PHOTO.r * 2 / ih) * photo.zoom;
+      const w = iw * base, h = ih * base;
+      c.drawImage(photo.img, (PHOTO.cx - w / 2 + photo.ox) * scale, (PHOTO.cy - h / 2 + photo.oy) * scale, w * scale, h * scale);
+    }
+    c.restore();
+  }
+
+  // text
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+  for (const [key, L] of Object.entries(LINES)) {
+    let text = $(key).value.trim() || DEFAULTS[key];
+    if (L.upper) text = text.toUpperCase();
+    c.direction = L.rtl ? 'rtl' : 'ltr';
+    c.fillStyle = L.color;
+    let size = L.size;
+    const font = s => `${L.weight} ${s * scale}px ${L.font}, Tajawal, sans-serif`;
+    c.font = font(size);
+    const w = c.measureText(text).width / scale;
+    if (w > MAX_TEXT_W) { size *= MAX_TEXT_W / w; c.font = font(size); }
+    c.fillText(text, CARD_W / 2 * scale, L.y * scale);
+  }
+}
+
+function render() {
+  const scale = Math.min(window.devicePixelRatio || 1, 2) * 4;
+  draw(ctx, scale);
+}
+
+// ---- inputs ----
+for (const k of Object.keys(LINES)) $(k).addEventListener('input', render);
+
+const setStatus = t => { $('status').textContent = t; };
+
+function hasTransparency(img) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d', {willReadFrequently: true});
+  g.drawImage(img, 0, 0, 64, 64);
+  const d = g.getImageData(0, 0, 64, 64).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 250) n++;
+  return n > 64 * 64 * 0.05;
+}
+
+function setMode(mode) {
+  photo.mode = mode;
+  document.querySelector(`input[name=mode][value=${mode}]`).checked = true;
+  const z = $('zoom');
+  z.min = mode === 'pop' ? 0.5 : 1;
+  z.max = mode === 'pop' ? 2.5 : 4;
+  photo.zoom = 1; photo.ox = photo.oy = 0; z.value = 1;
+}
+
+function loadPhoto(blob, file) {
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    photo.img = img; photo.file = file;
+    setMode(hasTransparency(img) ? 'pop' : 'circle');
+    $('zoom').disabled = false; $('clearPhoto').hidden = false;
+    $('modes').hidden = false; $('removeBg').hidden = false;
+    setStatus(photo.mode === 'circle' ? 'الصورة بخلفية، تظهر داخل الدائرة. اضغط «إزالة الخلفية» لتبرز فوقها.' : '');
+    render();
+  };
+  img.src = url;
+}
+
+$('photo').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) loadPhoto(f, f);
+});
+for (const r of document.querySelectorAll('input[name=mode]')) {
+  r.addEventListener('change', () => { setMode(r.value); render(); });
+}
+$('zoom').addEventListener('input', e => { photo.zoom = +e.target.value; clampOffset(); render(); });
+$('clearPhoto').addEventListener('click', () => {
+  photo.img = photo.file = null; $('photo').value = '';
+  $('zoom').disabled = true; $('clearPhoto').hidden = $('modes').hidden = $('removeBg').hidden = true;
+  setStatus(''); render();
+});
+
+// ---- employee directory (platform database): fills name, title and photo ----
+(async () => {
+  let people = [];
+  try {
+    const r = await fetch('/api/people', {credentials: 'same-origin'});
+    if (!r.ok) return;
+    people = (await r.json()).people;
+  } catch { return; }
+  if (!people.length) return;
+  const label = p => p.full_name + ' — ' + p.extension;
+  $('peopleList').replaceChildren(...people.map(p => Object.assign(document.createElement('option'), {value: label(p)})));
+  $('pickBox').hidden = false;
+  $('pick').addEventListener('change', async () => {
+    const p = people.find(x => label(x) === $('pick').value);
+    if (!p) return;
+    $('arName').value = p.full_name; $('arTitle').value = p.job_title || '';
+    $('pickStatus').textContent = p.photo_url ? 'جارٍ تحميل صورة الموظف...' : 'لا توجد صورة لهذا الموظف في الدليل. أضف الاسم الإنجليزي والمنصب بالإنجليزية يدويًا.';
+    render();
+    if (!p.photo_url) return;
+    try {
+      const res = await fetch(p.photo_url, {credentials: 'same-origin'});
+      if (!res.ok) throw new Error();
+      loadPhoto(await res.blob());
+      $('pickStatus').textContent = 'تم تحميل البيانات والصورة. أضف الاسم الإنجليزي والمنصب بالإنجليزية يدويًا.';
+    } catch { $('pickStatus').textContent = 'تعذر تحميل الصورة، يمكنك رفعها يدويًا.'; }
+  });
+})();
+
+// background removal runs in the browser; the model is downloaded on first use only
+$('removeBg').addEventListener('click', async () => {
+  if (!photo.file) return;
+  const btn = $('removeBg');
+  btn.disabled = true; setStatus('جارٍ إزالة الخلفية... قد تستغرق المرة الأولى دقيقة لتنزيل النموذج.');
+  try {
+    const {removeBackground} = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm');
+    const out = await removeBackground(photo.file, {output: {format: 'image/png'}});
+    loadPhoto(out, photo.file);
+    setStatus('تمت إزالة الخلفية.');
+  } catch (err) {
+    console.error(err);
+    setStatus('تعذّرت إزالة الخلفية. استخدم صورة PNG شفافة الخلفية بدلًا منها.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// keep the photo from drifting away from the circle
+function clampOffset() {
+  if (!photo.img) return;
+  if (photo.mode === 'pop') {
+    photo.ox = Math.min(40, Math.max(-40, photo.ox));
+    photo.oy = Math.min(40, Math.max(-40, photo.oy));
+    return;
+  }
+  const d = PHOTO.r * 2;
+  const base = Math.max(d / photo.img.width, d / photo.img.height) * photo.zoom;
+  const mx = Math.max(0, (photo.img.width * base - d) / 2), my = Math.max(0, (photo.img.height * base - d) / 2);
+  photo.ox = Math.min(mx, Math.max(-mx, photo.ox));
+  photo.oy = Math.min(my, Math.max(-my, photo.oy));
+}
+
+// drag to pan
+let drag = null;
+canvas.addEventListener('pointerdown', e => {
+  if (!photo.img) return;
+  drag = {x: e.clientX, y: e.clientY, ox: photo.ox, oy: photo.oy};
+  canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag');
+});
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = CARD_W / canvas.getBoundingClientRect().width;
+  photo.ox = drag.ox + (e.clientX - drag.x) * k;
+  photo.oy = drag.oy + (e.clientY - drag.y) * k;
+  clampOffset(); render();
+});
+const endDrag = () => { drag = null; canvas.classList.remove('drag'); };
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+// ---- export ----
+function exportCanvas() {
+  const c = document.createElement('canvas');
+  draw(c.getContext('2d'), 12);   // 1836 x 2907 px
+  return c;
+}
+function fileName() {
+  const n = ($('enName').value.trim() || $('arName').value.trim() || 'employee').replace(/[\\/:*?"<>|\s]+/g, '-');
+  return `card-${n}.png`;
+}
+$('dl').addEventListener('click', () => {
+  exportCanvas().toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = fileName(); a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/png');
+});
+// ---- PDF (one image per page, exact card size, lossless) ----
+const PDF_W_MM = 54, PDF_H_MM = 85.5;
+const mmToPt = mm => mm * 72 / 25.4;
+
+async function deflate(bytes) {
+  const cs = new CompressionStream('deflate');
+  const w = cs.writable.getWriter();
+  w.write(bytes); w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+
+async function rgbOf(canvas) {
+  const {width, height} = canvas;
+  const rgba = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+  const rgb = new Uint8Array(width * height * 3);
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
+    rgb[j] = rgba[i]; rgb[j + 1] = rgba[i + 1]; rgb[j + 2] = rgba[i + 2];
+  }
+  return {width, height, data: await deflate(rgb)};
+}
+
+async function buildPdf(canvases) {
+  const enc = new TextEncoder();
+  const W = mmToPt(PDF_W_MM).toFixed(3), H = mmToPt(PDF_H_MM).toFixed(3);
+  const chunks = [], offsets = [];
+  let pos = 0;
+  const put = x => { const b = typeof x === 'string' ? enc.encode(x) : x; chunks.push(b); pos += b.length; };
+  const begin = n => { offsets[n] = pos; put(`${n} 0 obj\n`); };
+
+  put('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const n = canvases.length;
+  begin(1); put('<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  begin(2); put(`<< /Type /Pages /Count ${n} /Kids [${canvases.map((_, i) => `${3 + i * 3} 0 R`).join(' ')}] >>\nendobj\n`);
+  for (let i = 0; i < n; i++) {
+    const page = 3 + i * 3, content = page + 1, image = page + 2;
+    const img = await rgbOf(canvases[i]);
+    begin(page);
+    put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /TrimBox [0 0 ${W} ${H}] ` +
+        `/Resources << /XObject << /Im0 ${image} 0 R >> >> /Contents ${content} 0 R >>\nendobj\n`);
+    const draw = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+    begin(content); put(`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream\nendobj\n`);
+    begin(image);
+    put(`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB ` +
+        `/BitsPerComponent 8 /Filter /FlateDecode /Length ${img.data.length} >>\nstream\n`);
+    put(img.data); put('\nendstream\nendobj\n');
+  }
+  const total = 3 + n * 3, xref = pos;
+  put(`xref\n0 ${total}\n0000000000 65535 f \n`);
+  for (let i = 1; i < total; i++) put(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  put(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, {type: 'application/pdf'});
+}
+
+function backCanvas() {
+  const img = $('back'), c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c;
+}
+
+$('dlPdf').addEventListener('click', async () => {
+  const btn = $('dlPdf');
+  btn.disabled = true; $('pdfStatus').textContent = 'جارٍ تجهيز ملف PDF...';
+  try {
+    const pages = [exportCanvas()];
+    if ($('withBack').checked) pages.push(backCanvas());
+    const blob = await buildPdf(pages);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fileName().replace(/\.png$/, '.pdf'); a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    $('pdfStatus').textContent = '';
+  } catch (err) {
+    console.error(err);
+    $('pdfStatus').textContent = 'تعذّر إنشاء PDF. جرّب متصفحًا حديثًا (Chrome أو Edge).';
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('print').addEventListener('click', () => {
+  $('printImg').src = exportCanvas().toDataURL('image/png');
+  $('printImg').decode().then(() => window.print());
+});
+
+// ---- boot ----
+const fontsReady = Promise.all([
+  document.fonts.load('700 20px Tajawal', 'ع'), document.fonts.load('500 20px Tajawal', 'ع'),
+  document.fonts.load('700 20px Rubik', 'A'), document.fonts.load('600 20px Rubik', 'A'),
+]).catch(() => {});
+Promise.all([bg.decode(), fontsReady]).then(render);
+</script>
+</body>
+</html>

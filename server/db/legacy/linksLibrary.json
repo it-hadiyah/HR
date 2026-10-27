@@ -1,0 +1,233 @@
+{
+  "categories": {
+    "الروابط العامة": [
+      {
+        "name": "البريد الإلكتروني",
+        "description": "الدخول إلى بريد",
+        "url": "https://outlook.office365.com/"
+      },
+      {
+        "name": "اودو",
+        "description": "نظام اودو",
+        "url": "https://erp.hadiyah.org.sa/web/login"
+      },
+       {
+        "name": "الموقع الرئيسي",
+        "description": "الموقع الرسمي للجمعية",
+        "url": "https://www.hadiyah.org.sa"
+      },
+      {
+        "name": "متجر هدية",
+        "description": "متجر الجمعية على منصة سلة",
+        "url": "https://hgc.org.sa/"
+      },
+      {
+        "name": "شات جي بي تي",
+        "description": "",
+        "url": "https://chatgpt.com/"
+      },
+      {
+        "name": "الواتس",
+        "description": "",
+        "url": "https://web.whatsapp.com/"
+      }
+    ],
+    " التطوع": [
+       {
+        "name": "منصة التطوع المحدثة",
+        "description": "منصة التقديم على الفرص التطوعية بداخل الجمعية",
+        "url": "https://erp.hadiyah.org.sa/web/login#action=2039&model=hr.job&view_type=kanban&cids=1&menu_id=1414"
+      },
+      {
+        "name": "منصة التطوع بالموقع الرئيسي",
+        "description": "منصة التطوع الرئيسية لتسجيل المتطوعين",
+        "url": "https://hadiyah-uat-16231280.dev.odoo.com/volunteer"
+      }
+    ],
+      "الاعلام": [
+      {
+        "name": "ون درايف",
+        "description": "",
+        "url": "https://onedrive.live.com/login"
+      },
+      {
+        "name": "قوقل درايف",
+        "description": "",
+        "url": "https://drive.google.com/drive/u/0/home"
+      },
+      {
+        "name": "ماي كلاود",
+        "description": "",
+        "url": "https://www.mycloud.com/"
+      }
+    ],
+      "التقنية": [
+      {
+        "name": "ادمن الايميل",
+        "description": "",
+        "url": "https://admin.microsoft.com/?login_hint=am.alzahrani%40hadiyah.org.sa&source=applauncher#/homepage"
+      },
+      {
+        "name": "ازيور",
+        "description": "",
+        "url": "https://azure.microsoft.com/"
+      },
+      {
+        "name": "دي نيت",
+        "description": "",
+        "url": "https://dnet.sa/"
+      }
+    ],
+    "البرامج":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+      
+    ],
+    "تنمية الموارد":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+    ],
+    "الموارد البشرية":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+    ],
+    "المالية":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+    ],
+    "الخطط والاستراتيجية":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+    ],
+    "المساعدات":[
+      {
+        "name": "",
+        "description": "",
+        "url": ""
+      }
+    ]
+  },
+  
+
+  "most_important": {
+    "list": [
+    {
+        "name": "البريد الإلكتروني",
+        "description": "",
+        "url": "https://outlook.office365.com/",
+        "image": "images/content/library-links/outlook.jpg"
+      },
+      {
+        "name": "شات جي بي تي",
+        "description": "",
+        "url": "https://chatgpt.com/",
+        "image": "images/content/library-links/ChatGPT-Logo.png"
+      },
+      {
+        "name": "جسر",
+        "description": "",
+        "url": "https://hadiyah.jisr.net/#/login",
+        "image": "images/content/library-links/jisr.png"
+      },
+      {
+        "name": "اودو",
+        "description": "",
+        "url": "https://erp.hadiyah.org.sa/web/login",
+        "image":"images/content/library-links/Odoo.png"
+      },
+      {
+        "name": "منصة الاستراتيجية",
+        "description": "",
+        "url": "https://hadiyah-strategiy.vercel.app/",
+        "image":"images/content/library-links/plan.png"
+      }
+    ],
+     "orders": [
+    {
+        "name": "تذكرة الدعم الفني",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/ld-m-lfny",
+        "image": "images/content/library-links/technicals.jpg"
+      },
+
+      {
+        "name": "تذكرة الخدمات المساندة",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/slsl-lmdd",
+        "image": "images/content/library-links/support-truck.jpg"
+      },
+
+      {
+        "name": "تذكرة الاعلام - مكة",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/l-lm",
+        "image": "images/content/library-links/design.jpg"
+      },
+
+      {
+        "name": "تذكرة الاعلام - المدينة",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/l-lm-lmdyn-lmnwr",
+        "image": "images/content/library-links/design.jpg"
+      },
+
+       {
+        "name": "تذكرة طلب أحتياج تطوعي",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/ar/tlb-htyj-lttw-y",
+        "image": "images/content/library-links/volunteer.png"
+      },
+
+      {
+        "name": "تذكرة طلب زيارة للمعرض الداخلي",
+        "description": "",
+        "url": "https://hadiyah.odoo.com/zyrt-lm-rd",
+        "image": "images/content/library-links/exph.png"
+      }
+    ],
+      "oprations": [
+    {
+        "name": "طلب شراء",
+        "description": "",
+        "url": "https://erp.hadiyah.org.sa/web#action=2525&model=purchase.requisition.request&view_type=kanban&cids=1&menu_id=1733",
+        "image": "images/content/library-links/pur.png"
+      },
+
+      {
+        "name": "طلب صرف",
+        "description": "",
+        "url": "https://erp.hadiyah.org.sa/web#action=2395&model=payment.request&view_type=kanban&cids=1&menu_id=1660",
+        "image": "images/content/library-links/pay.png"
+      },
+
+      {
+        "name": "طلب اجازة",
+        "description": "",
+        "url": "https://erp.hadiyah.org.sa/web#action=1997&model=hr.leave&view_type=calendar&cids=1&menu_id=1396",
+        "image": "images/content/library-links/leave.png"
+      },
+
+      {
+        "name": "طلب ساعات عمل اضافي",
+        "description": "",
+        "url": "https://erp.hadiyah.org.sa/web#cids=1&menu_id=1616&active_id=39&model=approval.request&view_type=form",
+        "image": "images/content/library-links/overtime.png"
+      }
+    ]
+}
+}

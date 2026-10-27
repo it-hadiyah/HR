@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="page-employees">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- favicon -->
+<link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+  <title>بوابة الموظفين</title>
+  <!-- bootstarp  -->
+  <link href="assets/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- icons -->
+  <link href="assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/employees.css" />
+  <!-- bootstarp js -->
+  <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./js/script.js"></script>
+  <script src="./js/employees.js"></script>
+</head>
+
+<body>
+  <div class="wrapper">
+  <header class="header">
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand p-0 m-0" href="index.html">
+          <img src="images/logo.png" alt="بوابة هدية" height="70" class="p-0 m-0">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-start ms-5 ps-5" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="index.html">الرئيسية</a></li>
+            <li class="nav-item"><a class="nav-link active" href="employee_info.html" aria-current="page">معلومات الموظف</a></li>
+            <li class="nav-item"><a class="nav-link" href="committees.html">اللجان</a></li>
+            <li class="nav-item"><a class="nav-link" href="links_library.html">مكتبة الروابط</a></li>
+            <li class="nav-item"><a class="nav-link" href="locations.html">المواقع</a></li>
+            <li class="nav-item"><a class="nav-link" href="pdf_library.html">السياسات</a></li>
+            <li class="nav-item"><a class="nav-link" href="about.html">الرؤية والرسالة</a></li>
+            <li class="nav-item"><a class="nav-link" href="brand.html">دليل الهوية البصرية</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+    <main class="dir">
+    <section class="dir-hero" aria-labelledby="dirTitle">
+      <div class="container dir-container">
+        <div class="dir-hero-text">
+          <h1 class="dir-title" id="dirTitle">الهيكل التنظيمي ودليل الموظفين</h1>
+          <p class="dir-lead">استعرض الهيكل التنظيمي، الإدارات والفرق، وابحث عن الموظفين بسهولة.</p>
+        </div>
+        <ul class="dir-stats" aria-label="إحصائيات">
+          <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-users"></i></span><span class="stat-text"><strong id="statEmployees">0</strong><span>موظف</span></span></li>
+          <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-building"></i></span><span class="stat-text"><strong id="statSections">0</strong><span>قطاعات رئيسية</span></span></li>
+          <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-sitemap"></i></span><span class="stat-text"><strong id="statUnits">0</strong><span>وحدة تنظيمية</span></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="dir-controls" id="dirControls" aria-label="البحث والتصفية">
+      <div class="container dir-container">
+        <div class="dc-row">
+          <div class="search" role="search">
+            <i class="fa-solid fa-magnifying-glass search-icon" aria-hidden="true"></i>
+            <input type="search" class="search-input" id="employeeFilter" autocomplete="off" spellcheck="false"
+              placeholder="ابحث بالاسم، المسمى الوظيفي، الإدارة أو الرقم الداخلي..." aria-label="بحث في الموظفين والوحدات"
+              role="combobox" aria-expanded="false" aria-controls="orgSuggest" aria-autocomplete="list">
+            <kbd class="search-kbd" aria-hidden="true">/</kbd>
+            <button type="button" class="search-clear" id="searchClear" aria-label="مسح البحث" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            <ul class="suggest" id="orgSuggest" role="listbox" aria-label="نتائج مقترحة" hidden></ul>
+          </div>
+          <div class="seg" role="tablist" aria-label="طريقة العرض">
+            <button type="button" class="seg-btn" role="tab" id="viewOrg" data-view="org" aria-selected="true"><i class="fa-solid fa-sitemap" aria-hidden="true"></i><span>الهيكل التنظيمي</span></button>
+            <button type="button" class="seg-btn" role="tab" id="viewDir" data-view="directory" aria-selected="false"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i><span>دليل الموظفين</span></button>
+          </div>
+          <button type="button" class="btn-tool" id="filtersBtn" aria-expanded="false" aria-controls="filtersPanel">
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i><span>الفلاتر</span><span class="btn-badge" id="filtersBadge" hidden>0</span>
+          </button>
+        </div>
+
+        <div class="filters" id="filtersPanel" hidden>
+          <label class="field"><span>القطاع</span><select id="filterSector"></select></label>
+          <label class="field"><span>الإدارة / القسم</span><select id="filterDept"></select></label>
+          <label class="field"><span>المسمى الوظيفي</span><select id="filterJob"></select></label>
+          <label class="field" id="filterLocationField" hidden><span>الموقع</span><select id="filterLocation"></select></label>
+          <button type="button" class="btn-text" id="filtersReset"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> إعادة تعيين</button>
+        </div>
+
+        <nav class="pills" id="orgNav" aria-label="القطاعات" hidden>
+          <div class="pills-inner" id="orgNavInner"></div>
+        </nav>
+      </div>
+    </section>
+
+    <div class="container dir-container dir-body">
+      <div class="dir-meta">
+        <nav class="crumbs" id="breadcrumb" aria-label="مسار التنقل"></nav>
+        <div class="dir-tools">
+          <span class="dir-count" id="employeeCount" aria-live="polite"></span>
+          <span class="tool-group" id="orgTools">
+            <button type="button" class="btn-text" id="orgExpandAll"><i class="fa-solid fa-angles-down" aria-hidden="true"></i> فتح الكل</button>
+            <button type="button" class="btn-text" id="orgCollapseAll"><i class="fa-solid fa-angles-up" aria-hidden="true"></i> طي الكل</button>
+          </span>
+          <label class="sort" id="sortWrap" hidden><span>الترتيب</span>
+            <select id="sortBy" aria-label="ترتيب الموظفين">
+              <option value="default">الترتيب الافتراضي</option>
+              <option value="name">حسب الاسم</option>
+              <option value="department">حسب الإدارة</option>
+              <option value="title">حسب المسمى الوظيفي</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div id="employee-cards" aria-busy="true">
+        <div class="skeleton" aria-hidden="true">
+          <div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
+        </div>
+      </div>
+    </div>
+</main>
+
+    <!-- Footer -->
+    <footer class="footer mt-5 py-4 text-white">
+        <div class="text-center">
+            <small>© 2025 جميع الحقوق محفوظة - بوابة هدية</small>
+        </div>
+    </footer>
+
+</div>
+</body>
+
+</html>

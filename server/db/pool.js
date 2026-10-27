@@ -1,3 +1,4 @@
+import '../lib/env.js';
 import pg from 'pg';
 
 // أرقام NUMERIC و DATE تُرجَع كأرقام/نصوص بسيطة بدل كائنات Date لتفادي مشاكل المنطقة الزمنية

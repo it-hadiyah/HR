@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="page-policies">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+
+  <title>السياسات واللوائح | بوابة هدية</title>
+
+  <!-- Bootstrap -->
+  <link href="assets/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Icons -->
+  <link href="assets/vendor/fontawesome/css/all.min.css" rel="stylesheet" />
+
+  <!-- Your CSS -->
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/policies.css" />
+
+  <!-- Bootstrap JS -->
+  <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <!-- Your JS -->
+  <script src="./js/script.js"></script>
+  <script src="./js/policies.js" defer></script>
+</head>
+
+<body>
+  <div class="wrapper">
+
+    <!-- Header -->
+    <header class="header">
+      <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+          <a class="navbar-brand p-0 m-0" href="index.html">
+            <img src="images/logo.png" alt="بوابة هدية" height="70" class="p-0 m-0">
+          </a>
+
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <div class="collapse navbar-collapse justify-content-start ms-5 ps-5" id="navbarNav">
+            <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="index.html">الرئيسية</a></li>
+            <li class="nav-item"><a class="nav-link" href="employee_info.html">معلومات الموظف</a></li>
+            <li class="nav-item"><a class="nav-link" href="committees.html">اللجان</a></li>
+            <li class="nav-item"><a class="nav-link" href="links_library.html">مكتبة الروابط</a></li>
+            <li class="nav-item"><a class="nav-link" href="locations.html">المواقع</a></li>
+            <li class="nav-item"><a class="nav-link active" href="pdf_library.html" aria-current="page">السياسات</a></li>
+            <li class="nav-item"><a class="nav-link" href="about.html">الرؤية والرسالة</a></li>
+            <li class="nav-item"><a class="nav-link" href="brand.html">دليل الهوية البصرية</a></li>
+          </ul>
+          </div>
+
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main -->
+    <main class="pol">
+      <section class="pol-hero" aria-labelledby="polTitle">
+        <div class="container pol-container">
+          <div>
+            <h1 class="pol-title" id="polTitle">السياسات واللوائح</h1>
+            <p class="pol-lead">المرجع الرسمي لسياسات ولوائح الجمعية. ابحث، صفّح بحسب التصنيف، واعرض أي وثيقة مباشرة.</p>
+          </div>
+          <ul class="pol-stats" aria-label="إحصائيات">
+            <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span><span class="stat-text"><strong id="polStatDocs">0</strong><span>وثيقة</span></span></li>
+            <li class="stat"><span class="stat-icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span><span class="stat-text"><strong id="polStatCats">0</strong><span>تصنيف</span></span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="pol-controls" aria-label="البحث والتصنيفات">
+        <div class="container pol-container">
+          <div class="pol-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="policySearch" placeholder="ابحث في السياسات واللوائح..." aria-label="بحث في السياسات" autocomplete="off">
+          </div>
+          <div class="pol-pills" id="policyPills" role="group" aria-label="التصنيفات"></div>
+        </div>
+      </section>
+
+      <div class="container pol-container pol-body">
+        <div class="pol-meta"><span id="policyCount" aria-live="polite"></span></div>
+        <div id="policy-categories" aria-busy="true"></div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer mt-5 py-4 text-white">
+      <div class="text-center">
+        <small>© 2025 جميع الحقوق محفوظة - بوابة هدية</small>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- PDF viewer -->
+  <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
+      <div class="modal-content">
+        <div class="modal-header pol-modal-head">
+          <h5 class="modal-title" id="pdfModalTitle">عرض الملف</h5>
+          <div class="pol-modal-actions">
+            <a class="pol-btn pol-btn--ghost" id="pdfOpen" href="#" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>فتح في تبويب</span></a>
+            <a class="pol-btn pol-btn--ghost" id="pdfDownload" href="#" download><i class="fa-solid fa-download" aria-hidden="true"></i><span>تحميل</span></a>
+            <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+          </div>
+        </div>
+        <div class="modal-body p-0">
+          <iframe id="pdfFrame" title="عرض الوثيقة" style="width:100%; height:80vh; border:0;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>

@@ -1,0 +1,184 @@
+{
+ "logos": [
+  {
+   "group": "light",
+   "name": "ملون طولي",
+   "file": "ملون طولي"
+  },
+  {
+   "group": "light",
+   "name": "ملون عرضي",
+   "file": "ملون عرضي"
+  },
+  {
+   "group": "light",
+   "name": "ملون وسطي",
+   "file": "ملون وسطي"
+  },
+  {
+   "group": "dark",
+   "name": "أبيض طولي",
+   "file": "ابيض طولي"
+  },
+  {
+   "group": "dark",
+   "name": "أبيض عرضي",
+   "file": "ابيض عرضي"
+  },
+  {
+   "group": "dark",
+   "name": "أبيض وسطي",
+   "file": "ابيض وسطي"
+  }
+ ],
+ "colors": [
+  {
+   "name": "الأخضر الداكن",
+   "role": "اللون الأساسي",
+   "hex": "#007468"
+  },
+  {
+   "name": "الأخضر",
+   "role": "لون ثانوي",
+   "hex": "#00A092"
+  },
+  {
+   "name": "الأخضر الفاتح",
+   "role": "لون مساند",
+   "hex": "#84D3A4"
+  },
+  {
+   "name": "الذهبي",
+   "role": "لون تمييز",
+   "hex": "#CEB26B"
+  },
+  {
+   "name": "الرمادي الفاتح",
+   "role": "خلفيات وفواصل",
+   "hex": "#E3E2E2"
+  }
+ ],
+ "patterns": [
+  {
+   "name": "باترن النخلة - أخضر",
+   "file": "باترن نخلة اخضر"
+  },
+  {
+   "name": "باترن النخلة - أبيض",
+   "file": "باترن نخلة ابيض",
+   "dark": true
+  },
+  {
+   "name": "باترن سداسي - أخضر",
+   "file": "باترن سداسي اخضر"
+  },
+  {
+   "name": "باترن سداسي - أبيض",
+   "file": "باترن سداسي ابيض",
+   "dark": true
+  }
+ ],
+ "icons": {
+  "preview": [
+   "ايقونات بدون خلفية.png",
+   "ايقونات بخلفية سداسي.png"
+  ],
+  "packs": [
+   {
+    "name": "أيقونات بدون خلفية",
+    "zip": "ايقونات بدون خلفية.zip",
+    "size": 29879
+   },
+   {
+    "name": "أيقونات بخلفية سداسي",
+    "zip": "ايقونات بخلفية سداسي.zip",
+    "size": 31665
+   }
+  ],
+  "folder": "ايقونات بدون خلفية",
+  "items": [
+   "اداء النسك",
+   "الجمرات",
+   "المدينة المنورة",
+   "المصحف",
+   "تمر",
+   "دعاء",
+   "رجل ساجد",
+   "رجل محرم",
+   "رجل يدعي",
+   "رجل يصلي",
+   "زخرف اسلامي",
+   "سجادة",
+   "سقيا ماء",
+   "سيدة معتمرة",
+   "شخصية سعودية",
+   "طواف",
+   "عرفة",
+   "فانوس",
+   "قبة",
+   "قرآن",
+   "قهوة",
+   "كعبة",
+   "مسجد",
+   "معتمر ومعتمرة",
+   "هلال",
+   "هلال ومسجد"
+  ]
+ },
+ "templates": [
+  {
+   "name": "قالب العرض - نموذج 1",
+   "thumb": "images/brand/template-1.jpg",
+   "file": "قالب عرض  نموذج 1.pptx",
+   "size": 13656478
+  },
+  {
+   "name": "قالب العرض - نموذج 2",
+   "thumb": "images/brand/template-2.jpg",
+   "file": "قالب عرض  نموذج 2.pptx",
+   "size": 26694589
+  },
+  {
+   "name": "قالب العرض - نموذج 3",
+   "thumb": "images/brand/template-3.jpg",
+   "file": "قالب عرض  نموذج 3.pptx",
+   "size": 21416840
+  }
+ ],
+ "fonts": {
+  "family": "خط هدية (The Year of Handicrafts)",
+  "zip": "خط هدية.zip",
+  "weights": [
+   {
+    "name": "Regular",
+    "label": "عادي",
+    "file": "TheYearofHandicrafts-Regular.otf",
+    "w": 400
+   },
+   {
+    "name": "Medium",
+    "label": "متوسط",
+    "file": "TheYearofHandicrafts-Medium.otf",
+    "w": 500
+   },
+   {
+    "name": "Bold",
+    "label": "عريض",
+    "file": "TheYearofHandicrafts-Bold.otf",
+    "w": 700
+   }
+  ]
+ },
+ "sound": [
+  {
+   "name": "الهوية الصوتية (Oriental Upbeat)",
+   "mp3": "heSoundofKidana_Oriental_Upbeat.mp3",
+   "size": 1185728
+  },
+  {
+   "name": "الهوية الصوتية (Main Theme) - ملف كامل",
+   "wav": "Sonicbrand_The Sound Of Kidana_Main Theme.wav",
+   "size": 30277578
+  }
+ ]
+}
