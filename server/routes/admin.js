@@ -1,13 +1,14 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import { q, pool } from '../db/pool.js';
-import { requirePerm, audit, wrap, ROLE_LABELS, canSeeFinancials } from '../lib/auth.js';
+import { requirePerm, audit, wrap, canSeeFinancials } from '../lib/auth.js';
+import { hasGrant } from '../lib/rbac.js';
+import * as userService from '../services/users.js';
 import { loadPolicy, buildContext } from '../lib/context.js';
 import { DEFAULT_POLICY } from '../lib/engine.js';
 import { httpError, isDate } from '../lib/util.js';
 
 const r = Router();
-const adminOnly = (req, res, next) => (req.user.role === 'admin' ? next() : res.status(403).json({ error: 'للمدير فقط' }));
+const adminOnly = (req, res, next) => (hasGrant(req.user, 'admin', 'users_manage') ? next() : res.status(403).json({ error: 'للمدير فقط' }));
 
 // ---- الإعدادات والسياسات ----
 r.get('/settings', wrap(async (req, res) => {
@@ -46,42 +47,27 @@ r.delete('/holidays/:id', requirePerm('settings'), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// ---- المستخدمون والأدوار ----
+// ---- المستخدمون والأدوار (تُدار مركزياً من خدمة المستخدمين؛ هذه الواجهة تبقى لشاشة الإعدادات هنا) ----
 r.get('/users', adminOnly, wrap(async (req, res) => {
-  const { rows } = await q('SELECT u.id, u.username, u.full_name, u.role, u.org_unit_id, u.person_id, u.active, o.name AS unit_name FROM users u LEFT JOIN org_units o ON o.id = u.org_unit_id ORDER BY u.id');
-  res.json({ users: rows, roles: ROLE_LABELS });
+  const roles = Object.fromEntries((await q('SELECT key, name FROM roles ORDER BY is_system DESC, id')).rows.map(x => [x.key, x.name]));
+  res.json({ users: (await userService.listUsers()).map(u => ({ ...u, unit_name: u.unit_name })), roles });
 }));
-
-function checkUser(b, isNew) {
-  if (isNew && (!b.username || !b.password)) throw httpError(400, 'اسم المستخدم وكلمة المرور مطلوبان');
-  if (b.password && String(b.password).length < 8) throw httpError(400, 'كلمة المرور 8 أحرف على الأقل');
-  if (b.role && !ROLE_LABELS[b.role]) throw httpError(400, 'دور غير صالح');
-  if (['sector_manager', 'department_manager', 'section_manager'].includes(b.role) && !b.org_unit_id) throw httpError(400, 'حدد الوحدة التي يديرها');
-}
 r.post('/users', adminOnly, wrap(async (req, res) => {
-  const b = req.body; checkUser(b, true);
-  const { rows } = await q('INSERT INTO users(username, full_name, password_hash, role, org_unit_id, person_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, username, full_name, role, org_unit_id, person_id, active',
-    [String(b.username).trim().toLowerCase(), b.full_name || b.username, await bcrypt.hash(b.password, 10), b.role, b.org_unit_id || null, b.person_id || null]);
-  await audit(req, 'create', 'user', rows[0].id, null, rows[0]);
-  res.status(201).json(rows[0]);
+  const b = req.body;
+  if (['sector_manager', 'department_manager', 'section_manager'].includes(b.role) && !b.org_unit_id) throw httpError(400, 'حدد الوحدة التي يديرها');
+  res.status(201).json(await userService.createUser(b, req));
 }));
 r.put('/users/:id', adminOnly, wrap(async (req, res) => {
-  const b = req.body; checkUser(b, false);
-  const old = (await q('SELECT id, username, full_name, role, org_unit_id, active FROM users WHERE id = $1', [req.params.id])).rows[0];
-  if (!old) throw httpError(404, 'غير موجود');
-  if (old.id === req.user.id && (b.active === false || (b.role && b.role !== 'admin'))) throw httpError(400, 'لا يمكنك تعطيل حسابك أو تغيير دورك');
-  const hash = b.password ? await bcrypt.hash(b.password, 10) : null;
-  const { rows } = await q(`UPDATE users SET full_name = COALESCE($2, full_name), role = COALESCE($3, role), org_unit_id = $4, active = COALESCE($5, active),
-    password_hash = COALESCE($6, password_hash), person_id = CASE WHEN $7::boolean THEN $8 ELSE person_id END WHERE id = $1 RETURNING id, username, full_name, role, org_unit_id, person_id, active`,
-    [old.id, b.full_name || null, b.role || null, b.org_unit_id === undefined ? old.org_unit_id : (b.org_unit_id || null), b.active ?? null, hash, b.person_id !== undefined, b.person_id || null]);
-  await audit(req, 'update', 'user', old.id, old, { ...rows[0], password_changed: !!b.password });
-  res.json(rows[0]);
+  const b = { ...req.body };
+  if (b.role && !b.roles) b.roles = [b.role];     // الواجهة القديمة تُرسل دوراً واحداً
+  res.json(await userService.updateUser(+req.params.id, b, req));
 }));
 
 // ---- سجل التدقيق ----
 r.get('/audit', wrap(async (req, res) => {
-  if (!['admin', 'finance', 'hr', 'executive'].includes(req.user.role)) throw httpError(403, 'غير مسموح');
-  const params = []; let sql = 'SELECT * FROM audit_log WHERE TRUE';
+  const all = hasGrant(req.user, 'admin', 'audit_view');
+  if (!all && !hasGrant(req.user, 'hr', 'reports')) throw httpError(403, 'غير مسموح');
+  const params = []; let sql = `SELECT * FROM audit_logs WHERE ${all ? 'TRUE' : "platform = 'hr'"}`;
   if (req.query.entity) { params.push(req.query.entity); sql += ` AND entity = $${params.length}`; }
   if (req.query.user) { params.push(req.query.user); sql += ` AND username = $${params.length}`; }
   sql += ' ORDER BY id DESC LIMIT 300';
@@ -97,7 +83,7 @@ r.get('/snapshots', wrap(async (req, res) => {
 }));
 
 r.post('/snapshots', requirePerm('snapshots'), wrap(async (req, res) => {
-  const ctx = await buildContext({ ...req.user, role: 'admin', org_unit_id: null }, { status: 'live', asOf: req.body.date });
+  const ctx = await buildContext({ ...req.user, isSuper: true, org_unit_id: null }, { status: 'live', asOf: req.body.date });
   const date = ctx.asOf;
   const client = await pool.connect();
   try {

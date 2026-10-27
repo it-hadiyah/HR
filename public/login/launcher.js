@@ -1,3 +1,4 @@
+import { icon } from '/shared/icons.js';
 const $ = id => document.getElementById(id);
 const api = async (path, opt) => {
   const res = await fetch('/api' + path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opt });
@@ -11,7 +12,7 @@ const nextUrl = () => {
   return n && n.startsWith('/') && !n.startsWith('//') ? n : null;
 };
 
-const TARGETS = { '/hr/': 'نظام الأرصدة', '/report/': 'نظام التقارير', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة' };
+const TARGETS = { '/hr/': 'نظام الأرصدة', '/report/': 'نظام التقارير', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
 
 function showLogin() {
   $('home').hidden = true; $('login').hidden = false;
@@ -24,25 +25,18 @@ function showLogin() {
 async function showHome() {
   const { user, apps } = await api('/launcher');
   $('login').hidden = true; $('home').hidden = false;
-  $('whoName').textContent = `${user.person?.full_name || user.full_name} — ${user.role_label}`;
-  $('hello').textContent = `مرحباً ${user.person?.full_name || user.full_name}، اختر النظام الذي تريد الدخول إليه:`;
+  $('whoName').textContent = `${user.employee?.full_name || user.full_name} — ${user.role_label}`;
+  $('hello').textContent = `مرحباً ${user.employee?.full_name || user.full_name}، اختر النظام الذي تريد الدخول إليه:`;
   const box = $('apps');
   box.replaceChildren();
   if (!apps.length) { box.append(Object.assign(document.createElement('p'), { className: 'empty', textContent: 'لا توجد أنظمة متاحة لحسابك. تواصل مع مدير النظام.' })); }
   for (const a of apps) {
     const el = Object.assign(document.createElement('a'), { className: 'app', href: a.path });
-    const ic = Object.assign(document.createElement('div'), { className: 'ic', textContent: a.icon || '📁' });
+    const ic = Object.assign(document.createElement('div'), { className: 'ic' });
+    ic.innerHTML = icon(a.icon, 26);
     el.append(ic, Object.assign(document.createElement('h3'), { textContent: a.title }), Object.assign(document.createElement('p'), { textContent: a.description || '' }));
     box.append(el);
   }
-  if (['admin', 'hr'].includes(user.role)) { $('linkBox').hidden = false; refreshLinks(); }
-}
-
-async function refreshLinks() {
-  try {
-    const s = await api('/people/link-status');
-    $('linkStat').textContent = `مربوط: ${s.linked} — موظفون بلا ربط: ${s.unlinked_employees.length} — أشخاص في الدليل بلا ربط: ${s.unlinked_people.length}`;
-  } catch { $('linkStat').textContent = ''; }
 }
 
 $('showPw').addEventListener('click', () => {
@@ -65,11 +59,5 @@ $('loginForm').addEventListener('submit', async e => {
   } catch (err) { $('err').textContent = err.message; } finally { btn.disabled = false; }
 });
 $('logout').addEventListener('click', async () => { await api('/auth/logout', { method: 'POST' }); showLogin(); });
-$('autoLink').addEventListener('click', async () => {
-  const r = await api('/people/auto-link', { method: 'POST', body: '{}' });
-  $('linkMsg').textContent = `تم ربط ${r.linked} موظفاً، وبقي ${r.unmatched_employees} بلا تطابق (يمكن ربطهم يدوياً).`;
-  refreshLinks();
-});
-
 try { await api('/auth/me'); const next = nextUrl(); if (next) location.href = next; else await showHome(); }
 catch { showLogin(); }

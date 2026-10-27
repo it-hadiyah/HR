@@ -1,6 +1,8 @@
 import { q } from '../db/pool.js';
 import { DEFAULT_POLICY, computeEmployee, fiscalYear, fiscalYearOf, diffDays } from './engine.js';
 import { buildTree, resolveTargets, summarize } from './targets.js';
+import { resolveScope, hasGrant } from './rbac.js';
+import { httpError } from './util.js';
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -22,17 +24,6 @@ const groupBy = (rows, key) => {
   return m;
 };
 
-/** وحدات المستخدم المسموح له بها (null = كل المنشأة) */
-export function scopeUnitIds(user, tree) {
-  if (!user.org_unit_id || ['admin', 'hr', 'finance', 'executive'].includes(user.role)) return null;
-  const root = tree.byId.get(user.org_unit_id);
-  if (!root) return new Set();
-  const ids = new Set();
-  const walk = n => { ids.add(n.id); n.children.forEach(walk); };
-  walk(root);
-  return ids;
-}
-
 /**
  * يحمّل البيانات ويحسب مؤشرات كل موظف بالمحرك المركزي ثم يوزّع المستهدفات،
  * وبعدها يطبّق صلاحيات المستخدم ومرشحات الشاشة.
@@ -48,7 +39,7 @@ export async function buildContext(user, opts = {}) {
 
   const [units, emps, allow, hist, txs, targets] = await Promise.all([
     q('SELECT * FROM org_units WHERE active ORDER BY id'),
-    q('SELECT * FROM employees'),
+    q('SELECT * FROM employees WHERE leave_enabled'),    // موظفو نظام الإجازات فقط من السجل المركزي
     q('SELECT * FROM employee_allowances'),
     q('SELECT * FROM salary_history'),
     q("SELECT * FROM leave_transactions WHERE status IN ('pending','approved')"),
@@ -88,10 +79,13 @@ export async function buildContext(user, opts = {}) {
     e.high_balance = e.m.available_now > policy.max_balance_cap;
   }
 
-  // صلاحيات النطاق ثم المرشحات
-  const allowedUnits = scopeUnitIds(user, tree);
+  // صلاحيات النطاق (من الصلاحيات المركزية hr:view) ثم المرشحات
+  if (!hasGrant(user, 'hr', 'view')) throw httpError(403, 'لا تملك صلاحية عرض الأرصدة');
+  const sc = await resolveScope(user, 'hr', 'view');
+  const allowedUnits = sc.all ? null : (sc.unitIds ?? new Set());
+  const allowedEmployees = sc.all ? null : sc.employeeIds;
   let list = all;
-  if (allowedUnits) list = list.filter(e => allowedUnits.has(e.org_unit_id));
+  if (!sc.all) list = list.filter(e => (sc.unitIds?.has(e.org_unit_id)) || (sc.employeeIds?.has(e.id)));
   const statusFilter = opts.status || 'live';
   if (statusFilter === 'live') list = list.filter(e => e.status !== 'terminated');
   else if (statusFilter !== 'all') list = list.filter(e => e.status === statusFilter);
@@ -102,7 +96,7 @@ export async function buildContext(user, opts = {}) {
   if (opts.employee) list = list.filter(e => e.id === +opts.employee);
 
   const raw = { allowBy, histBy, txBy };
-  return { policy, year, fy, asOf, period, elapsedPct, tree, units: units.rows, all, list, targets: targets.rows, unitInfo, allowedUnits, txs: txs.rows, raw };
+  return { policy, year, fy, asOf, period, elapsedPct, tree, units: units.rows, all, list, targets: targets.rows, unitInfo, allowedUnits, allowedEmployees, scopeRoot: sc.rootId ?? null, txs: txs.rows, raw };
 }
 
 /** مؤشرات كل وحدة تنظيمية في الشجرة، مجمّعة من موظفي الفرع (ضمن القائمة المحددة) */

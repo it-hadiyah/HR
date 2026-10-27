@@ -5,12 +5,15 @@ import { buildContext } from '../lib/context.js';
 import { httpError, isDate, num, publicEmployee } from '../lib/util.js';
 import { canSeeFinancials } from '../lib/auth.js';
 import { leaveSalaryAt } from '../lib/engine.js';
+import { normalizeName } from '../lib/text.js';
+import { resetOrgGraph } from '../lib/orggraph.js';
 
 const r = Router();
 
 function ensureInScope(ctx, id) {
   const e = ctx.all.find(x => x.id === id);
-  if (!e || (ctx.allowedUnits && !ctx.allowedUnits.has(e.org_unit_id))) throw httpError(404, 'الموظف غير موجود');
+  const inScope = !ctx.allowedUnits && !ctx.allowedEmployees ? true : (ctx.allowedUnits?.has(e?.org_unit_id) || ctx.allowedEmployees?.has(e?.id));
+  if (!e || !inScope) throw httpError(404, 'الموظف غير موجود');
   return e;
 }
 
@@ -74,17 +77,30 @@ r.post('/', requirePerm('employees'), wrap(async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query(
-      `INSERT INTO employees(emp_no, full_name, job_title, org_unit_id, hire_date, termination_date, status, basic_salary,
-         leave_salary_override, annual_entitlement_days, opening_balance, opening_date)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [b.emp_no.trim(), b.full_name.trim(), b.job_title || null, b.org_unit_id, b.hire_date, b.termination_date || null, b.status || 'active',
-        num(b.basic_salary, 0), num(b.leave_salary_override), num(b.annual_entitlement_days), num(b.opening_balance, 0), b.opening_date || b.hire_date]);
-    await saveAllowances(client, rows[0].id, b.allowances);
-    await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_on) VALUES ($1,NULL,$2,$3)', [rows[0].id, b.org_unit_id, b.hire_date]);
+    const vals = [b.emp_no.trim(), b.full_name.trim(), b.job_title || null, b.org_unit_id, b.hire_date, b.termination_date || null, b.status || 'active',
+      num(b.basic_salary, 0), num(b.leave_salary_override), num(b.annual_entitlement_days), num(b.opening_balance, 0), b.opening_date || b.hire_date];
+    // السجل المركزي واحد: إن وُجد في دليل الموظفين موظف بالاسم نفسه ولا ملف إجازات له فنفعّل له الإجازات بدل إنشاء سجل مكرر
+    const cands = (await client.query('SELECT id, full_name FROM employees WHERE NOT leave_enabled AND emp_no IS NULL')).rows
+      .filter(c => normalizeName(c.full_name) === normalizeName(b.full_name));
+    let row, adopted = false;
+    if (cands.length === 1) {
+      adopted = true;
+      row = (await client.query(`UPDATE employees SET emp_no=$2, full_name=coalesce(nullif(full_name, ''), $3), job_title=coalesce(job_title, $4), org_unit_id=$5, hire_date=$6, termination_date=$7, status=$8, basic_salary=$9,
+          leave_salary_override=$10, annual_entitlement_days=$11, opening_balance=$12, opening_date=$13, leave_enabled=TRUE, version=version+1, updated_at=now() WHERE id=$1 RETURNING *`,
+      [cands[0].id, vals[0], vals[1], vals[2], ...vals.slice(3)])).rows[0];
+    } else {
+      row = (await client.query(
+        `INSERT INTO employees(emp_no, full_name, job_title, org_unit_id, hire_date, termination_date, status, basic_salary,
+           leave_salary_override, annual_entitlement_days, opening_balance, opening_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, vals)).rows[0];
+    }
+    await saveAllowances(client, row.id, b.allowances);
+    await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_on, moved_by, reason) VALUES ($1,NULL,$2,$3,$4,$5)',
+      [row.id, b.org_unit_id, b.hire_date, req.user.username, adopted ? 'تفعيل نظام الإجازات لموظف موجود في الدليل' : 'إضافة موظف']);
     await client.query('COMMIT');
-    await audit(req, 'create', 'employee', rows[0].id, null, rows[0]);
-    res.status(201).json(rows[0]);
+    resetOrgGraph();
+    await audit(req, adopted ? 'adopt' : 'create', 'employee', row.id, null, row);
+    res.status(201).json(row);
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
 }));
 
@@ -99,12 +115,12 @@ r.put('/:id', requirePerm('employees'), wrap(async (req, res) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `UPDATE employees SET emp_no=$2, full_name=$3, job_title=$4, org_unit_id=$5, hire_date=$6, termination_date=$7, status=$8,
-         basic_salary=$9, leave_salary_override=$10, annual_entitlement_days=$11, opening_balance=$12, opening_date=$13, updated_at=now()
+         basic_salary=$9, leave_salary_override=$10, annual_entitlement_days=$11, opening_balance=$12, opening_date=$13, version=version+1, updated_at=now()
        WHERE id=$1 RETURNING *`,
       [id, n.emp_no, n.full_name, n.job_title || null, n.org_unit_id, n.hire_date, n.termination_date || null, n.status,
         num(n.basic_salary, 0), num(n.leave_salary_override), num(n.annual_entitlement_days), num(n.opening_balance, 0), n.opening_date]);
     if (old.org_unit_id !== rows[0].org_unit_id) {
-      await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id) VALUES ($1,$2,$3)', [id, old.org_unit_id, rows[0].org_unit_id]);
+      await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_by, reason) VALUES ($1,$2,$3,$4,$5)', [id, old.org_unit_id, rows[0].org_unit_id, req.user.username, 'تعديل من نظام الإجازات']);
     }
     const oldAllow = (await client.query('SELECT * FROM employee_allowances WHERE employee_id = $1', [id])).rows;
     if (Array.isArray(b.allowances)) await saveAllowances(client, id, b.allowances);
@@ -119,6 +135,7 @@ r.put('/:id', requirePerm('employees'), wrap(async (req, res) => {
       await client.query('INSERT INTO salary_history(employee_id, effective_date, leave_salary) VALUES ($1,$2,$3)', [id, eff, after]);
     }
     await client.query('COMMIT');
+    resetOrgGraph();
     await audit(req, 'update', 'employee', id, old, rows[0]);
     res.json(rows[0]);
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }

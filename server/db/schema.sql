@@ -179,10 +179,7 @@ CREATE INDEX IF NOT EXISTS people_email_idx ON people(lower(email));
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS person_id INTEGER UNIQUE REFERENCES people(id) ON DELETE SET NULL;
 ALTER TABLE users     ADD COLUMN IF NOT EXISTS person_id INTEGER REFERENCES people(id) ON DELETE SET NULL;
 
--- أدوار إضافية: employee (موظف عادي: البوابة والبطاقة) و content_admin (مدير محتوى البوابة)
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN
-  ('admin','hr','finance','sector_manager','department_manager','section_manager','executive','employee','content_admin'));
+-- (الأدوار صارت جدولاً مستقلاً: انظر الترحيل 002_rbac_sessions.js)
 
 -- بوابة الموظفين: الروابط والسياسات والمواقع
 CREATE TABLE IF NOT EXISTS link_categories (
@@ -250,16 +247,4 @@ CREATE TABLE IF NOT EXISTS apps (
   sort_order  INTEGER NOT NULL DEFAULT 0,
   active      BOOLEAN NOT NULL DEFAULT TRUE
 );
-
-INSERT INTO apps(slug, title, description, icon, path, roles, sort_order) VALUES
- ('portal', 'بوابة الموظفين', 'دليل الموظفين والهيكل التنظيمي والروابط والسياسات والمواقع', '🏢', '/portal/',
-   ARRAY['admin','hr','finance','sector_manager','department_manager','section_manager','executive','employee','content_admin'], 1),
- ('hr', 'أرصدة الإجازات', 'إدارة وتحليل أرصدة الإجازات وتكلفتها المالية', '🌴', '/hr/',
-   ARRAY['admin','hr','finance','sector_manager','department_manager','section_manager','executive'], 2),
- ('card', 'بطاقة الموظف', 'إصدار بطاقة الموظف للطباعة (PDF / PNG)', '🪪', '/card/',
-   ARRAY['admin','hr','executive','content_admin','employee'], 3),
- ('report', 'تقرير مراكز التوزيع', 'تقرير تقييم مراكز التوزيع الخيري', '📊', '/report/',
-   ARRAY['admin','executive','finance','sector_manager','department_manager'], 4),
- ('portal-admin', 'لوحة تحكم البوابة', 'تعديل الموظفين والروابط والسياسات والمواقع', '⚙️', '/portal/admin/',
-   ARRAY['admin','content_admin'], 5)
-ON CONFLICT (slug) DO NOTHING;
+-- (تعبئة التطبيقات الافتراضية في الترحيل 002)

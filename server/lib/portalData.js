@@ -1,6 +1,7 @@
 // بيانات بوابة الموظفين في قاعدة البيانات: التحويل من/إلى نفس صيغة ملفات JSON القديمة،
 // فتعمل صفحات البوابة ولوحة التحكم دون تغيير في طريقة قراءتها للبيانات.
 import { httpError } from './util.js';
+import { normalizeName } from './text.js';
 
 export const FILES = ['employeeInfo.json', 'orgStructure.json', 'linksLibrary.json', 'PoliciesLibrary.json', 'locations.json', 'home.json', 'committees.json', 'recognition.json'];
 export const READ_ONLY_FILES = ['brand.json'];
@@ -16,7 +17,7 @@ const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
 // ───────────── التصدير (قاعدة البيانات ← JSON) ─────────────
 async function exportEmployees(db) {
-  const { rows } = await db.query('SELECT * FROM people WHERE extension IS NOT NULL ORDER BY sort_order, id');
+  const { rows } = await db.query("SELECT * FROM employees WHERE extension IS NOT NULL AND show_in_directory AND status <> 'terminated' ORDER BY sort_order, id");
   return rows.map(p => ({
     Extension: p.extension, Name: p.full_name, Section: orEmpty(p.section), JobName: orEmpty(p.job_title),
     Photo: orEmpty(p.photo), email: orEmpty(p.email), ...p.extra,
@@ -25,7 +26,7 @@ async function exportEmployees(db) {
 
 async function exportOrg(db) {
   const { rows: units } = await db.query('SELECT id, parent_id, slug, name, portal_kind FROM org_units WHERE slug IS NOT NULL AND active ORDER BY sort_order, id');
-  const { rows: ppl } = await db.query('SELECT extension, org_unit_id, unit_role FROM people WHERE org_unit_id IS NOT NULL AND extension IS NOT NULL ORDER BY unit_order, id');
+  const { rows: ppl } = await db.query("SELECT extension, org_unit_id, unit_role FROM employees WHERE org_unit_id IS NOT NULL AND extension IS NOT NULL AND show_in_directory AND status <> 'terminated' ORDER BY unit_order, id");
   const ids = new Set(units.map(u => u.id));
   const kids = new Map();
   for (const u of units) { const k = ids.has(u.parent_id) ? u.parent_id : 0; (kids.get(k) || kids.set(k, []).get(k)).push(u); }
@@ -91,8 +92,13 @@ export async function exportFile(db, file) {
 }
 
 // ───────────── الحفظ (JSON ← قاعدة البيانات)؛ يُستدعى داخل معاملة ─────────────
+// حفظ دليل البوابة في جدول الموظفين المركزي. من حُذف من القائمة يُخفى من الدليل فقط (show_in_directory) ولا يُحذف سجله
 async function saveEmployees(c, arr) {
   const seen = new Set();
+  // موظف موجود في السجل المركزي بلا تحويلة (مثلاً من استيراد الإجازات) يُربط بالدليل بالاسم بدل إنشاء سجل مكرر
+  const noExt = new Map();
+  for (const r of (await c.query('SELECT id, full_name FROM employees WHERE extension IS NULL')).rows) { const k = normalizeName(r.full_name); noExt.set(k, [...(noExt.get(k) || []), r.id]); }
+  const known = new Set((await c.query('SELECT extension FROM employees WHERE extension IS NOT NULL')).rows.map(r => r.extension));
   for (const [i, e] of arr.entries()) {
     if (!isObj(e)) throw httpError(400, 'بنية الموظفين غير صحيحة.');
     const ext = Number(e.Extension);
@@ -101,16 +107,27 @@ async function saveEmployees(c, arr) {
     if (!String(e.Name ?? '').trim()) throw httpError(400, `اسم الموظف صاحب التحويلة ${ext} فارغ.`);
     seen.add(ext);
     const extra = Object.fromEntries(Object.entries(e).filter(([k]) => !EMP_KEYS.includes(k)));
-    await c.query(`INSERT INTO people(extension, full_name, section, job_title, photo, email, sort_order, extra)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      ON CONFLICT (extension) DO UPDATE SET full_name = EXCLUDED.full_name, section = EXCLUDED.section, job_title = EXCLUDED.job_title,
-        photo = EXCLUDED.photo, email = EXCLUDED.email, sort_order = EXCLUDED.sort_order, extra = EXCLUDED.extra, updated_at = now()`,
+    if (!known.has(ext)) {
+      const cand = noExt.get(normalizeName(e.Name));
+      if (cand?.length === 1) {
+        await c.query('UPDATE employees SET extension=$2, section=$3, photo=$4, email=coalesce(email,$5), sort_order=$6, extra=$7, show_in_directory=TRUE, version=version+1, updated_at=now() WHERE id=$1',
+          [cand[0], ext, str(e.Section), str(e.Photo), str(e.email), i, JSON.stringify(extra)]);
+        noExt.delete(normalizeName(e.Name)); known.add(ext);
+        continue;
+      }
+    }
+    await c.query(`INSERT INTO employees(extension, full_name, section, job_title, photo, email, sort_order, extra, leave_enabled, status, show_in_directory)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,'active',TRUE)
+      ON CONFLICT (extension) WHERE extension IS NOT NULL DO UPDATE SET full_name = EXCLUDED.full_name, section = EXCLUDED.section, job_title = EXCLUDED.job_title,
+        photo = EXCLUDED.photo, email = EXCLUDED.email, sort_order = EXCLUDED.sort_order, extra = EXCLUDED.extra, show_in_directory = TRUE, version = employees.version + 1, updated_at = now()
+      WHERE (employees.full_name, employees.section, employees.job_title, employees.photo, employees.email, employees.sort_order, employees.extra, employees.show_in_directory)
+        IS DISTINCT FROM (EXCLUDED.full_name, EXCLUDED.section, EXCLUDED.job_title, EXCLUDED.photo, EXCLUDED.email, EXCLUDED.sort_order, EXCLUDED.extra, TRUE)`,
     [ext, String(e.Name).trim(), str(e.Section), str(e.JobName), str(e.Photo), str(e.email), i, JSON.stringify(extra)]);
   }
-  await c.query('DELETE FROM people WHERE extension IS NOT NULL AND extension <> ALL($1::int[])', [[...seen]]);
+  await c.query('UPDATE employees SET show_in_directory = FALSE, version = version + 1, updated_at = now() WHERE extension IS NOT NULL AND show_in_directory AND extension <> ALL($1::int[])', [[...seen]]);
 }
 
-async function saveOrg(c, doc) {
+async function saveOrg(c, doc, user) {
   const root = (await c.query("SELECT id FROM org_units WHERE unit_type = 'org' ORDER BY id LIMIT 1")).rows[0];
   if (!root) throw httpError(500, 'لا توجد وحدة جذر للمنشأة؛ شغّل db:seed أولاً.');
   const keep = new Set();
@@ -138,11 +155,26 @@ async function saveOrg(c, doc) {
   };
   for (const s of doc.sections || []) await walk(s, root.id, 1);
 
-  // الوحدات المحذوفة: تُحذف إن لم يرتبط بها موظفو الموارد البشرية، وإلا تُخفى من البوابة فقط
+  // الوحدات التي لم تعد في الملف: تُحذف إن لم يرتبط بها موظفون، وإلا تُخفى من البوابة فقط
   const stale = (await c.query('SELECT id FROM org_units WHERE slug IS NOT NULL AND slug <> ALL($1::text[])', [[...keep]])).rows.map(r => r.id);
-  await c.query('UPDATE people SET org_unit_id = NULL, unit_role = NULL, unit_order = 0 WHERE org_unit_id IN (SELECT id FROM org_units WHERE slug IS NOT NULL)');
-  for (const [unit, role, i, ext] of placements) {
-    await c.query('UPDATE people SET org_unit_id=$1, unit_role=$2, unit_order=$3 WHERE extension=$4', [unit, role, i, Number(ext)]);
+  const slugged = new Set((await c.query('SELECT id FROM org_units WHERE slug IS NOT NULL')).rows.map(r => r.id));
+  const cur = new Map((await c.query('SELECT id, extension, org_unit_id, unit_role, unit_order, leave_enabled FROM employees WHERE extension IS NOT NULL')).rows.map(r => [r.extension, r]));
+  const placed = new Set();
+  for (const [unit, role, i, extRaw] of placements) {
+    const e = cur.get(Number(extRaw));
+    if (!e) continue;
+    placed.add(e.extension);
+    if (e.org_unit_id !== unit) {      // نقل موظف بين الوحدات: ينعكس في كل المنصات ويُسجَّل تاريخه
+      await c.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_on, moved_by, reason) VALUES ($1,$2,$3,CURRENT_DATE,$4,$5)', [e.id, e.org_unit_id, unit, user ?? null, 'لوحة تحكم البوابة']);
+    }
+    await c.query(`UPDATE employees SET org_unit_id = $2, unit_role = $3, unit_order = $4, version = version + 1, updated_at = now() WHERE id = $1
+      AND (org_unit_id, unit_role, unit_order) IS DISTINCT FROM ($2::int, $3::text, $4::int)`, [e.id, unit, role, i]);
+  }
+  // من لم يُذكر في الهيكل: من له ملف إجازات يبقى في وحدته (دون دور)، وغيره يخرج من الوحدة
+  for (const e of cur.values()) {
+    if (placed.has(e.extension) || !slugged.has(e.org_unit_id)) continue;
+    if (e.leave_enabled) await c.query('UPDATE employees SET unit_role = NULL, unit_order = 0, version = version + 1, updated_at = now() WHERE id = $1 AND unit_role IS NOT NULL', [e.id]);
+    else await c.query('UPDATE employees SET org_unit_id = NULL, unit_role = NULL, unit_order = 0, version = version + 1, updated_at = now() WHERE id = $1', [e.id]);
   }
   let pending = stale;
   for (let pass = 0; pass < 6 && pending.length; pass++) {
@@ -192,7 +224,7 @@ export async function saveFile(c, file, data, user) {
   if (ARRAY_FILES.includes(file) ? !Array.isArray(data) : !isObj(data)) throw httpError(400, 'بنية البيانات غير صحيحة لهذا الملف، لم يُحفظ شيء.');
   switch (file) {
     case 'employeeInfo.json': return saveEmployees(c, data);
-    case 'orgStructure.json': return saveOrg(c, data);
+    case 'orgStructure.json': return saveOrg(c, data, user);
     case 'linksLibrary.json': return saveLinks(c, data);
     case 'PoliciesLibrary.json': return savePolicies(c, data);
     case 'locations.json': return saveLocations(c, data);

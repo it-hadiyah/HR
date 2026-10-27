@@ -5,8 +5,18 @@ import { pool } from './pool.js';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
-export async function initSchema() {
+/** الهيكل الأساسي (idempotent): يُنشأ إن لم يكن موجوداً ولا يغيّر البيانات */
+export async function initBaseSchema() {
   await pool.query(fs.readFileSync(path.join(dir, 'schema.sql'), 'utf8'));
+}
+
+/** الهيكل الأساسي ثم الترحيلات المعلّقة (مع نسخة احتياطية). يمكن تعطيل الترحيل التلقائي بـ AUTO_MIGRATE=0 */
+export async function initSchema() {
+  await initBaseSchema();
+  if (process.env.AUTO_MIGRATE !== '0') {
+    const { runMigrations } = await import('./migrate.js');
+    await runMigrations();
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

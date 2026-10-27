@@ -223,6 +223,12 @@ $('clearPhoto').addEventListener('click', () => {
   setStatus(''); render();
 });
 
+let selectedEmp = null;                       // الموظف المختار من السجل المركزي (لتسجيل الإصدار)
+const logIssue = format => {
+  if (!selectedEmp) return;
+  fetch('/api/card/log', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({employee_id: selectedEmp, format})}).catch(() => {});
+};
+
 // ---- سجل الموظفين المركزي: يملأ الاسم والمسمى والقطاع والتحويلة والصورة ----
 (async () => {
   let people = [];
@@ -238,6 +244,7 @@ $('clearPhoto').addEventListener('click', () => {
   $('pick').addEventListener('change', async () => {
     const p = people.find(x => label(x) === $('pick').value);
     if (!p) return;
+    selectedEmp = p.id;
     $('arName').value = p.name_ar || '';
     $('arTitle').value = p.job_title || '';
     $('sector').value = p.sector_name ? `قطاع: ${p.sector_name}` : (p.unit_name || '');
@@ -404,6 +411,10 @@ $('print').addEventListener('click', () => {
   $('printImg').src = exportCanvas().toDataURL('image/png');
   $('printImg').decode().then(() => window.print());
 });
+
+$('dl').addEventListener('click', () => logIssue('png'));
+$('dlPdf').addEventListener('click', () => logIssue('pdf'));
+$('print').addEventListener('click', () => logIssue('print'));
 
 // ---- boot ----
 const fontsReady = Promise.all([

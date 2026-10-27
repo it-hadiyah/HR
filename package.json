@@ -13,7 +13,11 @@
     "db:import-legacy": "node server/db/import-legacy.js",
     "setup": "npm run db:create && npm run db:seed && npm run db:import-legacy",
     "build:card": "python3 modules/card/tools/build.py",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:icons": "node scripts/build-icons.mjs",
+    "db:migrate": "node server/db/migrate.js",
+    "db:backup": "node server/db/backup.js",
+    "db:report": "node server/db/report-duplicates.js"
   },
   "engines": {
     "node": ">=20"
@@ -29,5 +33,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "lucide-static": "^1.62.0"
   }
 }

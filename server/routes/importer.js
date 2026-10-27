@@ -7,6 +7,8 @@ import { requirePerm, audit, wrap } from '../lib/auth.js';
 import { loadPolicy, loadHolidays } from '../lib/context.js';
 import { countLeaveDays, overlaps } from '../lib/engine.js';
 import { httpError, isDate } from '../lib/util.js';
+import { normalizeName } from '../lib/text.js';
+import { resetOrgGraph } from '../lib/orggraph.js';
 
 const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -117,7 +119,12 @@ const processors = {
   async employees(rows, apply, client) {
     const results = []; const seen = new Set(); const cache = new Map();
     const root = (await client.query("SELECT id FROM org_units WHERE unit_type = 'org' LIMIT 1")).rows[0]?.id;
-    const existing = new Map((await client.query('SELECT emp_no, id FROM employees')).rows.map(e => [e.emp_no, e.id]));
+    const existing = new Map((await client.query('SELECT emp_no, id FROM employees WHERE emp_no IS NOT NULL')).rows.map(e => [e.emp_no, e.id]));
+    // موظفو الدليل بلا ملف إجازات: يُفعَّل لهم الملف بدل إنشاء سجل مكرر (الجدول المركزي واحد)
+    const portalOnly = new Map();
+    for (const e of (await client.query('SELECT id, full_name FROM employees WHERE NOT leave_enabled AND emp_no IS NULL')).rows) {
+      const k = normalizeName(e.full_name); portalOnly.set(k, [...(portalOnly.get(k) || []), e.id]);
+    }
     for (const r0 of rows) {
       const errs = []; const warn = [];
       const emp_no = String(r0.emp_no || '').trim();
@@ -164,12 +171,20 @@ const processors = {
         }
       }
       const isUpdate = existing.has(emp_no);
+      const adoptList = !isUpdate && r0.full_name ? portalOnly.get(normalizeName(r0.full_name)) : null;
+      const adoptId = adoptList?.length === 1 ? adoptList[0] : null;
+      if (adoptId) warn.push('سيُربط بالموظف الموجود في دليل الموظفين (بدون إنشاء سجل مكرر)');
       if (!errs.length && apply) {
         const vals = [emp_no, String(r0.full_name).trim(), r0.job_title || null, unitId, hire, status, basic ?? 0, lso, ent, ob ?? 0, od];
         let id = existing.get(emp_no);
         if (isUpdate) {
           await client.query(`UPDATE employees SET full_name=$2, job_title=$3, org_unit_id=$4, hire_date=$5, status=$6, basic_salary=$7, leave_salary_override=$8,
-            annual_entitlement_days=$9, opening_balance=$10, opening_date=$11, updated_at=now() WHERE emp_no=$1`, vals);
+            annual_entitlement_days=$9, opening_balance=$10, opening_date=$11, version=version+1, updated_at=now() WHERE emp_no=$1`, vals);
+        } else if (adoptId) {
+          id = adoptId; existing.set(emp_no, id); portalOnly.delete(normalizeName(r0.full_name));
+          await client.query(`UPDATE employees SET emp_no=$2, full_name=coalesce(nullif(full_name,''), $3), job_title=coalesce(job_title, $4), org_unit_id=$5, hire_date=$6, status=$7,
+            basic_salary=$8, leave_salary_override=$9, annual_entitlement_days=$10, opening_balance=$11, opening_date=$12, leave_enabled=TRUE, version=version+1, updated_at=now() WHERE id=$1`, [id, ...vals]);
+          await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_on, moved_by, reason) VALUES ($1,NULL,$2,$3,$4,$5)', [id, unitId, hire, null, 'استيراد: تفعيل نظام الإجازات لموظف موجود في الدليل']);
         } else {
           id = (await client.query(`INSERT INTO employees(emp_no, full_name, job_title, org_unit_id, hire_date, status, basic_salary, leave_salary_override,
             annual_entitlement_days, opening_balance, opening_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`, vals)).rows[0].id;
@@ -181,13 +196,13 @@ const processors = {
           await client.query("INSERT INTO employee_allowances(employee_id, name, amount, include_in_leave) VALUES ($1,'بدلات داخلة في الإجازة',$2,TRUE)", [id, lallow]);
         }
       }
-      results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: isUpdate ? 'تحديث' : 'إضافة', label: `${emp_no} — ${r0.full_name || ''}` });
+      results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: isUpdate ? 'تحديث' : adoptId ? 'ربط بموظف الدليل' : 'إضافة', label: `${emp_no} — ${r0.full_name || ''}` });
     }
     return results;
   },
 
   async opening_balances(rows, apply, client) {
-    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees')).rows.map(e => [e.emp_no, e.id])); const seen = new Set();
+    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees WHERE emp_no IS NOT NULL')).rows.map(e => [e.emp_no, e.id])); const seen = new Set();
     for (const r0 of rows) {
       const errs = []; const emp_no = String(r0.emp_no || '').trim();
       if (!emps.has(emp_no)) errs.push('الرقم الوظيفي غير موجود');
@@ -202,7 +217,7 @@ const processors = {
   },
 
   async transactions(rows, apply, client) {
-    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees')).rows.map(e => [e.emp_no, e.id]));
+    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees WHERE emp_no IS NOT NULL')).rows.map(e => [e.emp_no, e.id]));
     const policy = await loadPolicy(); const hol = await loadHolidays();
     const existing = (await client.query('SELECT * FROM leave_transactions')).rows;
     const byEmp = new Map(); for (const t of existing) { if (!byEmp.has(t.employee_id)) byEmp.set(t.employee_id, []); byEmp.get(t.employee_id).push(t); }
@@ -280,6 +295,7 @@ r.post('/:kind', requirePerm('import'), upload.single('file'), wrap(async (req, 
       result = { ...result, applied: good.length };
     }
     await client.query(commit ? 'COMMIT' : 'ROLLBACK');
+    if (commit) resetOrgGraph();
     if (commit) await audit(req, 'import', kind, '', null, { file: req.file.originalname, applied: result.applied, skipped: bad.length });
     res.json(result);
   } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }

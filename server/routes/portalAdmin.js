@@ -4,56 +4,30 @@ import { Router } from 'express';
 import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { pool, q } from '../db/pool.js';
 import { wrap, audit } from '../lib/auth.js';
+import { auditDenied } from '../lib/audit.js';
+import { hasGrant } from '../lib/rbac.js';
 import { canUseApp } from '../lib/apps.js';
 import { httpError } from '../lib/util.js';
+import { PORTAL_DIR, RULES, uploadMiddleware, saveUploadedFile } from '../lib/uploads.js';
 import { FILES, exportFile, saveFile } from '../lib/portalData.js';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-export const PORTAL_DIR = path.resolve(here, '../../modules/portal');
 const MAX_BACKUPS = 40;
 
-const IMG = ['.png', '.jpg', '.jpeg', '.webp'];
-const RULES = {
-  policies: { dir: 'policies', exts: ['.pdf'], maxMb: 25 },
-  'employee-photos': { dir: 'images/content/employee-info', exts: IMG, maxMb: 5 },
-  'link-images': { dir: 'images/content/library-links', exts: IMG, maxMb: 5 },
-  ads: { dir: 'images/ads', exts: IMG, maxMb: 8 },
-  'location-photos': { dir: 'images/content/locations', exts: IMG, maxMb: 5 },
-};
-
-const magicOk = (ext, b) => {
-  if (b.length < 12) return false;
-  switch (ext) {
-    case '.pdf': return b.subarray(0, 4).toString('latin1') === '%PDF';
-    case '.png': return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
-    case '.jpg': case '.jpeg': return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
-    case '.webp': return b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP';
-    default: return false;
-  }
-};
-
-const safeName = raw => {
-  const base = path.basename(raw || '');
-  const ext = path.extname(base).toLowerCase();
-  let stem = path.basename(base, path.extname(base)).replace(/[^\p{L}\p{N}\-_ ()]/gu, '_').replace(/^[ _.]+|[ _.]+$/g, '');
-  if (!stem) stem = 'file';
-  return stem.slice(0, 80) + ext;
-};
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 1 } });
 const r = Router();
 
 const ok = (res, body = {}) => res.json({ ok: true, ...body });
 const fail = (res, status, error) => res.status(status).json({ ok: false, error });
 
+// الصلاحية المطلوبة لكل إجراء (portal-admin): الحفظ والاستعادة تعديل، والرفع إضافة
+const NEED = { save: 'update', restore: 'update', upload: 'create', backups: 'access', list: 'access', whoami: 'access' };
+
 r.use(wrap(async (req, res, next) => {
-  req.portalAllowed = await canUseApp(req.user, 'portal-admin');
   const action = String(req.query.action || '').toLowerCase();
-  if (action === 'whoami') return ok(res, { user: `${req.user.full_name} (${req.user.username})`, allowed: req.portalAllowed });
-  if (!req.portalAllowed) return fail(res, 403, 'غير مصرح لك بالدخول إلى لوحة التحكم.');
+  const allowed = (await canUseApp(req.user, 'portal-admin')) && hasGrant(req.user, 'portal-admin', NEED[action] || 'access');
+  if (action === 'whoami') return ok(res, { user: `${req.user.full_name} (${req.user.username})`, allowed: await canUseApp(req.user, 'portal-admin') });
+  if (!allowed) { await auditDenied(req, 'portal-admin', NEED[action] || 'access'); return fail(res, 403, 'غير مصرح لك بهذا الإجراء في لوحة التحكم.'); }
   const writes = ['save', 'upload', 'restore'].includes(action);
   if (writes && req.method !== 'POST') return fail(res, 405, 'الطريقة غير مسموحة.');
   if (writes && req.get('X-Requested-With') !== 'hadiyah-admin') return fail(res, 403, 'طلب غير صالح.');
@@ -83,7 +57,7 @@ const fileParam = req => {
 
 // تحليل JSON حتى 20 ميجابايت لعمليات الحفظ، وmulter لعملية الرفع
 const readBody = (req, res, next) => {
-  if (req.action === 'upload') return upload.single('file')(req, res, next);
+  if (req.action === 'upload') return uploadMiddleware(req, res, next);
   let size = 0; const chunks = [];
   req.on('data', d => { size += d.length; if (size > 20 * 1024 * 1024) req.destroy(); else chunks.push(d); });
   req.on('end', () => { try { req.body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { req.body = null; } next(); });
@@ -129,23 +103,11 @@ r.get('/', wrap(async (req, res) => {
 }));
 
 async function doUpload(req, res) {
-  const rule = RULES[req.query.dir];
-  if (!rule) return fail(res, 400, 'مجلد غير مسموح.');
-  const f = req.file;
-  if (!f) return fail(res, 400, 'لم يتم اختيار ملف.');
-  if (f.size > rule.maxMb * 1024 * 1024) return fail(res, 400, `حجم الملف غير مسموح (الحد الأقصى ${rule.maxMb} ميجابايت).`);
-  const name = safeName(Buffer.from(f.originalname, 'latin1').toString('utf8'));
-  const ext = path.extname(name).toLowerCase();
-  if (!rule.exts.includes(ext)) return fail(res, 400, `نوع الملف غير مسموح. المسموح: ${rule.exts.join(' ')}`);
-  if (!magicOk(ext, f.buffer)) return fail(res, 400, 'محتوى الملف لا يطابق نوعه.');
-  const dir = path.join(PORTAL_DIR, rule.dir);
-  fs.mkdirSync(dir, { recursive: true });
-  const stem = path.basename(name, ext);
-  let final = name;
-  for (let n = 2; fs.existsSync(path.join(dir, final)); n++) final = `${stem}-${n}${ext}`;   // لا يُستبدل ملف موجود
-  fs.writeFileSync(path.join(dir, final), f.buffer, { flag: 'wx' });
-  await audit(req, 'upload', 'portal_upload', `${rule.dir}/${final}`, null, null);
-  ok(res, { name: final, url: `${rule.dir}/${final}` });
+  try {
+    const out = saveUploadedFile(req.query.dir, req.file);
+    await audit(req, 'upload', 'portal_upload', out.url, null, { dir: req.query.dir });
+    ok(res, out);
+  } catch (e) { if (e.status) return fail(res, e.status, e.message); throw e; }
 }
 
 export default r;

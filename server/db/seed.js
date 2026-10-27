@@ -12,7 +12,8 @@ if (!root) root = (await q("INSERT INTO org_units(unit_type, name) VALUES ('org'
 
 const adminPass = process.env.ADMIN_PASSWORD || 'ChangeMe#2026';
 if (!(await q("SELECT 1 FROM users WHERE username = 'admin'")).rows.length) {
-  await q("INSERT INTO users(username, full_name, password_hash, role) VALUES ('admin','مدير النظام',$1,'admin')", [await bcrypt.hash(adminPass, 10)]);
+  const u = (await q("INSERT INTO users(username, full_name, password_hash, role) VALUES ('admin','مدير النظام',$1,'admin') RETURNING id", [await bcrypt.hash(adminPass, 10)])).rows[0];
+  await q("INSERT INTO user_roles(user_id, role_id) SELECT $1, id FROM roles WHERE key = 'admin' ON CONFLICT DO NOTHING", [u.id]);
   console.log(`أُنشئ المستخدم admin بكلمة المرور: ${adminPass} (غيّرها بعد أول دخول)`);
 }
 

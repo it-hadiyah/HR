@@ -9,13 +9,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { authenticate, userFromRequest } from './lib/auth.js';
+import { requestContext } from './lib/reqctx.js';
 import { canUseApp, requireApp } from './lib/apps.js';
 import { exportFile, FILES, READ_ONLY_FILES } from './lib/portalData.js';
+import { getSetting } from './lib/settings.js';
 import { pool } from './db/pool.js';
 import { initSchema } from './db/init.js';
 import authRoutes from './routes/auth.js';
 import platformRoutes from './routes/platform.js';
-import portalAdminRoutes, { PORTAL_DIR } from './routes/portalAdmin.js';
+import coreRoutes from './routes/core.js';
+import portalAdminRoutes from './routes/portalAdmin.js';
+import { PORTAL_DIR } from './lib/uploads.js';
 import orgRoutes from './routes/org.js';
 import employeeRoutes from './routes/employees.js';
 import leaveRoutes from './routes/leaves.js';
@@ -59,6 +63,7 @@ const looseCsp = helmet({
 });
 app.use((req, res, next) => (/^\/(portal|card|report)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
 app.use(cookieParser());
+app.use(requestContext);
 
 // ── واجهات API ──
 app.use('/api/portal-admin', authenticate, portalAdminRoutes);   // قبل express.json: يقرأ الجسم بنفسه (حتى 20MB)
@@ -66,6 +71,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false }), authRoutes);
 app.use('/api', authenticate);
 app.use('/api', platformRoutes);
+app.use('/api/core', coreRoutes);
 const hr = requireApp('hr');
 app.use('/api/org', hr, orgRoutes);
 app.use('/api/employees', hr, employeeRoutes);
@@ -81,7 +87,7 @@ const wantsPage = req => req.method === 'GET' && (req.path.endsWith('/') || req.
 const gate = slug => async (req, res, next) => {
   try {
     const appSlug = slug === 'portal' && req.path.startsWith('/admin') ? 'portal-admin' : slug;
-    if (slug === 'portal' && appSlug === 'portal' && process.env.PORTAL_PUBLIC !== '0') return next();
+    if (slug === 'portal' && appSlug === 'portal' && (await getSetting('portal_public', true)) !== false) return next();   // البوابة مفتوحة افتراضياً (إعداد portal_public من لوحة الإدارة)
     const user = await userFromRequest(req);
     if (!user) {
       if (wantsPage(req)) return res.redirect(`/login/?next=${encodeURIComponent(req.baseUrl + req.url)}`);
@@ -136,6 +142,7 @@ mount('/card', 'card', path.join(MODULES, 'card'));
 mount('/report', 'report', path.join(MODULES, 'report'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
+app.use('/admin', gate('admin'), withAppBar(path.join(root, 'public/admin')), express.static(path.join(root, 'public/admin')));
 app.use(express.static(path.join(root, 'public')));
 
 app.use((err, req, res, _next) => {
