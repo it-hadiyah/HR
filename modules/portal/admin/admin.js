@@ -741,11 +741,11 @@
   async function init() {
     let who;
     try { who = await api("whoami"); }
-    catch (err) { gate("الواجهة الخلفية غير متاحة", `${esc(err.message)}<br>سجّل الدخول من <a href=\"/\">الصفحة الرئيسية للمنصة</a> ثم أعد المحاولة.`); return; }
+    catch (err) { gate("الواجهة الخلفية غير متاحة", `${esc(err.message)}<br>سجّل الدخول من <a href=\"/login/?next=/portal/admin/\">صفحة الدخول</a> ثم أعد المحاولة.`); return; }
     if (!who.allowed) {
       gate("غير مصرح", who.user
         ? `تم تسجيل دخولك باسم <code>${esc(who.user)}</code> لكن دورك لا يملك صلاحية لوحة التحكم.<br>اطلب من مدير النظام منحك دور «مدير محتوى البوابة».`
-        : "لم يتم التعرف على هويتك. سجّل الدخول من الصفحة الرئيسية للمنصة.");
+        : "لم يتم التعرف على هويتك. سجّل الدخول من صفحة الدخول.");
       return;
     }
     $("#userName").textContent = who.user;

@@ -36,7 +36,7 @@
   who.className = 'who';
   who.textContent = `${data.user.full_name} — ${data.user.role_label}`;
   menu.append(who);
-  const home = Object.assign(document.createElement('a'), { href: '/', textContent: '🏠 الصفحة الرئيسية للمنصة' });
+  const home = Object.assign(document.createElement('a'), { href: '/login/', textContent: '🏠 الأنظمة (الصفحة الموحّدة)' });
   menu.append(home);
   for (const a of data.apps) {
     const el = Object.assign(document.createElement('a'), { href: a.path, textContent: `${a.icon || ''} ${a.title}` });

@@ -16,7 +16,7 @@ services:
       JWT_SECRET: "${JWT_SECRET:?اضبط JWT_SECRET}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
       COOKIE_SECURE: "${COOKIE_SECURE:-0}"
-      PORTAL_PUBLIC: "${PORTAL_PUBLIC:-0}"
+      PORTAL_PUBLIC: "${PORTAL_PUBLIC:-1}"
     volumes:
       - portal-policies:/app/modules/portal/policies
       - portal-images:/app/modules/portal/images

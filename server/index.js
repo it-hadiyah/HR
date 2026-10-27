@@ -81,10 +81,10 @@ const wantsPage = req => req.method === 'GET' && (req.path.endsWith('/') || req.
 const gate = slug => async (req, res, next) => {
   try {
     const appSlug = slug === 'portal' && req.path.startsWith('/admin') ? 'portal-admin' : slug;
-    if (slug === 'portal' && appSlug === 'portal' && process.env.PORTAL_PUBLIC === '1') return next();
+    if (slug === 'portal' && appSlug === 'portal' && process.env.PORTAL_PUBLIC !== '0') return next();
     const user = await userFromRequest(req);
     if (!user) {
-      if (wantsPage(req)) return res.redirect(`/?next=${encodeURIComponent(req.baseUrl + req.url)}`);
+      if (wantsPage(req)) return res.redirect(`/login/?next=${encodeURIComponent(req.baseUrl + req.url)}`);
       return res.status(401).json({ error: 'غير مسجّل الدخول' });
     }
     if (!(await canUseApp(user, appSlug))) {
@@ -130,11 +130,12 @@ app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+app.get('/', (req, res) => res.redirect('/portal/'));   // الرابط الرئيسي يفتح البوابة
 mount('/portal', 'portal', PORTAL_DIR);
 mount('/card', 'card', path.join(MODULES, 'card'));
 mount('/report', 'report', path.join(MODULES, 'report'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
-app.use('/hr', express.static(path.join(root, 'public/hr')));
+app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
 app.use(express.static(path.join(root, 'public')));
 
 app.use((err, req, res, _next) => {
