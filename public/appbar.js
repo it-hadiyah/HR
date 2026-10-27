@@ -86,7 +86,7 @@
     home.href = '/login/'; home.setAttribute('role', 'menuitem');
     const out = el('button', 'item out', `<span class="ic">${icon('log-out', 17)}</span><span class="t">تسجيل الخروج</span>`);
     out.type = 'button'; out.setAttribute('role', 'menuitem');
-    out.addEventListener('click', async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { location.href = '/login/'; } });
+    out.addEventListener('click', async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } finally { location.href = '/portal/'; } });
     menu.append(home, out);
   
     }

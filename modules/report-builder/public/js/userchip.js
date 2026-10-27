@@ -13,7 +13,7 @@ export function mountUserChip(host, me) {
     const menu = el('div', { class: 'menu', role: 'menu', style: `top:${r.bottom + 6}px;left:${Math.max(8, r.left)}px` },
       el('div', { style: 'padding:8px 12px;color:var(--muted);font-size:var(--fs-1)' }, '@' + me.username + (me.department ? ' · ' + me.department : '')),
       me.canChangePassword ? item('تغيير كلمة المرور', () => changePassword()) : null,
-      item('تسجيل الخروج', async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); location.href = '/login/'; }));
+      item('تسجيل الخروج', async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); location.href = '/portal/'; }));
     root.replaceChildren(menu);
     const close = (ev) => { if (!menu.contains(ev.target) && ev.target !== b) { root.replaceChildren(); document.removeEventListener('click', close, true); } };
     setTimeout(() => document.addEventListener('click', close, true), 0);

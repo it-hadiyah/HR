@@ -58,6 +58,6 @@ $('loginForm').addEventListener('submit', async e => {
     await showHome();
   } catch (err) { $('err').textContent = err.message; } finally { btn.disabled = false; }
 });
-$('logout').addEventListener('click', async () => { await api('/auth/logout', { method: 'POST' }); showLogin(); });
+$('logout').addEventListener('click', async () => { try { await api('/auth/logout', { method: 'POST' }); } finally { location.href = '/portal/'; } });
 try { await api('/auth/me'); const next = nextUrl(); if (next) location.href = next; else await showHome(); }
 catch { showLogin(); }

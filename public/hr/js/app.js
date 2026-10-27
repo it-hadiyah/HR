@@ -80,7 +80,7 @@ function shell() {
     title, h('div', { class: 'grow' }),
     h('button', { class: 'btn sm', title: 'عرض التواريخ بالهجري/الميلادي', onclick: () => { state.hijri = !state.hijri; localStorage.setItem('hijri', state.hijri ? '1' : '0'); route(); } }, state.hijri ? 'هجري' : 'ميلادي'),
     h('button', { class: 'btn icon-btn', 'aria-label': 'تبديل الوضع الداكن', onclick: () => { const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); const n = cur === 'dark' ? 'light' : 'dark'; localStorage.setItem('theme', n); applyTheme(n); route(); } }, icon('moon')),
-    h('button', { class: 'btn icon-btn', 'aria-label': 'تسجيل الخروج', onclick: guard(async () => { await api('/auth/logout', { method: 'POST' }); state.user = null; location.hash = '#/login'; }) }, icon('logout')));
+    h('button', { class: 'btn icon-btn', 'aria-label': 'تسجيل الخروج', onclick: guard(async () => { await api('/auth/logout', { method: 'POST' }); state.user = null; location.href = '/portal/'; }) }, icon('logout')));
   const page = h('main', { class: 'page', id: 'page' });
   app.replaceChildren(h('div', { class: 'shell' }, side, h('div', { class: 'main' }, top, page)));
   side.addEventListener('click', e => { if (e.target.closest('a')) side.classList.remove('open'); });
