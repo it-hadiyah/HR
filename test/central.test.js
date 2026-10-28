@@ -289,3 +289,19 @@ test('الفلترة المتقدمة: نطاقات وشرائح ذكية وبي
   const mr = await mgr.get('/api/tracking/indicators?year=2026&f=' + encodeURIComponent(JSON.stringify({ ranges: { salary: [99999, null] } })));
   assert.equal(mr.status, 200); assert.equal(mr.json.fin, false);
 });
+
+test('تكاليف الإجازة الأربع: الكلية والمستهدفة والمتبقي من المستهدف والمتبقي من الكلي', { skip }, async () => {
+  const r = await admin.put(`/api/tracking/${emp.id}`, { year: 2026, gross_salary: 12000, total_balance: 45, target_days: 15, used_days: 6 });
+  const x = r.json.row;                       // أجر اليوم 400
+  assert.equal(x.cost_now, 18000);            // 45 × 400
+  assert.equal(x.cost_target, 6000);          // 15 × 400
+  assert.equal(x.remaining_to_target, 9);
+  assert.equal(x.cost_remaining_target, 3600);// 9 × 400
+  assert.equal(x.remaining_total, 39);        // 45 − 6
+  assert.equal(x.cost_remaining_total, 15600);// 39 × 400
+  const ind = (await admin.get('/api/tracking/indicators?year=2026')).json.kpis;
+  for (const k of ['cost_now', 'cost_target', 'cost_remaining_target', 'cost_remaining_total']) assert.equal(typeof ind[k], 'number');
+  const mgr = await t.as('mgr_trk');
+  const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === emp.id);
+  assert.equal(mrow.cost_target, undefined); assert.equal(mrow.cost_remaining_total, undefined); assert.equal(typeof mrow.remaining_total, 'number');
+});

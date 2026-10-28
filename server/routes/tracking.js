@@ -35,6 +35,7 @@ export function derive(row, policy, fin) {
   if (fin && row.gross_salary === null) missing.push('الراتب الإجمالي');
   const out = {
     remaining_to_target: remaining === null ? null : round2(remaining),
+    remaining_total: total === null ? null : round2(total - used),                      // المتبقي من الرصيد الكلي بعد خصم المستخدم
     expected_balance: expected === null ? null : round2(expected),
     progress_pct: target > 0 ? Math.min(100, round2(used / target * 100)) : null,
     target_met: target !== null && target > 0 ? used >= target : null,
@@ -47,6 +48,9 @@ export function derive(row, policy, fin) {
     out.day_rate = rate === null ? null : round2(rate);
     out.cost_now = rate !== null && total !== null ? round2(pos(total) * rate) : null;               // تكلفة الرصيد الحالي
     out.cost_after_target = rate !== null && expected !== null ? round2(pos(expected) * rate) : null;  // التكلفة إن تحقق المستهدف
+    out.cost_target = rate !== null && target !== null ? round2(target * rate) : null;                       // تكلفة المستهدف لنهاية السنة
+    out.cost_remaining_target = rate !== null && remaining !== null ? round2(remaining * rate) : null;       // تكلفة المتبقي من المستهدف
+    out.cost_remaining_total = rate !== null && total !== null ? round2(pos(total - used) * rate) : null;   // تكلفة المتبقي من الكلي
     out.saving = out.cost_now !== null && out.cost_after_target !== null ? round2(out.cost_now - out.cost_after_target) : null;
   }
   return out;
@@ -97,8 +101,8 @@ function summarize(rows, fin) {
   const s = (k) => round2(rows.reduce((a, x) => a + (x[k] ?? 0), 0));
   const out = { employees: rows.length, complete: rows.filter(x => x.complete).length, incomplete: rows.filter(x => !x.complete).length,
     annual_balance: s('annual_balance'), total_balance: s('total_balance'), target_days: s('target_days'), used_days: s('used_days'),
-    remaining_to_target: s('remaining_to_target'), high_balance: rows.filter(x => x.high_balance).length, target_met: rows.filter(x => x.target_met).length };
-  if (fin) Object.assign(out, { cost_now: s('cost_now'), cost_after_target: s('cost_after_target'), saving: s('saving') });
+    remaining_to_target: s('remaining_to_target'), remaining_total: s('remaining_total'), high_balance: rows.filter(x => x.high_balance).length, target_met: rows.filter(x => x.target_met).length };
+  if (fin) Object.assign(out, { cost_now: s('cost_now'), cost_target: s('cost_target'), cost_remaining_target: s('cost_remaining_target'), cost_remaining_total: s('cost_remaining_total'), cost_after_target: s('cost_after_target'), saving: s('saving') });
   return out;
 }
 
@@ -134,10 +138,11 @@ r.get('/indicators', wrap(async (req, res) => {
   const bands = [['سالب', -Infinity, 0], ['0–10', 0, 10], ['10–20', 10, 20], ['20–30', 20, 30], ['30–45', 30, 45], ['45+', 45, Infinity]].map(([label, lo, hi]) => ({ label, lo, hi, count: 0 }));
   for (const e of rows) {
     const key = e[level] || (level === 'sector' ? 'بدون قطاع' : level === 'department' ? 'بدون إدارة' : 'بدون قسم');
-    const g = groups.get(key) || { name: key, employees: 0, complete: 0, total_balance: 0, annual_balance: 0, target_days: 0, used_days: 0, remaining: 0, high_balance: 0, achieved: 0, cost_now: 0, cost_after_target: 0, saving: 0 };
+    const g = groups.get(key) || { name: key, employees: 0, complete: 0, total_balance: 0, annual_balance: 0, target_days: 0, used_days: 0, remaining: 0, high_balance: 0, achieved: 0, remaining_total: 0, cost_now: 0, cost_target: 0, cost_remaining_target: 0, cost_remaining_total: 0, cost_after_target: 0, saving: 0 };
     g.employees++; g.complete += e.complete ? 1 : 0; g.total_balance += e.total_balance ?? 0; g.annual_balance += e.annual_balance ?? 0;
     g.target_days += e.target_days ?? 0; g.used_days += e.used_days ?? 0; g.remaining += e.remaining_to_target ?? 0; g.high_balance += e.high_balance ? 1 : 0; g.achieved += e.target_met ? 1 : 0;
-    if (fin) { g.cost_now += e.cost_now ?? 0; g.cost_after_target += e.cost_after_target ?? 0; g.saving += e.saving ?? 0; }
+    g.remaining_total += e.remaining_total ?? 0;
+    if (fin) { g.cost_now += e.cost_now ?? 0; g.cost_target += e.cost_target ?? 0; g.cost_remaining_target += e.cost_remaining_target ?? 0; g.cost_remaining_total += e.cost_remaining_total ?? 0; g.cost_after_target += e.cost_after_target ?? 0; g.saving += e.saving ?? 0; }
     groups.set(key, g);
     dist[classify(e)]++;
     if (e.total_balance !== null) { const b = bands.find(x => e.total_balance >= x.lo && e.total_balance < x.hi); if (b) b.count++; }
@@ -149,9 +154,9 @@ r.get('/indicators', wrap(async (req, res) => {
   const S = k => R(rows.reduce((a, x) => a + (x[k] ?? 0), 0));
   const kpis = { employees: rows.length, complete: rows.filter(x => x.complete).length, completion_pct: rows.length ? round2(rows.filter(x => x.complete).length / rows.length * 100) : 0,
     total_balance: S('total_balance'), annual_balance: S('annual_balance'), avg_balance: rows.length ? round2(S('total_balance') / rows.length) : 0, target_days: S('target_days'), used_days: S('used_days'),
-    remaining_to_target: S('remaining_to_target'), achievement_pct: S('target_days') > 0 ? Math.min(100, round2(S('used_days') / S('target_days') * 100)) : null,
+    remaining_to_target: S('remaining_to_target'), remaining_total: S('remaining_total'), achievement_pct: S('target_days') > 0 ? Math.min(100, round2(S('used_days') / S('target_days') * 100)) : null,
     high_balance: rows.filter(x => x.high_balance).length, required_per_month: monthsLeft > 0 ? round2(S('remaining_to_target') / monthsLeft) : null,
-    ...(fin ? { cost_now: S('cost_now'), cost_after_target: S('cost_after_target'), saving: S('saving') } : {}) };
+    ...(fin ? { cost_now: S('cost_now'), cost_target: S('cost_target'), cost_remaining_target: S('cost_remaining_target'), cost_remaining_total: S('cost_remaining_total'), cost_after_target: S('cost_after_target'), saving: S('saving') } : {}) };
   const slim = e => ({ employee_id: e.employee_id, full_name: e.full_name, unit: [e.sector, e.department, e.section].filter(Boolean).join(' ‹ '), total_balance: e.total_balance, target_days: e.target_days, used_days: e.used_days,
     remaining_to_target: e.remaining_to_target, progress_pct: e.progress_pct, ...(fin ? { cost_now: e.cost_now } : {}) });
   const top = [...rows].filter(e => (fin ? e.cost_now : e.total_balance) > 0).sort((a, b) => (fin ? b.cost_now - a.cost_now : b.total_balance - a.total_balance)).slice(0, 10).map(slim);
@@ -251,8 +256,8 @@ r.get('/export', wrap(async (req, res) => {
   const { rows: all, fin, policy: pol } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
   const rows = applyFilter(all, normalizeFilter(req.query.f), filterContext(all, year, pol), fin);
   const cols = [['الرقم الوظيفي', 'emp_no'], ['الاسم', 'full_name'], ['المسمى', 'job_title'], ['القطاع', 'sector'], ['الإدارة', 'department'], ['القسم', 'section'], ['تاريخ التعيين', 'hire_date'],
-    ...(fin ? [['الراتب الإجمالي', 'gross_salary']] : []), ['الرصيد السنوي', 'annual_balance'], ['الرصيد الكلي', 'total_balance'], ['المستهدف', 'target_days'], ['المستخدم', 'used_days'], ['المتبقي للمستهدف', 'remaining_to_target'],
-    ...(fin ? [['أجر اليوم', 'day_rate'], ['التكلفة المالية للرصيد الحالي', 'cost_now'], ['التكلفة بعد تحقق المستهدف', 'cost_after_target'], ['التوفير المتوقع', 'saving']] : []), ['ملاحظات', 'notes']];
+    ...(fin ? [['الراتب الإجمالي', 'gross_salary']] : []), ['الرصيد السنوي', 'annual_balance'], ['الرصيد الكلي', 'total_balance'], ['المستهدف', 'target_days'], ['المستخدم', 'used_days'], ['المتبقي للمستهدف', 'remaining_to_target'], ['المتبقي من الكلي', 'remaining_total'],
+    ...(fin ? [['أجر اليوم', 'day_rate'], ['تكلفة الإجازة الكلية', 'cost_now'], ['تكلفة المستهدف لنهاية السنة', 'cost_target'], ['تكلفة المتبقي من المستهدف', 'cost_remaining_target'], ['تكلفة المتبقي من الكلي', 'cost_remaining_total'], ['التكلفة بعد تحقق المستهدف', 'cost_after_target'], ['التوفير المتوقع', 'saving']] : []), ['ملاحظات', 'notes']];
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(`متابعة ${year}`, { views: [{ rightToLeft: true, state: 'frozen', ySplit: 2 }] });
   ws.addRow([`متابعة أرصدة الإجازات — ${year}`]).font = { bold: true, size: 14 };

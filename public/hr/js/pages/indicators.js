@@ -78,7 +78,10 @@ export default async function indicators() {
       kpi('إجمالي الرصيد الكلي', fmt.days(k.total_balance), 'يوم', { hint: `المتوسط ${fmt.days(k.avg_balance)} يوم للموظف`, delta: pv ? deltaOf(k.total_balance, pv.total_balance, false) : null }),
       kpi('إجمالي الرصيد السنوي', fmt.days(k.annual_balance), 'يوم'),
       kpi('أرصدة مرتفعة', fmt.int(k.high_balance), 'موظف', { tone: k.high_balance ? 'bad' : 'ok', hint: `أكثر من ${fmt.days(d.max_balance_cap)} يوماً` }),
-      ...(fin ? [kpi('التكلفة المالية للأرصدة', money(k.cost_now), 'ر.س', { tone: 'bad', hint: 'الرصيد الكلي × أجر اليوم', delta: pv ? deltaOf(k.cost_now, pv.cost_now, false, money) : null }), kpi('التكلفة بعد تحقق المستهدف', money(k.cost_after_target), 'ر.س'),
+      ...(fin ? [kpi('تكلفة الإجازة الكلية', money(k.cost_now), 'ر.س', { tone: 'bad', hint: 'الرصيد الكلي × أجر اليوم', delta: pv ? deltaOf(k.cost_now, pv.cost_now, false, money) : null }),
+        kpi('تكلفة المستهدف لنهاية السنة', money(k.cost_target), 'ر.س', { hint: 'المستهدف × أجر اليوم' }),
+        kpi('تكلفة المتبقي من الكلي', money(k.cost_remaining_total), 'ر.س', { hint: '(الكلي − المستخدم) × أجر اليوم' }),
+        kpi('التكلفة بعد تحقق المستهدف', money(k.cost_after_target), 'ر.س'),
         kpi('التوفير المتوقع', money(k.saving), 'ر.س', { tone: 'ok' })] : [])));
 
     // ---- الأداء ----
@@ -102,22 +105,24 @@ export default async function indicators() {
     // ---- الخطة ----
     out.append(title('الخطة'), h('div', { class: 'grid kpis' },
       kpi('المتبقي لتحقيق المستهدف', fmt.days(k.remaining_to_target), 'يوم'),
+      ...(fin ? [kpi('تكلفة المتبقي من المستهدف', money(k.cost_remaining_target), 'ر.س', { tone: 'warn', hint: '(المستهدف − المستخدم) × أجر اليوم' })] : []),
+      kpi('المتبقي من الرصيد الكلي', fmt.days(k.remaining_total), 'يوم', { hint: 'الكلي − المستخدم' }),
       kpi('الأشهر المتبقية', fmt.days(d.months_left), 'شهر'),
       kpi('المطلوب استخدامه شهرياً', k.required_per_month === null ? '—' : fmt.days(k.required_per_month), 'يوم/شهر', { tone: 'warn', hint: 'لتحقيق المستهدف قبل نهاية السنة' }),
       kpi('الرصيد المتوقع نهاية السنة', fmt.days(k.total_balance - k.remaining_to_target), 'يوم', { hint: 'إن تحقق المستهدف' })),
     h('div', { class: 'tbl-wrap', style: { marginTop: '14px' } }, h('table', null,
-      h('thead', null, h('tr', null, ['الوحدة', 'الموظفون', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي', 'المطلوب شهرياً', 'الإنجاز', 'الرصيد المتوقع', ...(fin ? ['التكلفة الحالية', 'التكلفة بعد المستهدف', 'التوفير'] : [])].map(t => h('th', null, t)))),
+      h('thead', null, h('tr', null, ['الوحدة', 'الموظفون', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي', 'المطلوب شهرياً', 'الإنجاز', 'الرصيد المتوقع', ...(fin ? ['تكلفة الإجازة الكلية', 'تكلفة المستهدف', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد المستهدف', 'التوفير'] : [])].map(t => h('th', null, t)))),
       h('tbody', null, d.groups.map(g => h('tr', { class: 'clickable', title: 'انقر لتصفية هذه الوحدة', onclick: () => toggleIn(d.level, g.name) }, h('td', null, g.name), h('td', { class: 'n' }, fmt.int(g.employees)), h('td', { class: 'n' }, fmt.days(g.total_balance)), h('td', { class: 'n' }, fmt.days(g.target_days)),
         h('td', { class: 'n' }, fmt.days(g.used_days)), h('td', { class: 'n' }, fmt.days(g.remaining)), h('td', { class: 'n' }, g.required_per_month === null ? '—' : fmt.days(g.required_per_month)),
         h('td', null, g.achievement_pct === null ? '—' : h('div', { class: 'row center', style: { gap: '6px', flexWrap: 'nowrap' } }, bar(g.achievement_pct), h('span', { class: 'n' }, fmt.pct(g.achievement_pct)))),
-        h('td', { class: 'n' }, fmt.days(g.expected_balance)), ...(fin ? [h('td', { class: 'n' }, money(g.cost_now)), h('td', { class: 'n' }, money(g.cost_after_target)), h('td', { class: 'n' }, money(g.saving))] : []))))))); 
+        h('td', { class: 'n' }, fmt.days(g.expected_balance)), ...(fin ? [h('td', { class: 'n' }, money(g.cost_now)), h('td', { class: 'n' }, money(g.cost_target)), h('td', { class: 'n' }, money(g.cost_remaining_target)), h('td', { class: 'n' }, money(g.cost_remaining_total)), h('td', { class: 'n' }, money(g.cost_after_target)), h('td', { class: 'n' }, money(g.saving))] : []))))))); 
 
     // ---- الإحصاءات ----
     out.append(title('الإحصاءات'), h('div', { class: 'grid charts' },
       chart('توزيع الموظفين حسب شرائح الرصيد (يوم)', 'bar', { labels: d.bands.map(b => b.label), datasets: [dataset('عدد الموظفين', d.bands.map(b => b.count), P[0])] },
         { sub: 'انقر على شريحة لتصفية موظفيها', options: { onClick: (_e, els) => { if (els.length) { const b = d.bands[els[0].index]; setRange('total', b.lo, b.hi === null ? null : b.hi - 0.01); } } } }),
       chart(`الرصيد الكلي (${lvl})`, 'bar', { labels: d.groups.map(g => g.name), datasets: [dataset('الرصيد الكلي', d.groups.map(g => g.total_balance), P[0]), dataset('الرصيد السنوي', d.groups.map(g => g.annual_balance), P[4])] }),
-      ...(fin ? [chart(`التكلفة المالية (${lvl}) — ر.س`, 'bar', { labels: d.groups.map(g => g.name), datasets: [dataset('التكلفة الحالية', d.groups.map(g => g.cost_now), '#d64545'), dataset('بعد تحقق المستهدف', d.groups.map(g => g.cost_after_target), P[1])] }, { options: { indexAxis: 'y' } })] : []),
+      ...(fin ? [chart(`التكلفة المالية (${lvl}) — ر.س`, 'bar', { labels: d.groups.map(g => g.name), datasets: [dataset('تكلفة الإجازة الكلية', d.groups.map(g => g.cost_now), '#d64545'), dataset('تكلفة المستهدف', d.groups.map(g => g.cost_target), P[3]), dataset('المتبقي من المستهدف', d.groups.map(g => g.cost_remaining_target), P[4]), dataset('المتبقي من الكلي', d.groups.map(g => g.cost_remaining_total), P[1])] }, { options: { indexAxis: 'y' } })] : []),
       chart('اتجاه السنوات', 'bar', { labels: d.yearly.map(y => String(y.year)), datasets: [dataset('الرصيد الكلي', d.yearly.map(y => y.total_balance), P[0]), dataset('المستهدف', d.yearly.map(y => y.target_days), P[3]), dataset('المستخدم', d.yearly.map(y => y.used_days), P[4])] })));
 
     const empTable = (t, rows, valueLabel) => h('div', { class: 'card' }, h('h3', null, t), h('div', { class: 'tbl-wrap' }, h('table', null,

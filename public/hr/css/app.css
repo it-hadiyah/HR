@@ -162,7 +162,7 @@ td.numc, th.numc { text-align: end; }
 .nav-adv summary::before { content: '‹ '; } .nav-adv[open] summary::before { content: '⌄ '; }
 .nav-adv a { padding-inline-start: 22px; font-size: 13.5px; }
 .track-wrap { max-height: 72vh; overflow: auto; }
-table.track { min-width: 1500px; font-size: 13px; }
+table.track { min-width: 2000px; font-size: 13px; }
 table.track th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); white-space: normal; text-align: center; font-size: 12px; line-height: 1.35; padding: 8px 6px; }
 table.track td { padding: 5px 6px; vertical-align: middle; white-space: nowrap; border-bottom: 1px solid var(--border); }
 table.track td.n { text-align: center; font-variant-numeric: tabular-nums; }
