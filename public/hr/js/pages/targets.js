@@ -12,7 +12,7 @@ const HELP = {
 export default async function targets() {
   const canEdit = state.user.perms.includes('targets');
   const root = h('div');
-  const year = select([2025, 2026, 2027].map(y => [y, y]), state.filters.year);
+  const year = select([...new Set([2, 1, 0].map(d => new Date().getFullYear() - d).concat(new Date().getFullYear() + 1, +state.filters.year))].sort().map(y => [y, y]), state.filters.year);
   const body = h('div');
   const units = await getUnits();
   year.addEventListener('change', () => load());

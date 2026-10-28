@@ -179,7 +179,12 @@ export function addTx(e, after) {
     h('div', { class: 'wide', style: { color: 'var(--muted)', fontSize: '12.5px' } }, 'استخدام الإجازة لا يُعد صرفاً نقدياً تلقائياً؛ التسوية النقدية حركة مستقلة تُسجَّل صراحةً.')), {
     onSave: async () => {
       await api('/leaves', { method: 'POST', body: { employee_id: e.id, tx_type: type.value, start_date: start.value, end_date: end.value || start.value, days: days.value, status: status.value, notes: notes.value } });
-      toast(status.value === 'approved' ? (type.value === 'leave' ? 'تم تسجيل الإجازة وخصمها من الرصيد تلقائياً' : 'تم تسجيل الحركة وانعكست على الرصيد') : 'سُجّلت بانتظار الاعتماد ولن تُخصم حتى تُعتمد'); if (after) await after();
+      let warn = '';
+      if (type.value === 'leave' && status.value === 'approved') {
+        // تنبيه إن صار الرصيد المتاح بعد الخصم سالباً (لا يمنع التسجيل)
+        try { const m = (await api(`/employees/${e.id}`)).employee.m; if (m.available_after_scheduled < 0) warn = ` — تنبيه: الرصيد المتاح بعد الخصم ${fmt.days(m.available_after_scheduled)} يوم (سالب)`; } catch { /* اختياري */ }
+      }
+      toast((status.value === 'approved' ? (type.value === 'leave' ? 'تم تسجيل الإجازة وخصمها من الرصيد تلقائياً' : 'تم تسجيل الحركة وانعكست على الرصيد') : 'سُجّلت بانتظار الاعتماد ولن تُخصم حتى تُعتمد') + warn, !!warn); if (after) await after();
     } });
 }
 

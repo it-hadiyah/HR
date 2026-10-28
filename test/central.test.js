@@ -188,3 +188,16 @@ test('تعطيل الموظف يخفيه من قائمة الأرصدة ودلي
   assert.equal((await admin.put(`/api/employees/${e2.id}`, { status: 'active' })).status, 200);
   assert.ok(await inList()); assert.ok(await inPortal());
 });
+
+test('تحقق المدخلات: مستهدف فارغ مرفوض، رصيد افتتاحي قبل التعيين مرفوض، رقم وظيفي مكرر برسالة واضحة', { skip }, async () => {
+  const bad = await admin.post('/api/targets', { scope_type: 'unit', scope_id: unitA.id, year: 2026, target_type: 'max_year_end_balance', value: '' });
+  assert.equal(bad.status, 400);
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM targets WHERE scope_id = $1', [unitA.id])).rows[0].n, 0);
+  const b2 = await admin.post('/api/employees', { emp_no: 'E8001', full_name: 'تواريخ خاطئة', org_unit_id: unitA.id, hire_date: '2024-05-01', opening_date: '2024-01-01' });
+  assert.equal(b2.status, 400);
+  const ok = await admin.post('/api/employees', { emp_no: 'E8002', full_name: 'رقم أول', org_unit_id: unitA.id, hire_date: '2024-05-01' });
+  assert.equal(ok.status, 201);
+  const dup = await admin.post('/api/employees', { emp_no: 'E8002', full_name: 'رقم ثان', org_unit_id: unitA.id, hire_date: '2024-05-01' });
+  assert.equal(dup.status, 409);
+  assert.match(dup.json.error, /الرقم الوظيفي/);
+});

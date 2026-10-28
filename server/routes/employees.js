@@ -10,6 +10,9 @@ import { resetOrgGraph } from '../lib/orggraph.js';
 
 const r = Router();
 
+// تكرار الرقم الوظيفي برسالة واضحة
+const dupErr = e => (e.code === '23505' && /emp_no/.test(e.constraint || e.detail || '') ? httpError(409, 'الرقم الوظيفي مستخدم لموظف آخر') : e);
+
 function ensureInScope(ctx, id) {
   const e = ctx.all.find(x => x.id === id);
   const inScope = !ctx.allowedUnits && !ctx.allowedEmployees ? true : (ctx.allowedUnits?.has(e?.org_unit_id) || ctx.allowedEmployees?.has(e?.id));
@@ -58,7 +61,7 @@ r.post('/:id/enable-leave', requirePerm('employees'), wrap(async (req, res) => {
     resetOrgGraph();
     await audit(req, 'adopt', 'employee', id, old, row);
     res.status(201).json(row);
-  } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  } catch (e) { await client.query('ROLLBACK'); throw dupErr(e); } finally { client.release(); }
 }));
 
 r.get('/:id', wrap(async (req, res) => {
@@ -91,6 +94,7 @@ function readBody(b, partial = false) {
   if (b.termination_date && !isDate(b.termination_date)) throw httpError(400, 'تاريخ نهاية الخدمة غير صالح');
   if (b.termination_date && b.hire_date && b.termination_date < b.hire_date) throw httpError(400, 'نهاية الخدمة قبل التعيين');
   if (b.opening_date && !isDate(b.opening_date)) throw httpError(400, 'تاريخ الرصيد الافتتاحي غير صالح');
+  if (b.opening_date && b.hire_date && b.opening_date < b.hire_date) throw httpError(400, 'تاريخ الرصيد الافتتاحي قبل تاريخ التعيين');
   for (const k of ['basic_salary', 'leave_salary_override', 'annual_entitlement_days']) {
     if (b[k] !== undefined && b[k] !== null && b[k] !== '' && !(Number(b[k]) >= 0)) throw httpError(400, `قيمة غير صالحة: ${k}`);
   }
@@ -134,7 +138,7 @@ r.post('/', requirePerm('employees'), wrap(async (req, res) => {
     resetOrgGraph();
     await audit(req, adopted ? 'adopt' : 'create', 'employee', row.id, null, row);
     res.status(201).json(row);
-  } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  } catch (e) { await client.query('ROLLBACK'); throw dupErr(e); } finally { client.release(); }
 }));
 
 r.put('/:id', requirePerm('employees'), wrap(async (req, res) => {
@@ -143,6 +147,7 @@ r.put('/:id', requirePerm('employees'), wrap(async (req, res) => {
   if (!old) throw httpError(404, 'غير موجود');
   const n = { ...old, ...b };
   if (n.termination_date && n.termination_date < n.hire_date) throw httpError(400, 'نهاية الخدمة قبل التعيين');
+  if (n.opening_date && n.hire_date && n.opening_date < n.hire_date) throw httpError(400, 'تاريخ الرصيد الافتتاحي قبل تاريخ التعيين');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -171,7 +176,7 @@ r.put('/:id', requirePerm('employees'), wrap(async (req, res) => {
     resetOrgGraph();
     await audit(req, 'update', 'employee', id, old, rows[0]);
     res.json(rows[0]);
-  } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  } catch (e) { await client.query('ROLLBACK'); throw dupErr(e); } finally { client.release(); }
 }));
 
 r.delete('/:id', requirePerm('employees'), wrap(async (req, res) => {
@@ -179,7 +184,7 @@ r.delete('/:id', requirePerm('employees'), wrap(async (req, res) => {
   const old = (await q('SELECT * FROM employees WHERE id = $1', [id])).rows[0];
   if (!old) throw httpError(404, 'غير موجود');
   const used = await q('SELECT 1 FROM leave_transactions WHERE employee_id = $1 LIMIT 1', [id]);
-  if (used.rows.length) throw httpError(409, 'للموظف حركات إجازات؛ غيّر حالته إلى "منتهي الخدمة" بدل الحذف');
+  if (used.rows.length) throw httpError(409, 'للموظف حركات إجازات؛ غيّر حالته إلى "معطّل" أو "منتهي الخدمة" بدل الحذف');
   await q('DELETE FROM targets WHERE scope_type = $1 AND scope_id = $2', ['employee', id]);
   await q('DELETE FROM employees WHERE id = $1', [id]);
   await audit(req, 'delete', 'employee', id, old, null);

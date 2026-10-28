@@ -13,7 +13,7 @@ import { resetOrgGraph } from '../lib/orggraph.js';
 const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
-const STATUS = { 'نشط': 'active', 'موقوف': 'suspended', 'منتهي': 'terminated', 'منتهي الخدمة': 'terminated', active: 'active', suspended: 'suspended', terminated: 'terminated' };
+const STATUS = { 'نشط': 'active', 'موقوف': 'suspended', 'معطّل': 'suspended', 'معطل': 'suspended', 'منتهي': 'terminated', 'منتهي الخدمة': 'terminated', active: 'active', suspended: 'suspended', terminated: 'terminated' };
 const TXTYPE = { 'إجازة': 'leave', 'تسوية': 'adjustment', 'تسوية نقدية': 'settlement', leave: 'leave', adjustment: 'adjustment', settlement: 'settlement' };
 const TXSTATUS = { 'معتمدة': 'approved', 'معلقة': 'pending', 'معلّقة': 'pending', approved: 'approved', pending: 'pending' };
 const TTYPE = { 'أقصى رصيد نهاية السنة': 'max_year_end_balance', 'أيام مطلوب استخدامها': 'days_to_use', 'نسبة تخفيض': 'reduction_pct', 'قيمة مالية مستهدفة': 'financial_target', 'نسبة التزام بالخطة': 'usage_plan_pct' };
@@ -243,6 +243,9 @@ const processors = {
         const row = (await client.query('INSERT INTO leave_transactions(employee_id, tx_type, start_date, end_date, days, status, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
           [eid, type, start, end, days, status, r0.notes || null])).rows[0];
         if (!byEmp.has(eid)) byEmp.set(eid, []); byEmp.get(eid).push(row);
+      } else if (!errs.length && !dup) {
+        // المعاينة: تُسجَّل الحركة افتراضياً حتى يُكشف التداخل والتكرار بين صفوف الملف نفسه
+        if (!byEmp.has(eid)) byEmp.set(eid, []); byEmp.get(eid).push({ id: -(results.length + 1), employee_id: eid, tx_type: type, start_date: start, end_date: end, days, status });
       }
       results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: dup ? 'تجاهل (مكرر)' : 'إضافة', label: `${emp_no} ${r0.start_date}` });
     }

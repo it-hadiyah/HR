@@ -29,7 +29,7 @@ r.post('/', requirePerm('targets'), wrap(async (req, res) => {
   const { scope_type, scope_id, year, target_type, value, notes } = req.body;
   if (!['unit', 'employee'].includes(scope_type)) throw httpError(400, 'نطاق غير صالح');
   if (!TYPES.includes(target_type)) throw httpError(400, 'نوع المستهدف غير صالح');
-  if (!(Number(value) >= 0)) throw httpError(400, 'قيمة المستهدف غير صالحة');
+  if (value === undefined || value === null || String(value).trim() === '' || !(Number(value) >= 0)) throw httpError(400, 'أدخل قيمة المستهدف (رقماً موجباً)');
   if (target_type === 'reduction_pct' || target_type === 'usage_plan_pct') if (Number(value) > 100) throw httpError(400, 'النسبة لا تزيد عن 100');
   const tbl = scope_type === 'unit' ? 'org_units' : 'employees';
   if (!(await q(`SELECT 1 FROM ${tbl} WHERE id = $1`, [scope_id])).rows.length) throw httpError(400, 'النطاق غير موجود');

@@ -7,7 +7,7 @@ const STATUS = { approved: ['معتمدة', 'ok'], pending: ['بانتظار ا�
 export default async function leaves() {
   const canEdit = state.user.perms.includes('leaves');
   const root = h('div');
-  const year = select([2024, 2025, 2026, 2027].map(y => [y, y]), state.filters.year, { 'aria-label': 'السنة' });
+  const year = select([...new Set([2, 1, 0].map(d => new Date().getFullYear() - d).concat(new Date().getFullYear() + 1, +state.filters.year))].sort().map(y => [y, y]), state.filters.year, { 'aria-label': 'السنة' });
   const status = select([['', 'كل الحالات'], ...Object.entries(STATUS).map(([k, v]) => [k, v[0]])], '');
   const type = select([['', 'كل الأنواع'], ...Object.entries(TYPE)], '');
   const empInput = h('input', { list: 'emp-list', placeholder: 'اسم/رقم الموظف', 'aria-label': 'الموظف' });
@@ -18,7 +18,10 @@ export default async function leaves() {
   emps.rows.forEach(e => { const key = `${e.emp_no} — ${e.full_name}`; empMap.set(key, e); dl.append(h('option', { value: key })); });
   const load = guard(async () => {
     const emp = empMap.get(empInput.value);
-    const rows = await api('/leaves' + qs({ year: year.value, status: status.value, type: type.value, employee: emp?.id }));
+    const term = empInput.value.trim();
+    let rows = await api('/leaves' + qs({ year: year.value, status: status.value, type: type.value, employee: emp?.id }));
+    // بحث جزئي بالاسم أو الرقم عند عدم اختيار موظف بعينه من القائمة
+    if (!emp && term) rows = rows.filter(r => (r.full_name || '').includes(term) || String(r.emp_no || '').includes(term));
     body.replaceChildren(h('div', { style: { marginBottom: '6px', color: 'var(--muted)' } }, `${rows.length} حركة`), table([
       { key: 'emp_no', label: 'الرقم' }, { key: 'full_name', label: 'الموظف', render: r => h('a', { href: '#/employee/' + r.employee_id }, r.full_name) }, { key: 'unit', label: 'الوحدة' },
       { key: 'tx_type', label: 'النوع', render: r => TYPE[r.tx_type], sortValue: r => TYPE[r.tx_type] },
@@ -33,6 +36,7 @@ export default async function leaves() {
     ], rows, { initialSort: { key: 'start_date', dir: -1 }, empty: 'لا توجد حركات' }));
   });
   for (const el of [year, status, type, empInput]) el.addEventListener('change', load);
+  empInput.addEventListener('input', load);
   root.append(h('div', { class: 'card filters' }, h('div', { class: 'row' }, field('السنة', year), field('الحالة', status), field('النوع', type), field('الموظف', empInput), dl, h('div', { class: 'spacer' }),
     canEdit && h('button', { class: 'btn primary', onclick: () => {
       const e = empMap.get(empInput.value);

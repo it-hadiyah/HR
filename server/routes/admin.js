@@ -21,8 +21,9 @@ r.put('/settings', requirePerm('settings'), wrap(async (req, res) => {
   const before = await loadPolicy();
   const b = req.body || {};
   const v = {};
+  const NUM_LABEL = { day_divisor: 'قاسم أجر اليوم', entitlement_base: 'الاستحقاق السنوي الأساسي', entitlement_senior: 'الاستحقاق بعد سنوات الخدمة', senior_after_years: 'عدد سنوات الخدمة للاستحقاق الأعلى', max_balance_cap: 'الحد المعتمد للرصيد', year_start_month: 'شهر بداية السنة المالية', concentration_top_n: 'عدد كبار الأرصدة' };
   const numKeys = ['day_divisor', 'entitlement_base', 'entitlement_senior', 'senior_after_years', 'max_balance_cap', 'year_start_month', 'concentration_top_n'];
-  for (const k of numKeys) if (b[k] !== undefined) { const n = Number(b[k]); if (!(n > 0)) throw httpError(400, `قيمة غير صالحة: ${k}`); v[k] = n; }
+  for (const k of numKeys) if (b[k] !== undefined) { const n = Number(b[k]); if (!(n > 0)) throw httpError(400, `القيمة غير صالحة (يجب أن تكون أكبر من صفر): ${NUM_LABEL[k] || k}`); v[k] = n; }
   if (v.year_start_month && (v.year_start_month > 12 || !Number.isInteger(v.year_start_month))) throw httpError(400, 'شهر بداية السنة من 1 إلى 12');
   if (b.accrual_method !== undefined) { if (!['daily', 'upfront'].includes(b.accrual_method)) throw httpError(400, 'طريقة استحقاق غير صالحة'); v.accrual_method = b.accrual_method; }
   if (b.day_basis !== undefined) { if (!['calendar', 'working'].includes(b.day_basis)) throw httpError(400, 'أساس الأيام غير صالح'); v.day_basis = b.day_basis; }
