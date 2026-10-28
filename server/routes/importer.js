@@ -28,7 +28,7 @@ const KINDS = {
   },
   tracking: {
     title: 'نموذج متابعة أرصدة الإجازات',
-    cols: [['emp_no', 'الرقم الوظيفي', 'E1001'], ['year', 'السنة', 2026], ['hire_date', 'تاريخ التعيين', '2021-03-01'], ['gross_salary', 'الراتب الإجمالي', 12000], ['annual_balance', 'الرصيد السنوي', 21],
+    cols: [['emp_no', 'الرقم الوظيفي', 'E1001'], ['full_name', 'الاسم', 'محمد أحمد'], ['job_title', 'المسمى', 'محاسب'], ['year', 'السنة', 2026], ['hire_date', 'تاريخ التعيين', '2021-03-01'], ['gross_salary', 'الراتب الإجمالي', 12000], ['annual_balance', 'الرصيد السنوي', 21],
       ['total_balance', 'الرصيد الكلي', 45], ['target_days', 'المستهدف', 15], ['used_days', 'المستخدم', 6], ['notes', 'ملاحظات', '']],
   },
   opening_balances: {
@@ -95,15 +95,22 @@ async function readRows(file, kind) {
   const ws = wb.worksheets[0];
   if (!ws) throw httpError(400, 'الملف فارغ');
   const labels = new Map(KINDS[kind].cols.flatMap(c => [[c[1], c[0]], [c[0], c[0]]]));
-  const headers = [];
-  ws.getRow(1).eachCell((c, i) => { headers[i] = labels.get(String(cellVal(c.value))) || null; });
-  if (!headers.some(Boolean)) throw httpError(400, 'لم تُطابق أعمدة الملف النموذج؛ حمّل النموذج الرسمي');
+  const headersOf = row => { const hs = []; row.eachCell((c, i) => { hs[i] = labels.get(String(cellVal(c.value)).replace(/\s+/g, ' ').trim()) || null; }); return hs; };
+  // الترويسة قد لا تكون في الصف الأول (ملفات التصدير تبدأ بصف عنوان): نختار أفضل صف مطابقاً بين أول 10 صفوف
+  let headerRow = 1, headers = headersOf(ws.getRow(1)), best = headers.filter(Boolean).length;
+  for (let n = 2; n <= Math.min(10, ws.rowCount); n++) { const hs = headersOf(ws.getRow(n)); const c = hs.filter(Boolean).length; if (c > best) { best = c; headers = hs; headerRow = n; } }
+  if (!headers.some(Boolean)) throw httpError(400, 'لم تُطابق أعمدة الملف النموذج؛ حمّل النموذج الرسمي (يجب أن يحوي عمود «الرقم الوظيفي» على الأقل)');
+  // السنة من عنوان الملف أو اسم الورقة إن لم يوجد عمود للسنة
+  let metaYear = null;
+  for (const t of [ws.name, ...Array.from({ length: headerRow - 1 }, (_, k) => String(cellVal(ws.getRow(k + 1).getCell(1).value)))]) { const m = String(t).match(/(20\d\d)/); if (m) { metaYear = +m[1]; break; } }
   const out = [];
   ws.eachRow((row, n) => {
-    if (n === 1) return;
+    if (n <= headerRow) return;
     const o = { _row: n }; let any = false;
     row.eachCell({ includeEmpty: false }, (c, i) => { if (headers[i]) { o[headers[i]] = cellVal(c.value); if (o[headers[i]] !== '') any = true; } });
-    if (String(o[Object.values(headers).find(Boolean)] || '').startsWith('↑')) return;
+    const first = String(o[Object.values(headers).find(Boolean)] || '');
+    if (first.startsWith('↑') || first === 'الإجمالي' || String(o.full_name || '') === 'الإجمالي') return;
+    if (kind === 'tracking' && metaYear && (o.year === undefined || o.year === '')) o.year = metaYear;
     if (any) out.push(o);
   });
   return out;
@@ -206,27 +213,57 @@ const processors = {
     return results;
   },
 
-  async tracking(rows, apply, client) {
-    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees WHERE emp_no IS NOT NULL')).rows.map(e => [e.emp_no, e.id])); const seen = new Set();
+  async tracking(rows, apply, client, opts = {}) {
+    const results = [];
+    const emps = (await client.query('SELECT id, emp_no, full_name FROM employees')).rows.map(e => ({ ...e, norm: normalizeName(e.full_name), tokens: new Set(normalizeName(e.full_name).split(' ').filter(Boolean)) }));
+    const byNo = new Map(emps.filter(e => e.emp_no).map(e => [String(e.emp_no), e]));
+    const usedNo = new Set(byNo.keys()); const seen = new Set(); let tmp = 0;
     const num = (v, label, errs, min = 0) => { if (v === '' || v === undefined) return undefined; const n = toNum(v); if (!Number.isFinite(n) || (min !== null && n < min)) { errs.push(`${label} غير صالح`); return undefined; } return n; };
+    // مطابقة بالاسم: تطابق تام أو احتواء كلمات الاسم الأقصر في الأطول (مثل «اسماعيل اليزيد» داخل الاسم الرباعي)
+    const matchName = name => {
+      const norm = normalizeName(name); if (!norm) return { none: true };
+      const toks = new Set(norm.split(' ').filter(Boolean));
+      const exact = emps.filter(e => e.norm === norm); if (exact.length === 1) return { emp: exact[0] }; if (exact.length > 1) return { many: exact.length };
+      const sub = emps.filter(e => e.tokens.size >= 2 && toks.size >= 2 && ([...e.tokens].every(t => toks.has(t)) || [...toks].every(t => e.tokens.has(t))));
+      return sub.length === 1 ? { emp: sub[0] } : sub.length > 1 ? { many: sub.length } : { none: true };
+    };
     for (const r0 of rows) {
-      const errs = []; const warn = []; const emp_no = String(r0.emp_no || '').trim();
-      const eid = emps.get(emp_no); if (!eid) errs.push('الرقم الوظيفي غير موجود');
+      const errs = []; const warn = []; const emp_no = String(r0.emp_no ?? '').trim(); const fname = String(r0.full_name || '').trim();
+      let emp = emp_no ? byNo.get(emp_no) : null; let how = 'تحديث'; let create = false; let setNo = null;
+      if (!emp && fname) {
+        const m = matchName(fname);
+        if (m.emp) {
+          emp = m.emp; how = `ربط بالاسم بـ «${emp.full_name}»`;
+          if (!emp.emp_no && emp_no) { if (usedNo.has(emp_no)) errs.push('الرقم الوظيفي مستخدم لموظف آخر'); else setNo = emp_no; }
+          else if (emp.emp_no && emp_no && String(emp.emp_no) !== emp_no) warn.push(`الرقم في النظام (${emp.emp_no}) يختلف عن الملف (${emp_no}) ولن يتغير`);
+        } else if (m.many) errs.push(`الاسم يطابق ${m.many} موظفين؛ استخدم الرقم الوظيفي`);
+        else if (opts.createMissing && emp_no) { create = true; how = 'إنشاء موظف جديد'; if (usedNo.has(emp_no)) errs.push('الرقم الوظيفي مستخدم لموظف آخر'); }
+        else errs.push(emp_no ? 'الموظف غير موجود في النظام (فعّل «إنشاء الموظفين غير الموجودين» لإضافته)' : 'الرقم الوظيفي غير موجود');
+      } else if (!emp) errs.push(emp_no ? 'الرقم الوظيفي غير موجود' : 'الرقم الوظيفي والاسم فارغان');
       const year = r0.year === '' || r0.year === undefined ? new Date().getFullYear() : Number(r0.year);
       if (!Number.isInteger(year) || year < 2000 || year > 2100) errs.push('السنة غير صالحة');
-      if (seen.has(`${emp_no}|${year}`)) errs.push('مكرر داخل الملف'); seen.add(`${emp_no}|${year}`);
+      const key = `${emp?.id ?? `new:${emp_no || fname}`}|${year}`;
+      if (seen.has(key)) errs.push(emp && how.startsWith('ربط بالاسم') ? 'يطابق نفس الموظف الذي طابقه صف آخر بالاسم؛ استخدم الرقم الوظيفي أو أنشئه موظفاً جديداً' : 'مكرر داخل الملف'); seen.add(key);
       const hire = r0.hire_date === '' || r0.hire_date === undefined ? undefined : toDate(r0.hire_date);
       if (hire !== undefined && !isDate(hire)) errs.push('تاريخ التعيين غير صالح');
       const v = { gross_salary: num(r0.gross_salary, 'الراتب الإجمالي', errs), annual_balance: num(r0.annual_balance, 'الرصيد السنوي', errs), total_balance: num(r0.total_balance, 'الرصيد الكلي', errs, null),
         target_days: num(r0.target_days, 'المستهدف', errs), used_days: num(r0.used_days, 'المستخدم', errs), notes: r0.notes ? String(r0.notes).slice(0, 500) : undefined };
       const ks = Object.keys(v).filter(k => v[k] !== undefined);
       if (!errs.length && !ks.length && hire === undefined) warn.push('لا توجد قيم للتحديث');
+      if (create && !errs.length) warn.push('سيُنشأ الموظف بلا وحدة تنظيمية (عيّنها من الإدارة المركزية)');
       if (!errs.length && apply) {
-        if (hire !== undefined) await client.query('UPDATE employees SET hire_date = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, hire]);
+        let eid = emp?.id;
+        if (create) {
+          eid = (await client.query("INSERT INTO employees(emp_no, full_name, job_title, hire_date, status, leave_enabled) VALUES ($1,$2,$3,$4,'active',FALSE) RETURNING id", [emp_no, fname, r0.job_title ? String(r0.job_title).trim() : null, hire && isDate(hire) ? hire : null])).rows[0].id;
+          usedNo.add(emp_no);
+        } else {
+          if (setNo) { await client.query('UPDATE employees SET emp_no = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, setNo]); usedNo.add(setNo); }
+          if (hire !== undefined) await client.query('UPDATE employees SET hire_date = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, hire]);
+        }
         if (ks.length) await client.query(`INSERT INTO leave_tracking(employee_id, year, ${ks.join(', ')}) VALUES ($1, $2, ${ks.map((_, i) => `$${i + 3}`).join(', ')})
           ON CONFLICT (employee_id, year) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(', ')}, updated_at = now()`, [eid, year, ...ks.map(k => v[k])]);
       }
-      results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: 'تحديث', label: `${emp_no} — ${year}` });
+      results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: how, label: `${emp_no || '—'} ${fname ? '· ' + fname : ''} — ${year}`.trim() });
     }
     return results;
   },
@@ -311,6 +348,7 @@ r.post('/:kind', requirePerm('import'), upload.single('file'), wrap(async (req, 
   if (!KINDS[kind]) throw httpError(404, 'نوع الاستيراد غير معروف');
   if (!req.file) throw httpError(400, 'لم يُرفع ملف');
   const commit = req.query.mode === 'commit';
+  const opts = { createMissing: req.query.create_missing === '1' };
   const rows = await readRows(req.file, kind);
   if (!rows.length) throw httpError(400, 'لا توجد صفوف بيانات في الملف');
   if (rows.length > 5000) throw httpError(400, 'الحد الأقصى 5000 صف في الملف الواحد');
@@ -318,13 +356,13 @@ r.post('/:kind', requirePerm('import'), upload.single('file'), wrap(async (req, 
   try {
     await client.query('BEGIN');
     // معاينة أولاً دائماً؛ الاعتماد لا يتم إلا إذا خلت النتائج من الأخطاء (أو طُلب تجاهل الصفوف الخاطئة)
-    const preview = await processors[kind](rows, false, client);
+    const preview = await processors[kind](rows, false, client, opts);
     const bad = preview.filter(x => !x.ok);
     let result = { mode: commit ? 'commit' : 'preview', total: rows.length, valid: preview.length - bad.length, invalid: bad.length, rows: preview };
     if (commit) {
       if (bad.length && req.query.skip_invalid !== '1') throw httpError(400, `يوجد ${bad.length} صفاً غير صالح؛ صحّحها أو اختر تجاهل الصفوف الخاطئة`);
       const good = rows.filter((_, i) => preview[i].ok);
-      await processors[kind](good, true, client);
+      await processors[kind](good, true, client, opts);
       result = { ...result, applied: good.length };
     }
     await client.query(commit ? 'COMMIT' : 'ROLLBACK');

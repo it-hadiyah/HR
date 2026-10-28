@@ -305,3 +305,27 @@ test('تكاليف الإجازة الأربع: الكلية والمستهدف�
   const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === emp.id);
   assert.equal(mrow.cost_target, undefined); assert.equal(mrow.cost_remaining_total, undefined); assert.equal(typeof mrow.remaining_total, 'number');
 });
+
+test('استيراد المتابعة: ترويسة بعد صف عنوان، السنة من العنوان، مطابقة بالاسم، وإنشاء غير الموجودين اختيارياً', { skip }, async () => {
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('متابعة 2026');
+  ws.addRow(['متابعة أرصدة الإجازات — 2026']);
+  ws.addRow(['الرقم الوظيفي', 'الاسم', 'المسمى', 'تاريخ التعيين', 'الراتب الإجمالي', 'الرصيد السنوي', 'الرصيد الكلي', 'المستهدف', 'المستخدم']);
+  ws.addRow([700, 'سارة محمد الأحمد المطيري', 'محللة', '2022-02-02', 8000, 30, 40, 12, 3]);     // تطابق بالاسم مع «سارة محمد الأحمد»
+  ws.addRow([701, 'موظف جديد من الملف', 'مسؤول', '2023-03-03', 7000, 30, 20, 10, 0]);
+  ws.addRow(['الإجمالي']);
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const send = (qs) => { const fd = new FormData(); fd.append('file', new Blob([buf]), 'x.xlsx'); return admin.post(`/api/import/tracking?${qs}`, fd); };
+  const p1 = await send('mode=preview');
+  assert.equal(p1.status, 200); assert.equal(p1.json.total, 2);
+  assert.ok(p1.json.rows.find(r => r.ok && r.action.startsWith('ربط بالاسم')));
+  assert.ok(p1.json.rows.find(r => !r.ok && /غير موجود/.test(r.errors[0])));
+  const c = await send('mode=commit&create_missing=1');
+  assert.equal(c.status, 200); assert.equal(c.json.applied, 2);
+  const row = (await admin.get('/api/tracking?year=2026')).json.rows;
+  const sarah = row.find(x => x.employee_id === emp.id), neu = row.find(x => x.emp_no === '701');
+  assert.equal(sarah.emp_no, 'E5001');             // رقمها في النظام يبقى كما هو (مع تحذير في المعاينة)
+  assert.ok(p1.json.rows.find(r => r.ok && r.warnings.some(w => /يختلف/.test(w))));
+  assert.equal(sarah.total_balance, 40); assert.equal(sarah.gross_salary, 8000);
+  assert.ok(neu && neu.target_days === 10 && neu.hire_date === '2023-03-03');
+});

@@ -15,14 +15,16 @@ export default async function importPage() {
   const file = h('input', { type: 'file', accept: '.xlsx,.csv', 'aria-label': 'ملف Excel أو CSV' });
   const result = h('div');
   let lastFile = null;
-  const sync = () => { help.textContent = KINDS.find(k => k[0] === kind.value)[2]; result.replaceChildren(); };
+  const createMissing = h('input', { type: 'checkbox' });
+  const createBox = h('label', { class: 'row center', style: { gap: '6px', margin: '6px 0' } }, createMissing, 'إنشاء الموظفين غير الموجودين في النظام (يُطابَق الباقون بالرقم الوظيفي أو الاسم)');
+  const sync = () => { help.textContent = KINDS.find(k => k[0] === kind.value)[2]; createBox.hidden = kind.value !== 'tracking'; result.replaceChildren(); };
   kind.addEventListener('change', sync); sync();
 
   const send = async mode => {
     const f = file.files[0];
     if (!f) throw new Error('اختر ملفاً أولاً');
     const form = new FormData(); form.append('file', f);
-    return api(`/import/${kind.value}?mode=${mode}${mode === 'commit' && skip.checked ? '&skip_invalid=1' : ''}`, { method: 'POST', form });
+    return api(`/import/${kind.value}?mode=${mode}${mode === 'commit' && skip.checked ? '&skip_invalid=1' : ''}${kind.value === 'tracking' && createMissing.checked ? '&create_missing=1' : ''}`, { method: 'POST', form });
   };
   const skip = h('input', { type: 'checkbox' });
   const preview = guard(async () => {
@@ -42,7 +44,7 @@ export default async function importPage() {
 
   root.append(
     h('div', { class: 'card' }, h('h3', null, '١) حمّل النموذج الموحّد'), h('div', { class: 'row center' }, field('نوع البيانات', kind), h('button', { class: 'btn', onclick: () => download(`/import/template/${kind.value}`) }, 'تحميل نموذج Excel')), help,
-      h('h3', { style: { marginTop: '16px' } }, '٢) ارفع الملف وراجع المعاينة'), h('div', { class: 'row center' }, file, h('button', { class: 'btn primary', onclick: preview }, 'معاينة والتحقق')),
+      h('h3', { style: { marginTop: '16px' } }, '٢) ارفع الملف وراجع المعاينة'), h('div', { class: 'row center' }, file, h('button', { class: 'btn primary', onclick: preview }, 'معاينة والتحقق')), createBox,
       h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', marginBottom: 0 } }, 'لا يُكتب أي شيء في قاعدة البيانات قبل الاعتماد. يكشف التحقق الأخطاء والسجلات المكررة والمتداخلة. الحد الأقصى 5000 صف.')),
     result,
     h('div', { class: 'card', style: { marginTop: '14px' } }, h('h3', null, 'التصدير'), h('p', { style: { color: 'var(--muted)' } }, 'تُصدَّر التقارير إلى Excel أو PDF (طباعة) من صفحة «التقارير» ومن قائمة الموظفين، بحسب المرشحات المحددة.'), h('a', { class: 'btn', href: '#/reports' }, 'الذهاب إلى التقارير')));
