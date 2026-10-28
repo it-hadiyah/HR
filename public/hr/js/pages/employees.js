@@ -67,7 +67,7 @@ export async function editEmployee(emp, allowances = [], after, enable = false) 
   const f = (k, type = 'text', extra = {}) => h('input', { type, value: emp?.[k] ?? '', ...extra });
   const inp = {
     emp_no: f('emp_no', 'text', { required: true }), full_name: f('full_name', 'text', { required: true }), job_title: f('job_title'),
-    hire_date: f('hire_date', 'date', { required: true }), termination_date: f('termination_date', 'date'),
+    hire_date: f('hire_date', 'date', { required: true }),
     basic_salary: f('basic_salary', 'number', { min: 0, step: '0.01' }), leave_salary_override: f('leave_salary_override', 'number', { min: 0, step: '0.01' }),
     annual_entitlement_days: f('annual_entitlement_days', 'number', { min: 0, step: '0.5' }), opening_balance: f('opening_balance', 'number', { step: '0.5' }),
     opening_date: f('opening_date', 'date'), salary_effective_date: h('input', { type: 'date' }),
@@ -86,7 +86,7 @@ export async function editEmployee(emp, allowances = [], after, enable = false) 
     h('div', { class: 'form-grid' },
       field('الرقم الوظيفي', inp.emp_no), field('الاسم الكامل', inp.full_name), field('المسمى الوظيفي', inp.job_title),
       field('الوحدة (قطاع/إدارة/قسم)', unitSel), field('تاريخ التعيين', inp.hire_date), field('الحالة الوظيفية', status),
-      field('تاريخ نهاية الخدمة', inp.termination_date), field('الراتب الأساسي', inp.basic_salary),
+      field('الراتب الأساسي', inp.basic_salary),
       field('الراتب المعتمد للإجازات (اختياري)', inp.leave_salary_override), field('الاستحقاق السنوي بالأيام (فارغ = حسب سياسة الجهة)', inp.annual_entitlement_days),
       field('الرصيد الافتتاحي', inp.opening_balance), field('تاريخ الرصيد الافتتاحي', inp.opening_date),
       emp && !enable && field('سريان تغيّر الراتب من (إن تغيّر)', inp.salary_effective_date)),
@@ -128,13 +128,12 @@ export async function employeeDetail(id) {
       h('div', { class: 'row center' }, h('h2', null, e.full_name), h('span', { class: 'badge ' + (e.status === 'active' ? 'ok' : 'warn') }, EMP_STATUS[e.status]), e.is_demo && h('span', { class: 'badge warn' }, 'بيانات توضيحية')),
       h('div', { class: 'kv', style: { marginTop: '10px' } },
         h('div', null, h('span', null, 'الرقم الوظيفي'), h('b', null, e.emp_no)), h('div', null, h('span', null, 'المسمى'), h('b', null, e.job_title || '—')),
-        h('div', null, h('span', null, 'الوحدة'), h('b', null, unitName(e))), h('div', null, h('span', null, 'تاريخ التعيين'), h('b', null, fmt.date(e.hire_date))),
-        e.termination_date && h('div', null, h('span', null, 'نهاية الخدمة'), h('b', null, fmt.date(e.termination_date))))),
+        h('div', null, h('span', null, 'الوحدة'), h('b', null, unitName(e))), h('div', null, h('span', null, 'تاريخ التعيين'), h('b', null, fmt.date(e.hire_date))))),
     h('div', { class: 'section-title' }, `مؤشرات السنة ${m.year}`),
     h('div', { class: 'card' }, h('div', { class: 'kv' },
       kv('رصيد بداية السنة', fmt.days(m.baseline), 'يوم'), kv('المستحق حتى تاريخه', fmt.days(m.accrued_to_date), 'يوم'), kv('المستحق للسنة كاملة', fmt.days(m.accrued_full_year), 'يوم'),
-      kv('المستخدم', fmt.days(m.used), 'يوم'), kv('التسويات', fmt.days(m.adjustments), 'يوم'), m.settlements ? kv('التسوية النقدية', fmt.days(m.settlements), 'يوم') : null, m.forfeited ? kv('المسقط بسبب حد الترحيل', fmt.days(m.forfeited), 'يوم') : null,
-      kv('الرصيد المتاح حالياً', fmt.days(m.available_now), 'يوم'), kv('المجدول مستقبلاً', fmt.days(m.scheduled), 'يوم'), m.pending ? kv('بانتظار الاعتماد', fmt.days(m.pending), 'يوم') : null,
+      kv('المستخدم (مخصوم تلقائياً)', fmt.days(m.used), 'يوم'), kv('إجمالي المسجّل هذه السنة (مع المجدول)', fmt.days(m.recorded_year), 'يوم'), kv('المستخدم منذ الرصيد الافتتاحي', fmt.days(m.used_total), 'يوم'), kv('التسويات', fmt.days(m.adjustments), 'يوم'), m.settlements ? kv('التسوية النقدية', fmt.days(m.settlements), 'يوم') : null, m.forfeited ? kv('المسقط بسبب حد الترحيل', fmt.days(m.forfeited), 'يوم') : null,
+      kv('الرصيد المتاح حالياً', fmt.days(m.available_now), 'يوم'), kv('المجدول مستقبلاً', fmt.days(m.scheduled), 'يوم'), m.scheduled ? kv('المتاح بعد خصم المجدول', fmt.days(m.available_after_scheduled), 'يوم') : null, m.pending ? kv('بانتظار الاعتماد', fmt.days(m.pending), 'يوم') : null,
       kv('المتوقع نهاية السنة', fmt.days(m.projected_year_end), 'يوم'),
       kv('المستهدف', e.target_days === null ? '—' : fmt.days(e.target_days), e.target_days === null ? '' : 'يوم'),
       e.target_days !== null ? kv('الأيام المطلوب تخفيضها', fmt.days(Math.max(0, m.projected_year_end - e.target_days)), 'يوم') : null,
@@ -177,7 +176,7 @@ export function addTx(e, after) {
     h('div', { class: 'wide', style: { color: 'var(--muted)', fontSize: '12.5px' } }, 'استخدام الإجازة لا يُعد صرفاً نقدياً تلقائياً؛ التسوية النقدية حركة مستقلة تُسجَّل صراحةً.')), {
     onSave: async () => {
       await api('/leaves', { method: 'POST', body: { employee_id: e.id, tx_type: type.value, start_date: start.value, end_date: end.value || start.value, days: days.value, status: status.value, notes: notes.value } });
-      toast('تم تسجيل الحركة'); if (after) await after();
+      toast(status.value === 'approved' ? (type.value === 'leave' ? 'تم تسجيل الإجازة وخصمها من الرصيد تلقائياً' : 'تم تسجيل الحركة وانعكست على الرصيد') : 'سُجّلت بانتظار الاعتماد ولن تُخصم حتى تُعتمد'); if (after) await after();
     } });
 }
 

@@ -91,7 +91,7 @@ async function editEmployee(id, reload) {
     email: textInput(e.email, { type: 'email', dir: 'ltr' }), mobile: textInput(e.mobile, { dir: 'ltr' }), extension: textInput(e.extension, { inputmode: 'numeric' }), emp_no: textInput(e.emp_no),
     section: textInput(e.section), org_unit_id: select(unitOptions(flat), e.org_unit_id), unit_role: select([['', '—'], ['head', 'رئيس الوحدة'], ['member', 'عضو']], e.unit_role),
     manager_id: select([['', '— (يُستنتج من الهيكل) —'], ...all.filter(x => x.id !== id).map(x => [x.id, x.full_name])], e.manager_id),
-    status: select(Object.entries(STATUS_LABEL), e.status), hire_date: textInput(e.hire_date, { type: 'date' }), termination_date: textInput(e.termination_date, { type: 'date' }),
+    status: select(Object.entries(STATUS_LABEL), e.status), hire_date: textInput(e.hire_date, { type: 'date' }),
     move_reason: textInput('', { placeholder: 'اختياري: سبب النقل بين الوحدات' }),
   };
   const dirChk = h('input', { type: 'checkbox' }); dirChk.checked = e.show_in_directory !== false;
@@ -102,7 +102,7 @@ async function editEmployee(id, reload) {
       field('الاسم (عربي) *', F.full_name), field('الاسم (إنجليزي)', F.name_en), field('المسمى الوظيفي', F.job_title), field('المسمى (إنجليزي)', F.job_title_en),
       field('البريد الإلكتروني', F.email), field('الجوال', F.mobile), field('رقم التحويلة', F.extension, 'فريد؛ يظهر في دليل البوابة'), field('الرقم الوظيفي', F.emp_no),
       field('الوحدة التنظيمية', F.org_unit_id), field('دور الوحدة', F.unit_role), field('المدير المباشر', F.manager_id), field('الحالة الوظيفية', F.status),
-      field('تاريخ الالتحاق', F.hire_date), field('تاريخ نهاية الخدمة', F.termination_date), field('تسمية القسم في الدليل', F.section),
+      field('تاريخ الالتحاق', F.hire_date), field('تسمية القسم في الدليل', F.section),
       id ? field('سبب النقل', F.move_reason) : null));
   body.append(h('label', { class: 'f', style: 'display:flex;gap:8px;align-items:center;margin-top:6px' }, dirChk, 'يظهر في دليل الموظفين بالبوابة'));
   if (id) body.append(h('div', { class: 'field', style: 'margin-top:12px' }, h('label', { class: 'f' }, 'الصورة الشخصية (تُستخدم في البوابة وبطاقة الموظف)'),

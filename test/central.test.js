@@ -163,3 +163,15 @@ test('موظف من دليل البوابة يظهر في أرصدة الإجا�
   assert.equal((await admin.post(`/api/employees/${p.id}/enable-leave`, { emp_no: 'E6001', full_name: 'x', org_unit_id: unitB.id, hire_date: '2022-01-01' })).status, 409);
   assert.ok((await admin.get('/api/directory')).json.employees.find(e => e.id === p.id), 'ما زال في دليل البوابة');
 });
+
+test('الإجازة المعتمدة تُخصم تلقائياً وتظهر في المستخدم بملف الموظف', { skip }, async () => {
+  const id = emp.id;
+  const before = (await admin.get(`/api/employees/${id}`)).json.employee.m;
+  const day = new Date(Date.now() - 5 * 864e5).toISOString().slice(0, 10);
+  const r = await admin.post('/api/leaves', { employee_id: id, tx_type: 'leave', start_date: day, end_date: day, days: 2 });
+  assert.equal(r.status, 201);
+  const m = (await admin.get(`/api/employees/${id}`)).json.employee.m;
+  assert.equal(+(m.used - before.used).toFixed(2), 2);
+  assert.equal(+(before.available_now - m.available_now).toFixed(2), 2);
+  assert.equal(+(m.used_total - before.used_total).toFixed(2), 2);
+});

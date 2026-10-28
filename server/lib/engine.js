@@ -155,6 +155,7 @@ export function computeEmployee(emp, txs, allowances, history, policy, year, asO
   const leaves = inYear.filter(t => activeTx(t) && t.tx_type === 'leave');
   const used = sum(leaves.filter(t => t.start_date <= cut), t => t.days);
   const scheduled = sum(leaves.filter(t => t.start_date > cut), t => t.days);
+  const usedTotal = sum(txs.filter(t => activeTx(t) && t.tx_type === 'leave' && t.start_date > emp.opening_date && t.start_date <= cut), t => t.days);
   const settlements = sum(inYear.filter(t => activeTx(t) && t.tx_type === 'settlement' && t.start_date <= cut), t => t.days);
   const adjustments = sum(inYear.filter(t => activeTx(t) && t.tx_type === 'adjustment' && t.start_date <= cut), t => t.days);
   const pending = sum(inYear.filter(t => t.status === 'pending' && t.tx_type === 'leave'), t => t.days);
@@ -180,6 +181,9 @@ export function computeEmployee(emp, txs, allowances, history, policy, year, asO
     used: round2(used),
     used_period: round2(usedPeriod),
     scheduled: round2(scheduled),
+    recorded_year: round2(used + scheduled),
+    used_total: round2(usedTotal),
+    available_after_scheduled: round2(availNow - scheduled),
     pending: round2(pending),
     adjustments: round2(adjustments),
     settlements: round2(settlements),
