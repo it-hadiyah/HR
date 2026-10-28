@@ -17,7 +17,7 @@ const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
 // ───────────── التصدير (قاعدة البيانات ← JSON) ─────────────
 async function exportEmployees(db) {
-  const { rows } = await db.query("SELECT * FROM employees WHERE extension IS NOT NULL AND show_in_directory AND status <> 'terminated' ORDER BY sort_order, id");
+  const { rows } = await db.query("SELECT * FROM employees WHERE extension IS NOT NULL AND show_in_directory AND status = 'active' ORDER BY sort_order, id");
   return rows.map(p => ({
     Extension: p.extension, Name: p.full_name, Section: orEmpty(p.section), JobName: orEmpty(p.job_title),
     Photo: orEmpty(p.photo), email: orEmpty(p.email), ...p.extra,
@@ -26,7 +26,7 @@ async function exportEmployees(db) {
 
 async function exportOrg(db) {
   const { rows: units } = await db.query('SELECT id, parent_id, slug, name, portal_kind FROM org_units WHERE slug IS NOT NULL AND active ORDER BY sort_order, id');
-  const { rows: ppl } = await db.query("SELECT extension, org_unit_id, unit_role FROM employees WHERE org_unit_id IS NOT NULL AND extension IS NOT NULL AND show_in_directory AND status <> 'terminated' ORDER BY unit_order, id");
+  const { rows: ppl } = await db.query("SELECT extension, org_unit_id, unit_role FROM employees WHERE org_unit_id IS NOT NULL AND extension IS NOT NULL AND show_in_directory AND status = 'active' ORDER BY unit_order, id");
   const ids = new Set(units.map(u => u.id));
   const kids = new Map();
   for (const u of units) { const k = ids.has(u.parent_id) ? u.parent_id : 0; (kids.get(k) || kids.set(k, []).get(k)).push(u); }
@@ -124,7 +124,7 @@ async function saveEmployees(c, arr) {
         IS DISTINCT FROM (EXCLUDED.full_name, EXCLUDED.section, EXCLUDED.job_title, EXCLUDED.photo, EXCLUDED.email, EXCLUDED.sort_order, EXCLUDED.extra, TRUE)`,
     [ext, String(e.Name).trim(), str(e.Section), str(e.JobName), str(e.Photo), str(e.email), i, JSON.stringify(extra)]);
   }
-  await c.query('UPDATE employees SET show_in_directory = FALSE, version = version + 1, updated_at = now() WHERE extension IS NOT NULL AND show_in_directory AND extension <> ALL($1::int[])', [[...seen]]);
+  await c.query('UPDATE employees SET show_in_directory = FALSE, version = version + 1, updated_at = now() WHERE extension IS NOT NULL AND show_in_directory AND status <> \'suspended\' AND extension <> ALL($1::int[])', [[...seen]]);
 }
 
 async function saveOrg(c, doc, user) {

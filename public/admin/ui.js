@@ -88,7 +88,7 @@ export function table(cols, rows, empty = 'لا توجد بيانات') {
 }
 export function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
-export const STATUS_LABEL = { active: 'نشط', suspended: 'موقوف', terminated: 'منتهي الخدمة' };
+export const STATUS_LABEL = { active: 'نشط', suspended: 'معطّل', terminated: 'منتهي الخدمة' };
 export const UNIT_TYPE = { org: 'المنشأة', sector: 'قطاع', department: 'إدارة', section: 'قسم' };
 export const SCOPE_LABEL = { self: 'بياناته فقط', reports: 'التابعون له', section: 'قسمه', department: 'إدارته', sector: 'قطاعه', all: 'كل الجهة' };
 export const ACTION_LABEL = { login: 'دخول', login_failed: 'دخول فاشل', logout: 'خروج', create: 'إضافة', update: 'تعديل', delete: 'حذف', move: 'نقل', merge: 'دمج', export: 'تصدير',

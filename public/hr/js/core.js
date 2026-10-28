@@ -150,7 +150,7 @@ export function progressBar(pct, status) {
 
 export const STATUS_LABEL = { achieved: ['محقق', 'ok'], lagging: ['متأخر', 'bad'], at_risk: ['معرّض للخطر', 'warn'], none: ['بلا مستهدف', ''] };
 export const statusBadge = s => { const [t, c] = STATUS_LABEL[s] || STATUS_LABEL.none; return h('span', { class: 'badge ' + c }, t); };
-export const EMP_STATUS = { active: 'نشط', suspended: 'موقوف', terminated: 'منتهي الخدمة' };
+export const EMP_STATUS = { active: 'نشط', suspended: 'معطّل', terminated: 'منتهي الخدمة' };
 export const UNIT_TYPE = { org: 'المنشأة', sector: 'قطاع', department: 'إدارة', section: 'قسم' };
 export const TARGET_TYPES = {
   max_year_end_balance: 'أقصى رصيد بنهاية السنة (أيام)',

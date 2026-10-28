@@ -175,3 +175,16 @@ test('الإجازة المعتمدة تُخصم تلقائياً وتظهر ف�
   assert.equal(+(before.available_now - m.available_now).toFixed(2), 2);
   assert.equal(+(m.used_total - before.used_total).toFixed(2), 2);
 });
+
+test('تعطيل الموظف يخفيه من قائمة الأرصدة ودليل البوابة وتنشيطه يعيده', { skip }, async () => {
+  const e2 = await t.svc.employees.createEmployee({ full_name: 'ناصر التعطيل', job_title: 'محاسب', extension: 7001, org_unit_id: unitA.id }, t.sys);
+  await t.q("UPDATE employees SET leave_enabled = TRUE, emp_no = 'E7001', hire_date = '2021-01-01', opening_date = '2025-12-31', opening_balance = 10, basic_salary = 9000 WHERE id = $1", [e2.id]);
+  const inList = async () => !!(await admin.get('/api/employees')).json.rows.find(e => e.id === e2.id);
+  const inPortal = async () => !!(await admin.get('/portal/data/employeeInfo.json')).json.find(e => e.Extension === 7001);
+  assert.ok(await inList()); assert.ok(await inPortal());
+  assert.equal((await admin.put(`/api/employees/${e2.id}`, { status: 'suspended' })).status, 200);
+  assert.ok(!(await inList()), 'مخفي من الأرصدة'); assert.ok(!(await inPortal()), 'مخفي من البوابة');
+  assert.ok((await admin.get('/api/employees?status=suspended')).json.rows.find(e => e.id === e2.id), 'يظهر في فلتر المعطّلين');
+  assert.equal((await admin.put(`/api/employees/${e2.id}`, { status: 'active' })).status, 200);
+  assert.ok(await inList()); assert.ok(await inPortal());
+});

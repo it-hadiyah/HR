@@ -69,8 +69,8 @@ export async function buildContext(user, opts = {}) {
     return { ...e, m, sector: p.names.sector, department: p.names.department, section: p.names.section, path_ids: p.ids };
   });
 
-  // المستهدفات تُوزَّع على الموظفين الفاعلين (غير المنتهية خدمتهم) على مستوى المنشأة كلها لضمان الاتساق
-  const live = all.filter(e => e.status !== 'terminated');
+  // المستهدفات تُوزَّع على الموظفين النشطين (المعطَّلون والمنتهية خدمتهم مستبعدون) على مستوى المنشأة كلها لضمان الاتساق
+  const live = all.filter(e => e.status === 'active');
   const { empTarget, unitInfo } = resolveTargets(tree, live, targets.rows);
   for (const e of all) {
     const t = empTarget.get(e.id);
@@ -87,7 +87,7 @@ export async function buildContext(user, opts = {}) {
   let list = all;
   if (!sc.all) list = list.filter(e => (sc.unitIds?.has(e.org_unit_id)) || (sc.employeeIds?.has(e.id)));
   const statusFilter = opts.status || 'live';
-  if (statusFilter === 'live') list = list.filter(e => e.status !== 'terminated');
+  if (statusFilter === 'live') list = list.filter(e => e.status === 'active');
   else if (statusFilter !== 'all') list = list.filter(e => e.status === statusFilter);
   if (opts.unit) {
     const n = tree.byId.get(+opts.unit);

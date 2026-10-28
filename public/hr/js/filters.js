@@ -31,7 +31,7 @@ export async function filterBar(onChange, opts = {}) {
   const sector = select(opt('sector'), p.sector ?? '');
   const dept = select(opt('department', p.sector), p.department ?? '');
   const section = select(opt('section', p.department), p.section ?? '');
-  const status = select([['live', 'نشط وموقوف'], ['active', 'نشط'], ['suspended', 'موقوف'], ['terminated', 'منتهي الخدمة'], ['all', 'الكل']], f.status || 'live');
+  const status = select([['live', 'نشط'], ['suspended', 'معطّل'], ['terminated', 'منتهي الخدمة'], ['all', 'الكل']], f.status || 'live');
 
   const apply = () => {
     const unit = section.value || dept.value || sector.value || '';

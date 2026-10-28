@@ -62,7 +62,13 @@ async function employees() {
         { label: 'المسمى', wrap: true, render: e => e.job_title || '—' },
         { label: 'الوحدة', wrap: true, render: e => e.unit_name || '—' },
         { label: 'الحالة', render: e => h('div', { class: 'chips' }, badge(STATUS_LABEL[e.status] || e.status, e.status === 'active' ? 'ok' : e.status === 'terminated' ? 'bad' : 'warn'), e.leave_enabled ? badge('إجازات', 'info') : null) },
-        { label: '', render: e => (can('employees_edit') ? h('div', { class: 'row-actions' }, h('button', { class: 'btn sm', type: 'button', onClick: () => editEmployee(e.id, load) }, ico('pencil', 15), 'تعديل')) : '') },
+        { label: '', render: e => (can('employees_edit') ? h('div', { class: 'row-actions' }, h('button', { class: 'btn sm', type: 'button', onClick: () => editEmployee(e.id, load) }, ico('pencil', 15), 'تعديل'),
+        e.status === 'terminated' ? null : h('button', { class: 'btn sm ' + (e.status === 'active' ? 'danger' : 'primary'), type: 'button', onClick: () => guard(async () => {
+          const off = e.status === 'active';
+          if (off && !(await confirmBox(`تعطيل «${e.full_name}»؟ سيُخفى من قوائم الموظفين ودليل البوابة حتى يُنشَّط من جديد.`, 'تعطيل', true))) return;
+          await api('/employees/' + e.id, { method: 'PUT', body: { status: off ? 'suspended' : 'active', version: e.version } });
+          toast(off ? 'تم التعطيل' : 'تم التنشيط'); load();
+        })() }, e.status === 'active' ? 'تعطيل' : 'تنشيط')) : '') },
       ], d.employees, 'لا يوجد موظفون مطابقون'),
       pager(d.total, d.page, d.pageSize, p => { empState.page = p; load(); }));
   };

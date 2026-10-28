@@ -36,6 +36,9 @@ export default async function employees() {
       { key: 'proj', label: 'المتوقع نهاية السنة', num: true, render: e => num(fmt.days(e.m.projected_year_end)), sortValue: e => e.m.projected_year_end },
       ...(fin ? [{ key: 'val', label: 'القيمة (ر.س)', num: true, render: e => num(fmt.sar(e.m.value_now)), sortValue: e => e.m.value_now }] : []),
       { key: 'target', label: 'المستهدف', num: true, render: e => num(fmt.days(e.target_days)), sortValue: e => e.target_days },
+      ...(canEdit ? [{ key: 'act', label: '', sortable: false, render: e => (e.status === 'active'
+        ? h('button', { class: 'btn sm danger', title: 'تعطيل الموظف وإخفاؤه من القائمة', onclick: () => confirmBox(`تعطيل ${e.full_name}؟ سيُخفى من القائمة ومن دليل البوابة ويمكن إعادته بتنشيطه.`, async () => { await api('/employees/' + e.id, { method: 'PUT', body: { status: 'suspended' } }); toast('تم التعطيل'); load(); }) }, 'تعطيل')
+        : e.status === 'suspended' ? h('button', { class: 'btn sm primary', onclick: async () => { await guard(async () => { await api('/employees/' + e.id, { method: 'PUT', body: { status: 'active' } }); toast('تم التنشيط'); load(); })(); } }, 'تنشيط') : '') }] : []),
       { key: 'met', label: 'التحقق', render: e => (e.target_days === null ? '—' : statusBadge(e.m.projected_year_end <= e.target_days ? 'achieved' : 'at_risk')), sortable: false },
     ];
     body.replaceChildren(h('div', { class: 'row center', style: { marginBottom: '6px', color: 'var(--muted)' } }, `${d.rows.length} موظف — السنة ${d.year} حتى ${fmt.date(d.asOf)}`,
