@@ -7,6 +7,7 @@ import { resolveScope } from '../lib/rbac.js';
 import { loadPolicy } from '../lib/context.js';
 import { httpError, isDate } from '../lib/util.js';
 import { resetOrgGraph } from '../lib/orggraph.js';
+import { normalizeFilter, applyFilter, filterContext, buildFacets, yearTiming, classifyRow } from '../lib/trackingFilter.js';
 
 const r = Router();
 const round2 = x => Math.round(x * 100) / 100;
@@ -105,25 +106,29 @@ const yearOf = req => { const y = +req.query.year || new Date().getFullYear(); i
 
 r.get('/', wrap(async (req, res) => {
   const year = yearOf(req);
-  const { rows, fin, policy } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
+  const { rows: all, fin, policy } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
+  const rows = applyFilter(all, normalizeFilter(req.query.f), filterContext(all, year, policy), fin);
   res.json({ year, fin, max_balance_cap: policy.max_balance_cap, can_edit: can(req.user, 'employees'), rows, summary: summarize(rows, fin) });
 }));
 
 // لوحة المؤشرات: نتائج وأداء وخطة وإحصاءات مجمّعة من بيانات المتابعة (للقراءة فقط)
+// خيارات الفلاتر وعدّاداتها (الوحدات والمسميات والشرائح الذكية والنطاقات)
+r.get('/facets', wrap(async (req, res) => {
+  const year = yearOf(req);
+  const { rows, fin, policy } = await loadRows(req, year, { unit: req.query.unit, status: req.query.status || 'active' });
+  res.json({ year, fin, ...buildFacets(rows, filterContext(rows, year, policy), fin) });
+}));
+
 r.get('/indicators', wrap(async (req, res) => {
   const year = yearOf(req);
   const level = ['sector', 'department', 'section'].includes(req.query.level) ? req.query.level : 'sector';
   const base = { unit: req.query.unit, status: req.query.status || 'active' };
-  const { rows, fin, policy } = await loadRows(req, year, base);
-  const now = new Date(), cy = now.getFullYear();
-  const elapsed = year < cy ? 1 : year > cy ? 0 : Math.min(1, (now - new Date(cy, 0, 1)) / (365 * 864e5));
-  const monthsLeft = year < cy ? 0 : year > cy ? 12 : Math.max(0.5, (1 - elapsed) * 12);
+  const { rows: allRows, fin, policy } = await loadRows(req, year, base);
+  const filter = normalizeFilter(req.query.f);
+  const rows = applyFilter(allRows, filter, filterContext(allRows, year, policy), fin);
+  const { elapsed, monthsLeft } = yearTiming(year);
   const R = x => round2(x ?? 0);
-  const classify = e => {
-    if (!e.target_days) return 'no_target';
-    if ((e.used_days ?? 0) >= e.target_days) return 'achieved';
-    return (e.used_days ?? 0) >= e.target_days * elapsed * 0.9 ? 'on_track' : 'lagging';
-  };
+  const classify = e => classifyRow(e, elapsed);
   const groups = new Map();
   const dist = { achieved: 0, on_track: 0, lagging: 0, no_target: 0 };
   const bands = [['سالب', -Infinity, 0], ['0–10', 0, 10], ['10–20', 10, 20], ['20–30', 20, 30], ['30–45', 30, 45], ['45+', 45, Infinity]].map(([label, lo, hi]) => ({ label, lo, hi, count: 0 }));
@@ -155,12 +160,26 @@ r.get('/indicators', wrap(async (req, res) => {
   const years = (await q('SELECT DISTINCT year FROM leave_tracking ORDER BY year DESC LIMIT 5')).rows.map(x => x.year).sort();
   const yearly = [];
   for (const y of years) {
-    const rr = (await loadRows(req, y, base)).rows;
+    const lr = await loadRows(req, y, base);
+    const rr = applyFilter(lr.rows, filter, filterContext(lr.rows, y, lr.policy), fin);
     const sum = k => R(rr.reduce((a, x) => a + (x[k] ?? 0), 0));
     yearly.push({ year: y, total_balance: sum('total_balance'), target_days: sum('target_days'), used_days: sum('used_days'), ...(fin ? { cost_now: sum('cost_now') } : {}) });
   }
-  res.json({ year, fin, level, elapsed_pct: round2(elapsed * 100), months_left: round2(monthsLeft), max_balance_cap: policy.max_balance_cap, kpis, groups: glist, distribution: dist,
-    bands: bands.map(b => ({ label: b.label, count: b.count })), top, lagging, yearly });
+  // السنة السابقة بالمرشحات نفسها لعرض التغيّر
+  let prev = null;
+  if (year - 1 >= 2000) {
+    const lr = await loadRows(req, year - 1, base);
+    const pr = applyFilter(lr.rows, filter, filterContext(lr.rows, year - 1, lr.policy), fin);
+    if (pr.some(x => x.total_balance !== null || x.used_days !== null || x.target_days !== null)) {
+      const ps = k => R(pr.reduce((a, x) => a + (x[k] ?? 0), 0));
+      prev = { year: year - 1, employees: pr.length, total_balance: ps('total_balance'), annual_balance: ps('annual_balance'), target_days: ps('target_days'), used_days: ps('used_days'),
+        ...(fin ? { cost_now: ps('cost_now'), saving: ps('saving') } : {}) };
+    }
+  }
+  const listed = [...rows].sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ar')).slice(0, 300).map(e => ({ ...slim(e), job_title: e.job_title, hire_date: e.hire_date, annual_balance: e.annual_balance,
+    state: classify(e), complete: e.complete, ...(fin ? { gross_salary: e.gross_salary, saving: e.saving } : {}) }));
+  res.json({ year, fin, level, matched: rows.length, base_total: allRows.length, filters_applied: filter, prev, employees: listed, elapsed_pct: round2(elapsed * 100), months_left: round2(monthsLeft), max_balance_cap: policy.max_balance_cap, kpis, groups: glist, distribution: dist,
+    bands: bands.map(b => ({ label: b.label, count: b.count, lo: Number.isFinite(b.lo) ? b.lo : null, hi: Number.isFinite(b.hi) ? b.hi : null })), top, lagging, yearly });
 }));
 
 // تعديل حقول المتابعة لموظف وسنة (وتاريخ التعيين/الرقم الوظيفي في السجل المركزي)
@@ -229,7 +248,8 @@ r.post('/copy-year', requirePerm('employees'), wrap(async (req, res) => {
 
 r.get('/export', wrap(async (req, res) => {
   const year = yearOf(req);
-  const { rows, fin } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
+  const { rows: all, fin, policy: pol } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
+  const rows = applyFilter(all, normalizeFilter(req.query.f), filterContext(all, year, pol), fin);
   const cols = [['الرقم الوظيفي', 'emp_no'], ['الاسم', 'full_name'], ['المسمى', 'job_title'], ['القطاع', 'sector'], ['الإدارة', 'department'], ['القسم', 'section'], ['تاريخ التعيين', 'hire_date'],
     ...(fin ? [['الراتب الإجمالي', 'gross_salary']] : []), ['الرصيد السنوي', 'annual_balance'], ['الرصيد الكلي', 'total_balance'], ['المستهدف', 'target_days'], ['المستخدم', 'used_days'], ['المتبقي للمستهدف', 'remaining_to_target'],
     ...(fin ? [['أجر اليوم', 'day_rate'], ['التكلفة المالية للرصيد الحالي', 'cost_now'], ['التكلفة بعد تحقق المستهدف', 'cost_after_target'], ['التوفير المتوقع', 'saving']] : []), ['ملاحظات', 'notes']];

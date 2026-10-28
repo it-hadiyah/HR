@@ -250,3 +250,42 @@ test('لوحة المؤشرات تُجمّع بيانات المتابعة، وP
   const md = (await mgr.get('/api/tracking/indicators?year=2026')).json;
   assert.equal(md.fin, false); assert.equal(md.kpis.cost_now, undefined);
 });
+
+test('الفلترة المتقدمة: نطاقات وشرائح ذكية وبيانات ناقصة وقوائم متعددة، ومرشحات مالية تُتجاهل لمن لا يملك الصلاحية', { skip }, async () => {
+  const mk = async (no, total, target, used, sal, job) => {
+    const e = await t.svc.employees.createEmployee({ full_name: 'فلتر ' + no, job_title: job, org_unit_id: unitB.id }, t.sys);
+    await t.q("UPDATE employees SET emp_no = $2, hire_date = '2020-01-01' WHERE id = $1", [e.id, no]);
+    await admin.put(`/api/tracking/${e.id}`, { year: 2026, annual_balance: 21, total_balance: total, target_days: target, used_days: used, gross_salary: sal });
+    return e;
+  };
+  const a = await mk('F1', 50, 20, 20, 9000, 'محاسب');       // رصيد مرتفع وحقق المستهدف
+  const b = await mk('F2', 10, 20, 0, 6000, 'مهندس');         // لم يستخدم، بلا إنجاز
+  const c = await t.svc.employees.createEmployee({ full_name: 'فلتر ناقص', job_title: 'محاسب', org_unit_id: unitB.id }, t.sys);  // بيانات ناقصة
+  const get = (f) => admin.get('/api/tracking/indicators?year=2026&f=' + encodeURIComponent(JSON.stringify(f)));
+  const ids = r => r.json.employees.map(x => x.employee_id);
+  let r = await get({ ranges: { total: [40, null] } });
+  assert.ok(ids(r).includes(a.id) && !ids(r).includes(b.id));
+  r = await get({ segments: ['high_balance', 'achieved'], segMode: 'all' });
+  assert.ok(ids(r).includes(a.id) && !ids(r).includes(b.id));
+  r = await get({ segments: ['no_usage'] });
+  assert.ok(ids(r).includes(b.id) && !ids(r).includes(a.id));
+  r = await get({ segments: ['high_balance', 'no_usage'], segMode: 'any' });
+  assert.ok(ids(r).includes(a.id) && ids(r).includes(b.id));
+  r = await get({ missing: ['total_balance'] });
+  assert.ok(ids(r).includes(c.id) && !ids(r).includes(a.id));
+  r = await get({ job: ['مهندس'] });
+  assert.deepEqual(ids(r).filter(i => [a.id, b.id, c.id].includes(i)), [b.id]);
+  r = await get({ ranges: { cost: [1000, null] }, hire_from: '2019-01-01' });
+  assert.ok(ids(r).includes(a.id));
+  assert.equal(r.json.matched, r.json.employees.length);
+  assert.ok(r.json.base_total >= r.json.matched);
+  assert.equal((await admin.get('/api/tracking/indicators?year=2026&f=%7Bbroken')).status, 200);   // مواصفة تالفة تُتجاهل
+  const fac = (await admin.get('/api/tracking/facets?year=2026')).json;
+  assert.ok(fac.segments.find(s => s.id === 'high_balance').count >= 1 && fac.sector.length >= 1 && fac.ranges.total);
+  // المدير بلا صلاحية مالية: فلتر الراتب مُهمَل ولا يظهر في الخيارات
+  const mgr = await t.as('mgr_trk');
+  const mf = (await mgr.get('/api/tracking/facets?year=2026')).json;
+  assert.equal(mf.fin, false); assert.equal(mf.ranges.salary, undefined); assert.equal(mf.segments.find(s => s.id === 'top_cost'), undefined);
+  const mr = await mgr.get('/api/tracking/indicators?year=2026&f=' + encodeURIComponent(JSON.stringify({ ranges: { salary: [99999, null] } })));
+  assert.equal(mr.status, 200); assert.equal(mr.json.fin, false);
+});
