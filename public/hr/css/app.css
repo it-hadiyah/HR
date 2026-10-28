@@ -213,3 +213,4 @@ td.n { text-align: center; font-variant-numeric: tabular-nums; }
 .delta { font-size: 11.5px; font-weight: 600; margin-inline-start: 6px; } .delta.up { color: var(--ok); } .delta.down { color: var(--bad); } .delta.flat { color: var(--muted); }
 tr.clickable { cursor: pointer; } tr.clickable:hover td { background: var(--surface-2); }
 .fchips:empty { display: none; }
+.owed { color: var(--bad); }

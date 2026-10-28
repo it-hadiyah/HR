@@ -35,7 +35,8 @@ export default async function tracking() {
     const s = data.summary, fin = data.fin;
     summaryBox.replaceChildren(h('div', { class: 'grid kpis', style: { marginBottom: '14px' } },
       kpi('الموظفون', fmt.int(s.employees), 'موظف', { hint: `${fmt.int(s.complete)} مكتملة البيانات · ${fmt.int(s.incomplete)} ناقصة`, tone: s.incomplete ? 'warn' : 'ok' }),
-      kpi('إجمالي الرصيد الكلي', fmt.days(s.total_balance), 'يوم', { hint: `الرصيد السنوي: ${fmt.days(s.annual_balance)} يوم` }),
+      kpi('إجمالي الأرصدة الموجبة', fmt.days(s.total_balance), 'يوم', { hint: `الرصيد السنوي: ${fmt.days(s.annual_balance)} يوم` }),
+      kpi('مستحق على الموظفين (رصيد سالب)', fmt.days(s.owed_days), 'يوم', { tone: s.owed_count ? 'bad' : '', hint: `${fmt.int(s.owed_count)} موظف${fin ? ' · ' + fmtMoney(s.owed_cost) + ' ر.س' : ''}` }),
       kpi('المستهدف لهذه السنة', fmt.days(s.target_days), 'يوم', { hint: `المستخدم: ${fmt.days(s.used_days)} · المتبقي للمستهدف: ${fmt.days(s.remaining_to_target)}` }),
       kpi('حققوا المستهدف', fmt.int(s.target_met), 'موظف', { tone: 'ok' }),
       kpi('أرصدة مرتفعة', fmt.int(s.high_balance), 'موظف', { tone: s.high_balance ? 'bad' : '', hint: `أكثر من ${fmt.days(data.max_balance_cap ?? 30)} يوماً` }),
@@ -89,24 +90,26 @@ export default async function tracking() {
     const c = calc[e.employee_id]; if (!c) return;
     c.remaining.replaceChildren(num(fmt.days(e.remaining_to_target)));
     c.remTotal.replaceChildren(num(fmt.days(e.remaining_total)));
+    c.owed.replaceChildren(e.owed_days > 0 ? h('b', { class: 'owed' }, fmt.days(e.owed_days)) : '—');
+    if (data.fin) c.owedCost.replaceChildren(e.owed_days > 0 ? h('b', { class: 'owed' }, fmtMoney(e.owed_cost)) : '—');
     c.progress.replaceChildren(e.progress_pct === null ? '—' : h('div', { class: 'pbar', title: fmt.pct(e.progress_pct) }, h('i', { style: { width: e.progress_pct + '%' } })));
     c.status.replaceChildren(statusBadge(e));
     if (data.fin) { c.rate.replaceChildren(num(fmtMoney(e.day_rate))); c.cost.replaceChildren(num(fmtMoney(e.cost_now))); c.cTarget.replaceChildren(num(fmtMoney(e.cost_target))); c.cRemT.replaceChildren(num(fmtMoney(e.cost_remaining_target))); c.cRemTot.replaceChildren(num(fmtMoney(e.cost_remaining_total))); c.after.replaceChildren(num(fmtMoney(e.cost_after_target))); c.saving.replaceChildren(num(fmtMoney(e.saving))); }
   }
   function recomputeSummary() {
     const rows = data.rows, s = data.summary, fin = data.fin, sum = k => Math.round(rows.reduce((a, x) => a + (x[k] ?? 0), 0) * 100) / 100;
-    Object.assign(s, { employees: rows.length, complete: rows.filter(x => x.complete).length, incomplete: rows.filter(x => !x.complete).length, annual_balance: sum('annual_balance'), total_balance: sum('total_balance'),
-      target_days: sum('target_days'), used_days: sum('used_days'), remaining_to_target: sum('remaining_to_target'), remaining_total: sum('remaining_total'), high_balance: rows.filter(x => x.high_balance).length, target_met: rows.filter(x => x.target_met).length });
-    if (fin) Object.assign(s, { cost_now: sum('cost_now'), cost_target: sum('cost_target'), cost_remaining_target: sum('cost_remaining_target'), cost_remaining_total: sum('cost_remaining_total'), cost_after_target: sum('cost_after_target'), saving: sum('saving') });
+    Object.assign(s, { employees: rows.length, complete: rows.filter(x => x.complete).length, incomplete: rows.filter(x => !x.complete).length, annual_balance: sum('annual_balance'), total_balance: Math.round(rows.reduce((a, x) => a + Math.max(0, x.total_balance ?? 0), 0) * 100) / 100,
+      target_days: Math.round(rows.reduce((a, x) => a + Math.max(0, x.target_days ?? 0), 0) * 100) / 100, owed_days: sum('owed_days'), owed_count: rows.filter(x => x.owed_days > 0).length, used_days: sum('used_days'), remaining_to_target: sum('remaining_to_target'), remaining_total: sum('remaining_total'), high_balance: rows.filter(x => x.high_balance).length, target_met: rows.filter(x => x.target_met).length });
+    if (fin) Object.assign(s, { owed_cost: sum('owed_cost'), cost_now: sum('cost_now'), cost_target: sum('cost_target'), cost_remaining_target: sum('cost_remaining_target'), cost_remaining_total: sum('cost_remaining_total'), cost_after_target: sum('cost_after_target'), saving: sum('saving') });
   }
 
   function drawTable() {
     const fin = data.fin;
-    const head = ['#', 'الموظف', 'الرقم الوظيفي', 'تاريخ التعيين', ...(fin ? ['الراتب الإجمالي'] : []), 'الرصيد السنوي', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي للمستهدف', 'المتبقي من الكلي', 'التقدم',
-      ...(fin ? ['أجر اليوم', 'تكلفة الإجازة الكلية', 'تكلفة المستهدف لنهاية السنة', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد تحقق المستهدف', 'التوفير المتوقع'] : []), 'ملاحظات', 'الحالة', ''];
+    const head = ['#', 'الموظف', 'الرقم الوظيفي', 'تاريخ التعيين', ...(fin ? ['الراتب الإجمالي'] : []), 'الرصيد السنوي', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي للمستهدف', 'المتبقي من الكلي', 'مستحق على الموظف (يوم)', 'التقدم',
+      ...(fin ? ['أجر اليوم', 'مبلغ مستحق على الموظف', 'تكلفة الإجازة الكلية', 'تكلفة المستهدف لنهاية السنة', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد تحقق المستهدف', 'التوفير المتوقع'] : []), 'ملاحظات', 'الحالة', ''];
     const tbody = h('tbody');
     data.rows.forEach((e, i) => {
-      const c = calc[e.employee_id] = { save: h('span', { class: 'save-state' }), remaining: h('td', { class: 'n' }), remTotal: h('td', { class: 'n' }), progress: h('td'), status: h('td'), rate: h('td', { class: 'n' }), cost: h('td', { class: 'n strong' }), cTarget: h('td', { class: 'n' }), cRemT: h('td', { class: 'n' }), cRemTot: h('td', { class: 'n' }), after: h('td', { class: 'n' }), saving: h('td', { class: 'n' }) };
+      const c = calc[e.employee_id] = { save: h('span', { class: 'save-state' }), remaining: h('td', { class: 'n' }), remTotal: h('td', { class: 'n' }), owed: h('td', { class: 'n' }), owedCost: h('td', { class: 'n' }), progress: h('td'), status: h('td'), rate: h('td', { class: 'n' }), cost: h('td', { class: 'n strong' }), cTarget: h('td', { class: 'n' }), cRemT: h('td', { class: 'n' }), cRemTot: h('td', { class: 'n' }), after: h('td', { class: 'n' }), saving: h('td', { class: 'n' }) };
       const notes = data.can_edit ? inputFor(e, 'notes', { type: 'text', width: '150px', dir: 'rtl' }) : h('span', null, e.notes || '—');
       const tr = h('tr', null,
         h('td', { class: 'n' }, String(i + 1)),
@@ -115,8 +118,8 @@ export default async function tracking() {
         h('td', null, inputFor(e, 'hire_date', { type: 'date', width: '138px' })),
         fin ? h('td', null, inputFor(e, 'gross_salary', { step: '0.01', width: '104px' })) : null,
         h('td', null, inputFor(e, 'annual_balance')), h('td', null, inputFor(e, 'total_balance', { min: null })), h('td', null, inputFor(e, 'target_days')), h('td', null, inputFor(e, 'used_days')),
-        c.remaining, c.remTotal, c.progress,
-        ...(fin ? [c.rate, c.cost, c.cTarget, c.cRemT, c.cRemTot, c.after, c.saving] : []),
+        c.remaining, c.remTotal, c.owed, c.progress,
+        ...(fin ? [c.rate, c.owedCost, c.cost, c.cTarget, c.cRemT, c.cRemTot, c.after, c.saving] : []),
         h('td', null, notes), c.status,
         h('td', { style: { whiteSpace: 'nowrap' } }, c.save, ' ', data.can_edit ? h('button', { class: 'btn sm ' + (e.status === 'active' ? 'danger' : 'primary'), title: e.status === 'active' ? 'تعطيل الموظف وإخفاؤه' : 'تنشيط الموظف',
           onclick: () => toggle(e) }, e.status === 'active' ? 'تعطيل' : 'تنشيط') : (e.status !== 'active' ? h('span', { class: 'badge' }, EMP_STATUS[e.status]) : '')));
@@ -125,8 +128,8 @@ export default async function tracking() {
     const s = data.summary;
     const foot = h('tfoot', null, h('tr', null, h('td'), h('td', { class: 'strong' }, 'الإجمالي'), h('td'), h('td'), fin ? h('td') : null,
       h('td', { class: 'n strong' }, fmt.days(s.annual_balance)), h('td', { class: 'n strong' }, fmt.days(s.total_balance)), h('td', { class: 'n strong' }, fmt.days(s.target_days)), h('td', { class: 'n strong' }, fmt.days(s.used_days)),
-      h('td', { class: 'n strong' }, fmt.days(s.remaining_to_target)), h('td', { class: 'n strong' }, fmt.days(s.remaining_total)), h('td'),
-      ...(fin ? [h('td'), h('td', { class: 'n strong' }, fmtMoney(s.cost_now)), h('td', { class: 'n strong' }, fmtMoney(s.cost_target)), h('td', { class: 'n strong' }, fmtMoney(s.cost_remaining_target)), h('td', { class: 'n strong' }, fmtMoney(s.cost_remaining_total)), h('td', { class: 'n strong' }, fmtMoney(s.cost_after_target)), h('td', { class: 'n strong' }, fmtMoney(s.saving))] : []), h('td'), h('td'), h('td')));
+      h('td', { class: 'n strong' }, fmt.days(s.remaining_to_target)), h('td', { class: 'n strong' }, fmt.days(s.remaining_total)), h('td', { class: 'n strong' }, fmt.days(s.owed_days)), h('td'),
+      ...(fin ? [h('td'), h('td', { class: 'n strong' }, fmtMoney(s.owed_cost)), h('td', { class: 'n strong' }, fmtMoney(s.cost_now)), h('td', { class: 'n strong' }, fmtMoney(s.cost_target)), h('td', { class: 'n strong' }, fmtMoney(s.cost_remaining_target)), h('td', { class: 'n strong' }, fmtMoney(s.cost_remaining_total)), h('td', { class: 'n strong' }, fmtMoney(s.cost_after_target)), h('td', { class: 'n strong' }, fmtMoney(s.saving))] : []), h('td'), h('td'), h('td')));
     tableBox.replaceChildren(h('div', { class: 'tbl-wrap track-wrap' }, h('table', { class: 'track' }, h('thead', null, h('tr', null, head.map(t => h('th', null, t)))), tbody, data.rows.length ? foot : null)),
       data.rows.length ? null : h('div', { class: 'card', style: { textAlign: 'center', color: 'var(--muted)' } }, 'لا يوجد موظفون مطابقون.'));
   }
@@ -155,7 +158,7 @@ export default async function tracking() {
       h('button', { class: 'btn', onclick: () => download('/tracking/export' + qs({ year: f.year, unit: f.unit, status: f.status, search: f.search, incomplete: f.incomplete ? 1 : '' })) }, 'تصدير Excel'))),
     summaryBox,
     h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', margin: '0 0 8px' } },
-      'عبّئ الحقول مباشرة في الجدول وتُحفظ تلقائياً عند الانتقال من الخانة. أجر اليوم = الراتب الإجمالي ÷ قاسم اليوم في السياسة. تكلفة الإجازة الكلية = الرصيد الكلي × أجر اليوم. تكلفة المستهدف = المستهدف × أجر اليوم. المتبقي للمستهدف = المستهدف − المستخدم وتكلفته × أجر اليوم. المتبقي من الكلي = الرصيد الكلي − المستخدم وتكلفته × أجر اليوم.'),
+      'عبّئ الحقول مباشرة في الجدول وتُحفظ تلقائياً عند الانتقال من الخانة. الرصيد الكلي السالب = مستحق على الموظف (لا يُحسب التزاماً على الجهة ولا يدخل في إجمالي الأرصدة). أجر اليوم = الراتب الإجمالي ÷ قاسم اليوم في السياسة. تكلفة الإجازة الكلية = الرصيد الكلي × أجر اليوم. تكلفة المستهدف = المستهدف × أجر اليوم. المتبقي للمستهدف = المستهدف − المستخدم وتكلفته × أجر اليوم. المتبقي من الكلي = الرصيد الكلي − المستخدم وتكلفته × أجر اليوم.'),
     tableBox);
   await load();
   return root;

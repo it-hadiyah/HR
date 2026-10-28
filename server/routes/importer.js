@@ -247,7 +247,7 @@ const processors = {
       const hire = r0.hire_date === '' || r0.hire_date === undefined ? undefined : toDate(r0.hire_date);
       if (hire !== undefined && !isDate(hire)) errs.push('تاريخ التعيين غير صالح');
       const v = { gross_salary: num(r0.gross_salary, 'الراتب الإجمالي', errs), annual_balance: num(r0.annual_balance, 'الرصيد السنوي', errs), total_balance: num(r0.total_balance, 'الرصيد الكلي', errs, null),
-        target_days: num(r0.target_days, 'المستهدف', errs), used_days: num(r0.used_days, 'المستخدم', errs), notes: r0.notes ? String(r0.notes).slice(0, 500) : undefined };
+        target_days: num(r0.target_days, 'المستهدف', errs, null), used_days: num(r0.used_days, 'المستخدم', errs, null), notes: r0.notes ? String(r0.notes).slice(0, 500) : undefined };
       const ks = Object.keys(v).filter(k => v[k] !== undefined);
       if (!errs.length && !ks.length && hire === undefined) warn.push('لا توجد قيم للتحديث');
       if (create && !errs.length) warn.push('سيُنشأ الموظف بلا وحدة تنظيمية (عيّنها من الإدارة المركزية)');

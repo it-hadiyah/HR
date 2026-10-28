@@ -218,7 +218,7 @@ test('متابعة الأرصدة: الحقول اليدوية والتكلفة 
   const list = (await admin.get(`/api/tracking?year=${y}`)).json;
   assert.ok(list.rows.find(x => x.employee_id === emp.id));
   assert.equal(list.summary.cost_now >= 18000, true);
-  assert.equal((await put(emp.id, { target_days: -3 })).status, 400);
+  assert.equal((await put(emp.id, { target_days: 'abc' })).status, 400);
   assert.equal((await put(emp.id, { hire_date: 'x' })).status, 400);
   assert.equal((await put(emp.id, { emp_no: '' })).status, 400);
   // سنة أخرى مستقلة
@@ -328,4 +328,23 @@ test('استيراد المتابعة: ترويسة بعد صف عنوان، ا�
   assert.ok(p1.json.rows.find(r => r.ok && r.warnings.some(w => /يختلف/.test(w))));
   assert.equal(sarah.total_balance, 40); assert.equal(sarah.gross_salary, 8000);
   assert.ok(neu && neu.target_days === 10 && neu.hire_date === '2023-03-03');
+});
+
+test('الرصيد السالب مستحق على الموظف: يُقبل مع المستهدف والمستخدم السالبين، ولا يدخل في إجمالي الأرصدة ولا تكلفة الجهة', { skip }, async () => {
+  const e2 = await t.svc.employees.createEmployee({ full_name: 'سالب الرصيد', job_title: 'x', org_unit_id: unitB.id }, t.sys);
+  const r = await admin.put(`/api/tracking/${e2.id}`, { year: 2026, gross_salary: 9000, total_balance: -20, target_days: -7, used_days: -21 });
+  assert.equal(r.status, 200);
+  const x = r.json.row;
+  assert.equal(x.owed_days, 20);
+  assert.equal(x.owed_cost, 6000);            // 20 × 300
+  assert.equal(x.cost_now, 0);                // لا التزام على الجهة
+  assert.equal(x.cost_target, 0);
+  assert.equal(x.remaining_to_target, 0);     // هدف سالب بلا خطة
+  const sum = (await admin.get('/api/tracking?year=2026')).json.summary;
+  assert.ok(sum.owed_days >= 20 && sum.owed_count >= 1 && sum.owed_cost >= 6000);
+  const ind = (await admin.get('/api/tracking/indicators?year=2026')).json.kpis;
+  assert.ok(ind.owed_days >= 20);
+  const mgr = await t.as('mgr_trk');
+  const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === e2.id);
+  if (mrow) { assert.equal(mrow.owed_cost, undefined); assert.equal(mrow.owed_days, 20); }
 });

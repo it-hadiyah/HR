@@ -75,8 +75,9 @@ export default async function indicators() {
     // ---- النتائج ----
     out.append(title('النتائج'), h('div', { class: 'grid kpis' },
       kpi('الموظفون', fmt.int(k.employees), 'موظف', { hint: `اكتمال البيانات ${fmt.pct(k.completion_pct)}`, tone: k.completion_pct < 100 ? 'warn' : 'ok' }),
-      kpi('إجمالي الرصيد الكلي', fmt.days(k.total_balance), 'يوم', { hint: `المتوسط ${fmt.days(k.avg_balance)} يوم للموظف`, delta: pv ? deltaOf(k.total_balance, pv.total_balance, false) : null }),
+      kpi('إجمالي الأرصدة الموجبة', fmt.days(k.total_balance), 'يوم', { hint: `المتوسط ${fmt.days(k.avg_balance)} يوم للموظف`, delta: pv ? deltaOf(k.total_balance, pv.total_balance, false) : null }),
       kpi('إجمالي الرصيد السنوي', fmt.days(k.annual_balance), 'يوم'),
+      kpi('مستحق على الموظفين (رصيد سالب)', fmt.days(k.owed_days), 'يوم', { tone: k.owed_count ? 'bad' : '', hint: `${fmt.int(k.owed_count)} موظف${fin ? ' · ' + money(k.owed_cost) + ' ر.س' : ''}` }),
       kpi('أرصدة مرتفعة', fmt.int(k.high_balance), 'موظف', { tone: k.high_balance ? 'bad' : 'ok', hint: `أكثر من ${fmt.days(d.max_balance_cap)} يوماً` }),
       ...(fin ? [kpi('تكلفة الإجازة الكلية', money(k.cost_now), 'ر.س', { tone: 'bad', hint: 'الرصيد الكلي × أجر اليوم', delta: pv ? deltaOf(k.cost_now, pv.cost_now, false, money) : null }),
         kpi('تكلفة المستهدف لنهاية السنة', money(k.cost_target), 'ر.س', { hint: 'المستهدف × أجر اليوم' }),
@@ -111,8 +112,8 @@ export default async function indicators() {
       kpi('المطلوب استخدامه شهرياً', k.required_per_month === null ? '—' : fmt.days(k.required_per_month), 'يوم/شهر', { tone: 'warn', hint: 'لتحقيق المستهدف قبل نهاية السنة' }),
       kpi('الرصيد المتوقع نهاية السنة', fmt.days(k.total_balance - k.remaining_to_target), 'يوم', { hint: 'إن تحقق المستهدف' })),
     h('div', { class: 'tbl-wrap', style: { marginTop: '14px' } }, h('table', null,
-      h('thead', null, h('tr', null, ['الوحدة', 'الموظفون', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي', 'المطلوب شهرياً', 'الإنجاز', 'الرصيد المتوقع', ...(fin ? ['تكلفة الإجازة الكلية', 'تكلفة المستهدف', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد المستهدف', 'التوفير'] : [])].map(t => h('th', null, t)))),
-      h('tbody', null, d.groups.map(g => h('tr', { class: 'clickable', title: 'انقر لتصفية هذه الوحدة', onclick: () => toggleIn(d.level, g.name) }, h('td', null, g.name), h('td', { class: 'n' }, fmt.int(g.employees)), h('td', { class: 'n' }, fmt.days(g.total_balance)), h('td', { class: 'n' }, fmt.days(g.target_days)),
+      h('thead', null, h('tr', null, ['الوحدة', 'الموظفون', 'الرصيد الكلي', 'مستحق على الموظفين', 'المستهدف', 'المستخدم', 'المتبقي', 'المطلوب شهرياً', 'الإنجاز', 'الرصيد المتوقع', ...(fin ? ['تكلفة الإجازة الكلية', 'تكلفة المستهدف', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد المستهدف', 'التوفير'] : [])].map(t => h('th', null, t)))),
+      h('tbody', null, d.groups.map(g => h('tr', { class: 'clickable', title: 'انقر لتصفية هذه الوحدة', onclick: () => toggleIn(d.level, g.name) }, h('td', null, g.name), h('td', { class: 'n' }, fmt.int(g.employees)), h('td', { class: 'n' }, fmt.days(g.total_balance)), h('td', { class: 'n' }, g.owed_days ? h('b', { class: 'owed' }, fmt.days(g.owed_days)) : '—'), h('td', { class: 'n' }, fmt.days(g.target_days)),
         h('td', { class: 'n' }, fmt.days(g.used_days)), h('td', { class: 'n' }, fmt.days(g.remaining)), h('td', { class: 'n' }, g.required_per_month === null ? '—' : fmt.days(g.required_per_month)),
         h('td', null, g.achievement_pct === null ? '—' : h('div', { class: 'row center', style: { gap: '6px', flexWrap: 'nowrap' } }, bar(g.achievement_pct), h('span', { class: 'n' }, fmt.pct(g.achievement_pct)))),
         h('td', { class: 'n' }, fmt.days(g.expected_balance)), ...(fin ? [h('td', { class: 'n' }, money(g.cost_now)), h('td', { class: 'n' }, money(g.cost_target)), h('td', { class: 'n' }, money(g.cost_remaining_target)), h('td', { class: 'n' }, money(g.cost_remaining_total)), h('td', { class: 'n' }, money(g.cost_after_target)), h('td', { class: 'n' }, money(g.saving))] : []))))))); 
