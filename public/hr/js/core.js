@@ -34,6 +34,7 @@ export function setFilters(f) {
 
 export async function api(path, { method = 'GET', body, form } = {}) {
   const opt = { method, headers: {}, credentials: 'same-origin' };
+  if (['PUT', 'DELETE', 'PATCH'].includes(method)) { opt.method = 'POST'; opt.headers['x-http-method-override'] = method; }   // يتجاوز حجب IIS/WebDAV لهذه الأفعال
   if (form) opt.body = form;
   else if (body !== undefined) { opt.headers['content-type'] = 'application/json'; opt.body = JSON.stringify(body); }
   const res = await fetch('/api' + path, opt);

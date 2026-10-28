@@ -12,7 +12,7 @@ const r = Router();
 const round2 = x => Math.round(x * 100) / 100;
 const numOrNull = (v, label, { min = 0 } = {}) => {
   if (v === null || v === undefined || String(v).trim() === '') return null;
-  const n = Number(String(v).replace(/,/g, ''));
+  const n = Number(String(v).replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/[٫]/g, '.').replace(/[,٬،\s]/g, ''));
   if (!Number.isFinite(n) || (min !== null && n < min)) throw httpError(400, `قيمة غير صالحة: ${label}`);
   return round2(n);
 };
@@ -107,6 +107,60 @@ r.get('/', wrap(async (req, res) => {
   const year = yearOf(req);
   const { rows, fin, policy } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
   res.json({ year, fin, max_balance_cap: policy.max_balance_cap, can_edit: can(req.user, 'employees'), rows, summary: summarize(rows, fin) });
+}));
+
+// لوحة المؤشرات: نتائج وأداء وخطة وإحصاءات مجمّعة من بيانات المتابعة (للقراءة فقط)
+r.get('/indicators', wrap(async (req, res) => {
+  const year = yearOf(req);
+  const level = ['sector', 'department', 'section'].includes(req.query.level) ? req.query.level : 'sector';
+  const base = { unit: req.query.unit, status: req.query.status || 'active' };
+  const { rows, fin, policy } = await loadRows(req, year, base);
+  const now = new Date(), cy = now.getFullYear();
+  const elapsed = year < cy ? 1 : year > cy ? 0 : Math.min(1, (now - new Date(cy, 0, 1)) / (365 * 864e5));
+  const monthsLeft = year < cy ? 0 : year > cy ? 12 : Math.max(0.5, (1 - elapsed) * 12);
+  const R = x => round2(x ?? 0);
+  const classify = e => {
+    if (!e.target_days) return 'no_target';
+    if ((e.used_days ?? 0) >= e.target_days) return 'achieved';
+    return (e.used_days ?? 0) >= e.target_days * elapsed * 0.9 ? 'on_track' : 'lagging';
+  };
+  const groups = new Map();
+  const dist = { achieved: 0, on_track: 0, lagging: 0, no_target: 0 };
+  const bands = [['سالب', -Infinity, 0], ['0–10', 0, 10], ['10–20', 10, 20], ['20–30', 20, 30], ['30–45', 30, 45], ['45+', 45, Infinity]].map(([label, lo, hi]) => ({ label, lo, hi, count: 0 }));
+  for (const e of rows) {
+    const key = e[level] || (level === 'sector' ? 'بدون قطاع' : level === 'department' ? 'بدون إدارة' : 'بدون قسم');
+    const g = groups.get(key) || { name: key, employees: 0, complete: 0, total_balance: 0, annual_balance: 0, target_days: 0, used_days: 0, remaining: 0, high_balance: 0, achieved: 0, cost_now: 0, cost_after_target: 0, saving: 0 };
+    g.employees++; g.complete += e.complete ? 1 : 0; g.total_balance += e.total_balance ?? 0; g.annual_balance += e.annual_balance ?? 0;
+    g.target_days += e.target_days ?? 0; g.used_days += e.used_days ?? 0; g.remaining += e.remaining_to_target ?? 0; g.high_balance += e.high_balance ? 1 : 0; g.achieved += e.target_met ? 1 : 0;
+    if (fin) { g.cost_now += e.cost_now ?? 0; g.cost_after_target += e.cost_after_target ?? 0; g.saving += e.saving ?? 0; }
+    groups.set(key, g);
+    dist[classify(e)]++;
+    if (e.total_balance !== null) { const b = bands.find(x => e.total_balance >= x.lo && e.total_balance < x.hi); if (b) b.count++; }
+  }
+  const glist = [...groups.values()].map(g => ({ ...Object.fromEntries(Object.entries(g).map(([k, v]) => [k, typeof v === 'number' ? R(v) : v])),
+    achievement_pct: g.target_days > 0 ? Math.min(100, round2(g.used_days / g.target_days * 100)) : null,
+    required_per_month: monthsLeft > 0 ? round2(g.remaining / monthsLeft) : null,
+    expected_balance: round2(g.total_balance - g.remaining) })).sort((a, b) => (fin ? b.cost_now - a.cost_now : b.total_balance - a.total_balance));
+  const S = k => R(rows.reduce((a, x) => a + (x[k] ?? 0), 0));
+  const kpis = { employees: rows.length, complete: rows.filter(x => x.complete).length, completion_pct: rows.length ? round2(rows.filter(x => x.complete).length / rows.length * 100) : 0,
+    total_balance: S('total_balance'), annual_balance: S('annual_balance'), avg_balance: rows.length ? round2(S('total_balance') / rows.length) : 0, target_days: S('target_days'), used_days: S('used_days'),
+    remaining_to_target: S('remaining_to_target'), achievement_pct: S('target_days') > 0 ? Math.min(100, round2(S('used_days') / S('target_days') * 100)) : null,
+    high_balance: rows.filter(x => x.high_balance).length, required_per_month: monthsLeft > 0 ? round2(S('remaining_to_target') / monthsLeft) : null,
+    ...(fin ? { cost_now: S('cost_now'), cost_after_target: S('cost_after_target'), saving: S('saving') } : {}) };
+  const slim = e => ({ employee_id: e.employee_id, full_name: e.full_name, unit: [e.sector, e.department, e.section].filter(Boolean).join(' ‹ '), total_balance: e.total_balance, target_days: e.target_days, used_days: e.used_days,
+    remaining_to_target: e.remaining_to_target, progress_pct: e.progress_pct, ...(fin ? { cost_now: e.cost_now } : {}) });
+  const top = [...rows].filter(e => (fin ? e.cost_now : e.total_balance) > 0).sort((a, b) => (fin ? b.cost_now - a.cost_now : b.total_balance - a.total_balance)).slice(0, 10).map(slim);
+  const lagging = rows.filter(e => classify(e) === 'lagging').sort((a, b) => (b.remaining_to_target ?? 0) - (a.remaining_to_target ?? 0)).slice(0, 10).map(slim);
+  // الاتجاه عبر السنوات المتاحة (آخر 5)
+  const years = (await q('SELECT DISTINCT year FROM leave_tracking ORDER BY year DESC LIMIT 5')).rows.map(x => x.year).sort();
+  const yearly = [];
+  for (const y of years) {
+    const rr = (await loadRows(req, y, base)).rows;
+    const sum = k => R(rr.reduce((a, x) => a + (x[k] ?? 0), 0));
+    yearly.push({ year: y, total_balance: sum('total_balance'), target_days: sum('target_days'), used_days: sum('used_days'), ...(fin ? { cost_now: sum('cost_now') } : {}) });
+  }
+  res.json({ year, fin, level, elapsed_pct: round2(elapsed * 100), months_left: round2(monthsLeft), max_balance_cap: policy.max_balance_cap, kpis, groups: glist, distribution: dist,
+    bands: bands.map(b => ({ label: b.label, count: b.count })), top, lagging, yearly });
 }));
 
 // تعديل حقول المتابعة لموظف وسنة (وتاريخ التعيين/الرقم الوظيفي في السجل المركزي)

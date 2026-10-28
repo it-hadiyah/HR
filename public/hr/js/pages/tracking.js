@@ -49,21 +49,33 @@ export default async function tracking() {
     const editable = data.can_edit && (key !== 'gross_salary' || data.fin);
     const v = e[key] ?? '';
     if (!editable) return h('span', { class: 'num' }, v === '' ? '—' : (type === 'date' ? fmt.date(v) : String(v)));
-    const el = h('input', { type, value: v, step: type === 'number' ? step : undefined, min: type === 'number' && min !== null ? min : undefined, class: 'cell-in', style: { width }, dir, 'aria-label': key });
-    el.addEventListener('change', guard(async () => {
-      const tr = el.closest('tr'); tr?.classList.add('saving');
+    // الأرقام حقول نصية بلوحة أرقام: تقبل الأرقام العربية والهندية (type=number يفرغها فلا يُحفظ شيء)
+    const el = h('input', { type: type === 'number' ? 'text' : type, inputmode: type === 'number' ? 'decimal' : undefined, autocomplete: 'off', value: v, class: 'cell-in', style: { width }, dir, 'aria-label': key });
+    const save = async () => {
+      const c = calc[e.employee_id]; const tr = el.closest('tr');
+      let val = el.value;
+      if (type === 'number') val = val.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٫]/g, '.').replace(/[,٬،\s]/g, '');
+      if (String(val) === String(e[key] ?? '')) return;             // لا تغيير
+      el.classList.remove('bad'); setState(c, 'saving');
       try {
-        const body = { year: f.year, [key]: el.value };
-        const out = await api('/tracking/' + e.employee_id, { method: 'PUT', body });
+        const out = await api('/tracking/' + e.employee_id, { method: 'PUT', body: { year: f.year, [key]: val } });
         Object.assign(e, out.row);
-        tr?.classList.remove('saving'); tr?.classList.add('saved'); setTimeout(() => tr?.classList.remove('saved'), 1200);
-        refreshRow(tr, e); recomputeSummary(); drawSummary();
-      } catch (err) { tr?.classList.remove('saving'); el.value = e[key] ?? ''; throw err; }
-    }));
+        if (type === 'number') el.value = e[key] ?? '';
+        setState(c, 'saved'); refreshRow(tr, e); recomputeSummary(); drawSummary();
+      } catch (err) { el.classList.add('bad'); setState(c, 'error', err.message); toast(err.message, true); }
+    };
+    el.addEventListener('change', save);
+    el.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } });
     return el;
   }
 
   const calc = {};   // خلايا المشتقات لكل صف لتُحدَّث دون إعادة رسم الجدول
+  function setState(c, kind, msg) {
+    if (!c) return; clearTimeout(c.timer);
+    const L = { saving: ['… جارٍ الحفظ', 'muted'], saved: ['✓ تم الحفظ', 'ok'], error: ['⚠ لم يُحفظ', 'bad'] }[kind];
+    c.save.className = 'save-state ' + L[1]; c.save.textContent = L[0]; c.save.title = msg || '';
+    if (kind === 'saved') c.timer = setTimeout(() => { c.save.textContent = ''; }, 2500);
+  }
   function statusBadge(e) {
     if (!e.complete) return h('span', { class: 'badge warn', title: 'ناقص: ' + e.missing.join('، ') }, `ناقص (${e.missing.length})`);
     if (e.target_met) return h('span', { class: 'badge ok' }, 'حقق المستهدف');
@@ -90,7 +102,7 @@ export default async function tracking() {
       ...(fin ? ['أجر اليوم', 'التكلفة المالية للرصيد الحالي', 'التكلفة بعد تحقق المستهدف', 'التوفير المتوقع'] : []), 'ملاحظات', 'الحالة', ''];
     const tbody = h('tbody');
     data.rows.forEach((e, i) => {
-      const c = calc[e.employee_id] = { remaining: h('td', { class: 'n' }), progress: h('td'), status: h('td'), rate: h('td', { class: 'n' }), cost: h('td', { class: 'n strong' }), after: h('td', { class: 'n' }), saving: h('td', { class: 'n' }) };
+      const c = calc[e.employee_id] = { save: h('span', { class: 'save-state' }), remaining: h('td', { class: 'n' }), progress: h('td'), status: h('td'), rate: h('td', { class: 'n' }), cost: h('td', { class: 'n strong' }), after: h('td', { class: 'n' }), saving: h('td', { class: 'n' }) };
       const notes = data.can_edit ? inputFor(e, 'notes', { type: 'text', width: '150px', dir: 'rtl' }) : h('span', null, e.notes || '—');
       const tr = h('tr', null,
         h('td', { class: 'n' }, String(i + 1)),
@@ -102,7 +114,7 @@ export default async function tracking() {
         c.remaining, c.progress,
         ...(fin ? [c.rate, c.cost, c.after, c.saving] : []),
         h('td', null, notes), c.status,
-        h('td', null, data.can_edit ? h('button', { class: 'btn sm ' + (e.status === 'active' ? 'danger' : 'primary'), title: e.status === 'active' ? 'تعطيل الموظف وإخفاؤه' : 'تنشيط الموظف',
+        h('td', { style: { whiteSpace: 'nowrap' } }, c.save, ' ', data.can_edit ? h('button', { class: 'btn sm ' + (e.status === 'active' ? 'danger' : 'primary'), title: e.status === 'active' ? 'تعطيل الموظف وإخفاؤه' : 'تنشيط الموظف',
           onclick: () => toggle(e) }, e.status === 'active' ? 'تعطيل' : 'تنشيط') : (e.status !== 'active' ? h('span', { class: 'badge' }, EMP_STATUS[e.status]) : '')));
       tbody.append(tr); refreshRow(tr, e);
     });

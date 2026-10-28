@@ -175,3 +175,10 @@ table.track tfoot td { position: sticky; bottom: 0; background: var(--surface-2)
 table.track tr.saving td { opacity: .6; } table.track tr.saved td { background: var(--ok-soft); transition: background .6s; }
 .pbar { width: 90px; height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; margin: 0 auto; }
 .pbar i { display: block; height: 100%; background: var(--brand); }
+.save-state { font-size: 12px; font-weight: 600; margin-inline-end: 6px; }
+.save-state.ok { color: var(--ok); } .save-state.bad { color: var(--bad); } .save-state.muted { color: var(--muted); }
+.cell-in.bad { border-color: var(--bad); background: var(--bad-soft); }
+.ibar { width: 120px; height: 9px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; display: inline-block; vertical-align: middle; }
+.ibar i { display: block; height: 100%; background: var(--brand); } .ibar.ok i { background: var(--ok); } .ibar.warn i { background: var(--warn); } .ibar.muted i { background: var(--muted); }
+.cmp { display: grid; grid-template-columns: 110px 1fr 70px; align-items: center; gap: 10px; margin: 8px 0; } .cmp .ibar { width: 100%; height: 12px; }
+td.n { text-align: center; font-variant-numeric: tabular-nums; }

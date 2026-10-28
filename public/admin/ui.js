@@ -20,7 +20,8 @@ export const ico = (name, size = 18) => h('span', { html: icon(name, size), styl
 
 export class ApiError extends Error { constructor(msg, status) { super(msg); this.status = status; } }
 export async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch('/api/core' + path, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const override = ['PUT', 'DELETE', 'PATCH'].includes(method);   // يتجاوز حجب IIS/WebDAV لهذه الأفعال
+  const res = await fetch('/api/core' + path, { method: override ? 'POST' : method, credentials: 'same-origin', headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(override ? { 'X-HTTP-Method-Override': method } : {}) }, body: body ? JSON.stringify(body) : undefined });
   if (res.status === 401) { location.href = '/login/?next=' + encodeURIComponent(location.pathname); throw new ApiError('انتهت الجلسة', 401); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'حدث خطأ', res.status);

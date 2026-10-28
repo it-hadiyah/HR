@@ -61,7 +61,7 @@ export async function bootApp(prefix) {
       let json = null; try { json = JSON.parse(text); } catch { /* غير JSON */ }
       return { status: res.status, json, text, headers: res.headers };
     };
-    return { get: p => call('GET', p), post: (p, b) => call('POST', p, b), put: (p, b) => call('PUT', p, b), del: p => call('DELETE', p),
+    return { get: p => call('GET', p), post: (p, b, hd) => call('POST', p, b, hd), put: (p, b) => call('PUT', p, b), del: p => call('DELETE', p),
       login: async (username, password = PASS) => { const r = await call('POST', '/api/auth/login', { username, password }); return r; }, clear: () => { cookie = ''; } };
   }
   const as = async (username, password = PASS) => { const c = client(); const r = await c.login(username, password); if (r.status !== 200) throw new Error(`فشل دخول ${username}: ${r.status} ${r.text}`); return c; };

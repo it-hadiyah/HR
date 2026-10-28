@@ -234,3 +234,19 @@ test('متابعة الأرصدة: الحقول اليدوية والتكلفة 
   assert.ok(mrow); assert.equal(mrow.gross_salary, undefined); assert.equal(mrow.cost_now, undefined);
   assert.equal((await mgr.put(`/api/tracking/${emp.id}`, { year: y, gross_salary: 1 })).status, 403);
 });
+
+test('لوحة المؤشرات تُجمّع بيانات المتابعة، وPUT تعمل أيضاً عبر POST مع X-HTTP-Method-Override، والأرقام العربية تُحفظ', { skip }, async () => {
+  const via = await admin.post(`/api/tracking/${emp.id}`, { year: 2026, total_balance: '٣٠٫٥', target_days: '١٥', used_days: '٥' }, { 'X-HTTP-Method-Override': 'PUT' });
+  assert.equal(via.status, 200);
+  assert.equal(via.json.row.total_balance, 30.5);
+  const d = (await admin.get('/api/tracking/indicators?year=2026&level=sector')).json;
+  assert.ok(d.kpis.employees >= 1);
+  assert.ok(d.kpis.target_days >= 15 && d.kpis.used_days >= 5);
+  assert.equal(d.kpis.remaining_to_target >= 10, true);
+  assert.ok(Array.isArray(d.groups) && d.groups.length >= 1);
+  assert.equal(typeof d.distribution.achieved, 'number');
+  assert.ok(d.bands.length === 6 && d.yearly.length >= 1);
+  const mgr = await t.as('mgr_trk');
+  const md = (await mgr.get('/api/tracking/indicators?year=2026')).json;
+  assert.equal(md.fin, false); assert.equal(md.kpis.cost_now, undefined);
+});

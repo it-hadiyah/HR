@@ -64,6 +64,8 @@ const looseCsp = helmet({
   crossOriginEmbedderPolicy: false,
 });
 app.use((req, res, next) => (/^\/(portal|card|report-builder)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
+// بعض الوسطاء (وحدة WebDAV في IIS) تحجب PUT/DELETE؛ تُرسَل كـ POST مع X-HTTP-Method-Override
+app.use((req, res, next) => { const o = String(req.headers['x-http-method-override'] || '').toUpperCase(); if (req.method === 'POST' && ['PUT', 'DELETE', 'PATCH'].includes(o)) req.method = o; next(); });
 app.use(cookieParser());
 app.use(requestContext);
 
