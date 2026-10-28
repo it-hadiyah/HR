@@ -1,6 +1,7 @@
 import { h, api, qs, state, num, field, select, table, download, toast, guard, confirmBox } from '../core.js';
 
 const KINDS = [
+  ['tracking', 'متابعة أرصدة الإجازات (الراتب والأرصدة والمستهدف)', 'تحديث حقول المتابعة لكل موظف وسنة بمطابقة الرقم الوظيفي؛ الخلايا الفارغة لا تغيّر القيم الحالية.'],
   ['employees', 'بيانات الموظفين', 'ينشئ الوحدات الناقصة تلقائياً ويحدّث الموظف إن وُجد رقمه الوظيفي.'],
   ['opening_balances', 'الأرصدة الافتتاحية', 'تحديث الرصيد الافتتاحي وتاريخه لموظفين موجودين.'],
   ['transactions', 'حركات الإجازات', 'إجازات وتسويات؛ تُتجاهل الحركات المكررة وتُرفض المتداخلة.'],
@@ -9,7 +10,7 @@ const KINDS = [
 
 export default async function importPage() {
   const root = h('div');
-  const kind = select(KINDS.map(k => [k[0], k[1]]), 'employees');
+  const kind = select(KINDS.map(k => [k[0], k[1]]), 'tracking');
   const help = h('div', { style: { color: 'var(--muted)' } });
   const file = h('input', { type: 'file', accept: '.xlsx,.csv', 'aria-label': 'ملف Excel أو CSV' });
   const result = h('div');

@@ -26,6 +26,11 @@ const KINDS = {
       ['leave_allowances', 'بدلات داخلة في احتساب الإجازة', 2000], ['leave_salary_override', 'الراتب المعتمد للإجازات (اختياري)', ''], ['annual_entitlement_days', 'الاستحقاق السنوي بالأيام (اختياري)', ''],
       ['opening_balance', 'الرصيد الافتتاحي', 20], ['opening_date', 'تاريخ الرصيد الافتتاحي', '2025-12-31']],
   },
+  tracking: {
+    title: 'نموذج متابعة أرصدة الإجازات',
+    cols: [['emp_no', 'الرقم الوظيفي', 'E1001'], ['year', 'السنة', 2026], ['hire_date', 'تاريخ التعيين', '2021-03-01'], ['gross_salary', 'الراتب الإجمالي', 12000], ['annual_balance', 'الرصيد السنوي', 21],
+      ['total_balance', 'الرصيد الكلي', 45], ['target_days', 'المستهدف', 15], ['used_days', 'المستخدم', 6], ['notes', 'ملاحظات', '']],
+  },
   opening_balances: {
     title: 'نموذج استيراد الأرصدة الافتتاحية',
     cols: [['emp_no', 'الرقم الوظيفي', 'E1001'], ['opening_balance', 'الرصيد الافتتاحي', 20], ['opening_date', 'تاريخ الرصيد الافتتاحي', '2025-12-31']],
@@ -197,6 +202,31 @@ const processors = {
         }
       }
       results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: isUpdate ? 'تحديث' : adoptId ? 'ربط بموظف الدليل' : 'إضافة', label: `${emp_no} — ${r0.full_name || ''}` });
+    }
+    return results;
+  },
+
+  async tracking(rows, apply, client) {
+    const results = []; const emps = new Map((await client.query('SELECT emp_no, id FROM employees WHERE emp_no IS NOT NULL')).rows.map(e => [e.emp_no, e.id])); const seen = new Set();
+    const num = (v, label, errs, min = 0) => { if (v === '' || v === undefined) return undefined; const n = toNum(v); if (!Number.isFinite(n) || (min !== null && n < min)) { errs.push(`${label} غير صالح`); return undefined; } return n; };
+    for (const r0 of rows) {
+      const errs = []; const warn = []; const emp_no = String(r0.emp_no || '').trim();
+      const eid = emps.get(emp_no); if (!eid) errs.push('الرقم الوظيفي غير موجود');
+      const year = r0.year === '' || r0.year === undefined ? new Date().getFullYear() : Number(r0.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) errs.push('السنة غير صالحة');
+      if (seen.has(`${emp_no}|${year}`)) errs.push('مكرر داخل الملف'); seen.add(`${emp_no}|${year}`);
+      const hire = r0.hire_date === '' || r0.hire_date === undefined ? undefined : toDate(r0.hire_date);
+      if (hire !== undefined && !isDate(hire)) errs.push('تاريخ التعيين غير صالح');
+      const v = { gross_salary: num(r0.gross_salary, 'الراتب الإجمالي', errs), annual_balance: num(r0.annual_balance, 'الرصيد السنوي', errs), total_balance: num(r0.total_balance, 'الرصيد الكلي', errs, null),
+        target_days: num(r0.target_days, 'المستهدف', errs), used_days: num(r0.used_days, 'المستخدم', errs), notes: r0.notes ? String(r0.notes).slice(0, 500) : undefined };
+      const ks = Object.keys(v).filter(k => v[k] !== undefined);
+      if (!errs.length && !ks.length && hire === undefined) warn.push('لا توجد قيم للتحديث');
+      if (!errs.length && apply) {
+        if (hire !== undefined) await client.query('UPDATE employees SET hire_date = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, hire]);
+        if (ks.length) await client.query(`INSERT INTO leave_tracking(employee_id, year, ${ks.join(', ')}) VALUES ($1, $2, ${ks.map((_, i) => `$${i + 3}`).join(', ')})
+          ON CONFLICT (employee_id, year) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(', ')}, updated_at = now()`, [eid, year, ...ks.map(k => v[k])]);
+      }
+      results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action: 'تحديث', label: `${emp_no} — ${year}` });
     }
     return results;
   },

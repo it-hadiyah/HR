@@ -201,3 +201,36 @@ test('تحقق المدخلات: مستهدف فارغ مرفوض، رصيد ا�
   assert.equal(dup.status, 409);
   assert.match(dup.json.error, /الرقم الوظيفي/);
 });
+
+test('متابعة الأرصدة: الحقول اليدوية والتكلفة المالية وتحقق المدخلات وإخفاء المالي عمّن لا يملك صلاحيته', { skip }, async () => {
+  const y = 2026;
+  const put = (id, body) => admin.put(`/api/tracking/${id}`, { year: y, ...body });
+  const r1 = await put(emp.id, { gross_salary: 12000, annual_balance: 21, total_balance: 45, target_days: 15, used_days: 6, emp_no: 'E5001', hire_date: '2021-01-01' });
+  assert.equal(r1.status, 200);
+  const row = r1.json.row;
+  assert.equal(row.day_rate, 400);                       // 12000 ÷ 30
+  assert.equal(row.cost_now, 18000);                     // 45 × 400
+  assert.equal(row.remaining_to_target, 9);              // 15 − 6
+  assert.equal(row.expected_balance, 36);
+  assert.equal(row.cost_after_target, 14400);
+  assert.equal(row.saving, 3600);
+  assert.equal(row.complete, true);
+  const list = (await admin.get(`/api/tracking?year=${y}`)).json;
+  assert.ok(list.rows.find(x => x.employee_id === emp.id));
+  assert.equal(list.summary.cost_now >= 18000, true);
+  assert.equal((await put(emp.id, { target_days: -3 })).status, 400);
+  assert.equal((await put(emp.id, { hire_date: 'x' })).status, 400);
+  assert.equal((await put(emp.id, { emp_no: '' })).status, 400);
+  // سنة أخرى مستقلة
+  const r2 = await admin.put(`/api/tracking/${emp.id}`, { year: 2027, total_balance: 10 });
+  assert.equal(r2.json.row.total_balance, 10); assert.equal(r2.json.row.annual_balance, null);
+  // مدير بلا صلاحية مالية لا يرى الراتب ولا التكلفة ولا يعدّله
+  const curUnit = (await t.q('SELECT org_unit_id FROM employees WHERE id = $1', [emp.id])).rows[0].org_unit_id;
+  await t.mkUser('mgr_trk', ['department_manager'], { org_unit_id: curUnit });
+  const mgr = await t.as('mgr_trk');
+  const ml = (await mgr.get(`/api/tracking?year=${y}`)).json;
+  assert.equal(ml.fin, false);
+  const mrow = ml.rows.find(x => x.employee_id === emp.id);
+  assert.ok(mrow); assert.equal(mrow.gross_salary, undefined); assert.equal(mrow.cost_now, undefined);
+  assert.equal((await mgr.put(`/api/tracking/${emp.id}`, { year: y, gross_salary: 1 })).status, 403);
+});

@@ -1,5 +1,6 @@
 import { h, state, api, field, guard } from './core.js';
 import { resetUnits } from './filters.js';
+import tracking from './pages/tracking.js';
 import dashboard from './pages/dashboard.js';
 import org from './pages/org.js';
 import employees, { employeeDetail } from './pages/employees.js';
@@ -33,19 +34,23 @@ export function icon(name) {
 }
 
 const NAV = [
-  ['#/', 'لوحة المعلومات', 'dashboard'],
+  ['#/', 'متابعة الأرصدة', 'calendar'],
+  ['#/import', 'الاستيراد والتصدير', 'upload', u => u.perms.includes('import')],
+  ['#/admin', 'الإدارة والإعدادات', 'settings'],
+];
+// النظام التفصيلي السابق (محرك الاستحقاق وحركات الإجازات): محفوظ كاملاً ويُفتح من هنا
+const NAV_ADVANCED = [
+  ['#/dashboard', 'لوحة المعلومات', 'dashboard'],
   ['#/org', 'الهيكل التنظيمي', 'org'],
   ['#/employees', 'الموظفون', 'users'],
   ['#/leaves', 'حركات الإجازات', 'calendar'],
   ['#/targets', 'المستهدفات', 'target'],
   ['#/analysis', 'التحليل والتنبيهات', 'chart'],
   ['#/reports', 'التقارير', 'report'],
-  ['#/import', 'الاستيراد والتصدير', 'upload', u => u.perms.includes('import')],
-  ['#/admin', 'الإدارة والإعدادات', 'settings'],
 ];
-const TITLES = { '': 'لوحة المعلومات', org: 'الهيكل التنظيمي', employees: 'الموظفون', leaves: 'حركات الإجازات', targets: 'المستهدفات', analysis: 'التحليل والتنبيهات',
+const TITLES = { '': 'متابعة الأرصدة', dashboard: 'لوحة المعلومات', org: 'الهيكل التنظيمي', employees: 'الموظفون', leaves: 'حركات الإجازات', targets: 'المستهدفات', analysis: 'التحليل والتنبيهات',
   reports: 'التقارير', import: 'الاستيراد والتصدير', admin: 'الإدارة والإعدادات', employee: 'بيانات الموظف' };
-const PAGES = { '': dashboard, org, employees, leaves, targets, analysis, reports, import: importPage, admin };
+const PAGES = { '': tracking, dashboard, org, employees, leaves, targets, analysis, reports, import: importPage, admin };
 
 const app = document.getElementById('app');
 
@@ -70,7 +75,11 @@ function loginView() {
 function shell() {
   const side = h('aside', { class: 'sidebar', id: 'side' },
     h('div', { class: 'brand' }, h('span', { class: 'logo' }, icon('calendar')), h('span', null, 'أرصدة الإجازات')),
-    h('nav', { class: 'nav' }, NAV.filter(n => !n[3] || n[3](state.user)).map(([href, label, ic]) => h('a', { href, 'data-href': href }, icon(ic), label))),
+    h('nav', { class: 'nav' }, NAV.filter(n => !n[3] || n[3](state.user)).map(([href, label, ic]) => h('a', { href, 'data-href': href }, icon(ic), label)),
+      h('div', { class: 'nav-sep' }),
+      h('details', { class: 'nav-adv', open: /^#\/(dashboard|org|employees?|leaves|targets|analysis|reports)/.test(location.hash) },
+        h('summary', null, 'النظام التفصيلي (السابق)'),
+        NAV_ADVANCED.map(([href, label, ic]) => h('a', { href, 'data-href': href }, icon(ic), label)))),
     h('div', { class: 'spacer' }),
     h('div', { class: 'nav-sep' }),
     h('div', { style: { padding: '4px 10px', fontSize: '12.5px', color: 'var(--muted)' } }, h('b', { style: { color: 'var(--text)', display: 'block' } }, state.user.full_name), state.user.role_label));
@@ -101,7 +110,7 @@ async function route() {
   const seq = ++routeSeq;
   page.replaceChildren(h('div', { class: 'loading' }, 'جارٍ التحميل…'));
   try {
-    const out = key === 'employee' ? await employeeDetail(+parts[1]) : await (PAGES[key] || dashboard)(parts.slice(1));
+    const out = key === 'employee' ? await employeeDetail(+parts[1]) : await (PAGES[key] || tracking)(parts.slice(1));
     if (seq === routeSeq) page.replaceChildren(out);
   } catch (e) {
     if (seq === routeSeq) page.replaceChildren(h('div', { class: 'card err' }, 'تعذّر تحميل الصفحة: ', e.message));

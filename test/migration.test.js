@@ -27,7 +27,7 @@ test('الترحيل 001-003 على بيانات قديمة: دمج، ربط ح�
   await q("INSERT INTO audit_log(username, action, entity, entity_id) VALUES ('old','create','employee','1')");
 
   const applied = await runMigrations({ backup: false });
-  assert.deepEqual(applied, ['001_unified_employees.js', '002_rbac_sessions.js', '003_audit_logs.sql', '004_report_builder.js']);
+  assert.deepEqual(applied, ['001_unified_employees.js', '002_rbac_sessions.js', '003_audit_logs.sql', '004_report_builder.js', '005_leave_tracking.js']);
 
   // لا فقدان: 1 مدموج + 2 جديدان = 3 موظفين، وسجل الإجازات والراتب سليمان
   assert.equal((await q('SELECT count(*)::int AS n FROM employees')).rows[0].n, 3);

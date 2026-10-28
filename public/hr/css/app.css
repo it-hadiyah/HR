@@ -156,3 +156,22 @@ td.numc, th.numc { text-align: end; }
   td, th { padding: 5px 8px; font-size: 11px; }
 }
 .print-head { display: none; border-bottom: 2px solid #1f4e79; margin-bottom: 12px; padding-bottom: 8px; }
+
+/* ---- متابعة الأرصدة ---- */
+.nav-adv summary { cursor: pointer; padding: 6px 12px; color: var(--muted); font-size: 12.5px; list-style: none; user-select: none; }
+.nav-adv summary::before { content: '‹ '; } .nav-adv[open] summary::before { content: '⌄ '; }
+.nav-adv a { padding-inline-start: 22px; font-size: 13.5px; }
+.track-wrap { max-height: 72vh; overflow: auto; }
+table.track { min-width: 1500px; font-size: 13px; }
+table.track th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); white-space: normal; text-align: center; font-size: 12px; line-height: 1.35; padding: 8px 6px; }
+table.track td { padding: 5px 6px; vertical-align: middle; white-space: nowrap; border-bottom: 1px solid var(--border); }
+table.track td.n { text-align: center; font-variant-numeric: tabular-nums; }
+table.track td.who { white-space: normal; min-width: 270px; position: sticky; inset-inline-start: 0; background: var(--surface); z-index: 1; }
+table.track td.who .sub { color: var(--muted); font-size: 11.5px; }
+table.track .strong { font-weight: 700; }
+table.track tfoot td { position: sticky; bottom: 0; background: var(--surface-2); border-top: 2px solid var(--border); padding: 8px 6px; }
+.cell-in { padding: 5px 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; text-align: center; }
+.cell-in:focus { outline: 2px solid var(--brand); outline-offset: 0; }
+table.track tr.saving td { opacity: .6; } table.track tr.saved td { background: var(--ok-soft); transition: background .6s; }
+.pbar { width: 90px; height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; margin: 0 auto; }
+.pbar i { display: block; height: 100%; background: var(--brand); }
