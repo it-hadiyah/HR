@@ -28,6 +28,39 @@ r.get('/', wrap(async (req, res) => {
   res.json({ year: ctx.year, asOf: ctx.asOf, rows: list.map(e => publicEmployee(e, req.user)) });
 }));
 
+// موظفو سجل الموظفين المركزي (دليل البوابة) الذين لم يُفعَّل لهم ملف الإجازات بعد
+r.get('/pending/leave-profile', requirePerm('employees'), wrap(async (req, res) => {
+  const { rows } = await q(`SELECT e.id, e.full_name, e.emp_no, e.job_title, e.org_unit_id, e.hire_date, e.status, u.name AS unit_name
+    FROM employees e LEFT JOIN org_units u ON u.id = e.org_unit_id
+    WHERE NOT e.leave_enabled AND e.status = 'active' ORDER BY e.full_name, e.id`);
+  res.json({ rows });
+}));
+
+// تفعيل نظام الإجازات لموظف موجود أصلاً في السجل المركزي (نفس السجل، بلا تكرار)
+r.post('/:id/enable-leave', requirePerm('employees'), wrap(async (req, res) => {
+  const id = +req.params.id; const b = req.body; readBody(b);
+  const old = (await q('SELECT * FROM employees WHERE id = $1', [id])).rows[0];
+  if (!old) throw httpError(404, 'الموظف غير موجود');
+  if (old.leave_enabled) throw httpError(409, 'ملف الإجازات مفعّل لهذا الموظف مسبقاً');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const row = (await client.query(`UPDATE employees SET emp_no=$2, full_name=$3, job_title=$4, org_unit_id=$5, hire_date=$6, termination_date=$7, status=$8, basic_salary=$9,
+        leave_salary_override=$10, annual_entitlement_days=$11, opening_balance=$12, opening_date=$13, leave_enabled=TRUE, version=version+1, updated_at=now() WHERE id=$1 RETURNING *`,
+    [id, b.emp_no.trim(), b.full_name.trim(), b.job_title || null, b.org_unit_id, b.hire_date, b.termination_date || null, b.status || 'active',
+      num(b.basic_salary, 0), num(b.leave_salary_override), num(b.annual_entitlement_days), num(b.opening_balance, 0), b.opening_date || b.hire_date])).rows[0];
+    await saveAllowances(client, id, b.allowances);
+    if (old.org_unit_id !== row.org_unit_id) {
+      await client.query('INSERT INTO org_history(employee_id, from_unit_id, to_unit_id, moved_on, moved_by, reason) VALUES ($1,$2,$3,$4,$5,$6)',
+        [id, old.org_unit_id, row.org_unit_id, b.hire_date, req.user.username, 'تفعيل نظام الإجازات']);
+    }
+    await client.query('COMMIT');
+    resetOrgGraph();
+    await audit(req, 'adopt', 'employee', id, old, row);
+    res.status(201).json(row);
+  } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+}));
+
 r.get('/:id', wrap(async (req, res) => {
   const id = +req.params.id;
   const ctx = await buildContext(req.user, { year: req.query.year, asOf: req.query.asOf });

@@ -41,13 +41,28 @@ export default async function employees() {
     body.replaceChildren(h('div', { class: 'row center', style: { marginBottom: '6px', color: 'var(--muted)' } }, `${d.rows.length} موظف — السنة ${d.year} حتى ${fmt.date(d.asOf)}`,
       h('button', { class: 'btn sm', onclick: () => download('/reports/balances?format=xlsx' + qs(filterQuery()).replace('?', '&')) }, 'تصدير Excel')),
     table(cols, d.rows, { empty: 'لا يوجد موظفون مطابقون' }));
+    if (canEdit) await loadPending();
+  }
+
+  // موظفو دليل البوابة (السجل المركزي نفسه) الذين لم يكتمل لهم ملف الإجازات
+  async function loadPending() {
+    const { rows } = await api('/employees/pending/leave-profile');
+    if (!rows.length) return;
+    body.append(h('div', { class: 'section-title' }, `من سجل الموظفين المركزي — بانتظار تفعيل الإجازات (${rows.length})`),
+      h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', margin: '0 0 8px' } }, 'هؤلاء الموظفون موجودون في دليل البوابة والهيكل التنظيمي (جدول الموظفين نفسه). أكمل بيانات الإجازات (تاريخ التعيين والراتب والرصيد الافتتاحي) ليظهروا في الأرصدة.'),
+      table([
+        { key: 'emp_no', label: 'الرقم', render: e => e.emp_no || '—' },
+        { key: 'full_name', label: 'الاسم' }, { key: 'job_title', label: 'المسمى' },
+        { key: 'unit_name', label: 'الوحدة', render: e => e.unit_name || '—' },
+        { key: 'act', label: '', sortable: false, render: e => h('button', { class: 'btn sm primary', onclick: () => editEmployee(e, [], () => load(), true) }, 'تفعيل الإجازات') },
+      ], rows, { empty: '' }));
   }
   await load();
   return root;
 }
 
 // ---------- إضافة / تعديل موظف ----------
-export async function editEmployee(emp, allowances = [], after) {
+export async function editEmployee(emp, allowances = [], after, enable = false) {
   const units = await getUnits();
   const f = (k, type = 'text', extra = {}) => h('input', { type, value: emp?.[k] ?? '', ...extra });
   const inp = {
@@ -74,15 +89,16 @@ export async function editEmployee(emp, allowances = [], after) {
       field('تاريخ نهاية الخدمة', inp.termination_date), field('الراتب الأساسي', inp.basic_salary),
       field('الراتب المعتمد للإجازات (اختياري)', inp.leave_salary_override), field('الاستحقاق السنوي بالأيام (فارغ = حسب سياسة الجهة)', inp.annual_entitlement_days),
       field('الرصيد الافتتاحي', inp.opening_balance), field('تاريخ الرصيد الافتتاحي', inp.opening_date),
-      emp && field('سريان تغيّر الراتب من (إن تغيّر)', inp.salary_effective_date)),
+      emp && !enable && field('سريان تغيّر الراتب من (إن تغيّر)', inp.salary_effective_date)),
     h('h3', { style: { margin: '16px 0 6px' } }, 'البدلات'), list,
     h('button', { class: 'btn sm', type: 'button', onclick: () => { rows.push({ name: '', amount: 0, include_in_leave: false }); draw(); } }, '+ إضافة بدل'),
     h('p', { style: { color: 'var(--muted)', fontSize: '12.5px' } }, 'الراتب المعتمد لاحتساب الإجازات = الأساسي + البدلات المشمولة، ما لم يُحدَّد راتب معتمد يدوياً. أجر اليوم = الراتب المعتمد ÷ قاسم اليوم في السياسة.'));
-  modal(emp ? `تعديل ${emp.full_name}` : 'إضافة موظف', form, { wide: true, onSave: async () => {
+  modal(enable ? `تفعيل الإجازات — ${emp.full_name}` : emp ? `تعديل ${emp.full_name}` : 'إضافة موظف', form, { wide: true, onSave: async () => {
     const body = Object.fromEntries(Object.entries(inp).map(([k, el]) => [k, el.value]));
     Object.assign(body, { org_unit_id: +unitSel.value, status: status.value, allowances: rows.filter(a => a.name) });
     if (!body.opening_date) delete body.opening_date;
-    if (emp) await api('/employees/' + emp.id, { method: 'PUT', body }); else await api('/employees', { method: 'POST', body });
+    if (enable) await api(`/employees/${emp.id}/enable-leave`, { method: 'POST', body });
+    else if (emp) await api('/employees/' + emp.id, { method: 'PUT', body }); else await api('/employees', { method: 'POST', body });
     toast('تم الحفظ'); if (after) await after(); else location.reload();
   } });
 }

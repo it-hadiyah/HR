@@ -148,3 +148,18 @@ test('تصدير سجل العمليات CSV يحتاج صلاحية audit_expor
   const emp1 = await t.as('plain_emp');
   assert.equal((await emp1.get('/api/core/audit/export.csv')).status, 403);
 });
+
+test('موظف من دليل البوابة يظهر في أرصدة الإجازات بعد تفعيل ملفه بلا تكرار السجل', { skip }, async () => {
+  const p = await t.svc.employees.createEmployee({ full_name: 'خالد الدليل', job_title: 'منسق', extension: 6001, org_unit_id: unitB.id }, t.sys);
+  const pend = (await admin.get('/api/employees/pending/leave-profile')).json.rows;
+  assert.ok(pend.find(e => e.id === p.id), 'يظهر ضمن بانتظار التفعيل');
+  assert.ok(!(await admin.get('/api/employees')).json.rows.find(e => e.id === p.id), 'لا يظهر في الأرصدة قبل التفعيل');
+  const bad = await admin.post(`/api/employees/${p.id}/enable-leave`, { emp_no: 'E6001', full_name: 'خالد الدليل' });
+  assert.equal(bad.status, 400);
+  const ok = await admin.post(`/api/employees/${p.id}/enable-leave`, { emp_no: 'E6001', full_name: 'خالد الدليل', org_unit_id: unitB.id, hire_date: '2022-01-01', basic_salary: 8000, opening_balance: 5, opening_date: '2025-12-31' });
+  assert.equal(ok.status, 201);
+  assert.ok((await admin.get('/api/employees')).json.rows.find(e => e.id === p.id), 'يظهر في الأرصدة بعد التفعيل');
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM employees WHERE extension = 6001')).rows[0].n, 1);
+  assert.equal((await admin.post(`/api/employees/${p.id}/enable-leave`, { emp_no: 'E6001', full_name: 'x', org_unit_id: unitB.id, hire_date: '2022-01-01' })).status, 409);
+  assert.ok((await admin.get('/api/directory')).json.employees.find(e => e.id === p.id), 'ما زال في دليل البوابة');
+});
