@@ -27,7 +27,8 @@ export default async function indicators() {
   // الحالة تُقرأ من الرابط (للمشاركة) وتُكتب فيه دون إعادة تحميل الصفحة
   const q0 = new URLSearchParams((location.hash.split('?')[1]) || '');
   let spec = emptySpec(); try { spec = normalizeSpec(JSON.parse(q0.get('f') || '{}')); } catch { /* رابط تالف */ }
-  const yearSel = select([thisYear - 2, thisYear - 1, thisYear, thisYear + 1].map(y => [y, y]), +q0.get('y') || thisYear, { 'aria-label': 'السنة' });
+  const yearsInfo = await api('/tracking/years');
+  const yearSel = select(yearsInfo.years.map(i => [i.year, i.employees ? `${i.year}  (${i.employees} موظف)` : `${i.year}  (فارغة)`]), +q0.get('y') || thisYear, { 'aria-label': 'السنة' });
   const levelSel = select(LEVEL, LEVEL.some(l => l[0] === q0.get('level')) ? q0.get('level') : 'sector', { 'aria-label': 'التجميع' });
   const body = h('div'), panelBox = h('div');
   let panel = null, seq = 0;

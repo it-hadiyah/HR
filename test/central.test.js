@@ -348,3 +348,42 @@ test('الرصيد السالب مستحق على الموظف: يُقبل مع 
   const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === e2.id);
   if (mrow) { assert.equal(mrow.owed_cost, undefined); assert.equal(mrow.owed_days, 20); }
 });
+
+test('مستهدف لكل سنة والمقارنة بين السنوات: إعداد جماعي، عدم استبدال المُدخَل، قائمة السنوات، الفرق والأداء', { skip }, async () => {
+  const mk = async (no, y25, y26) => {
+    const e = await t.svc.employees.createEmployee({ full_name: 'مقارنة ' + no, job_title: 'م', org_unit_id: unitB.id }, t.sys);
+    await t.q("UPDATE employees SET emp_no = $2, hire_date = '2020-01-01' WHERE id = $1", [e.id, no]);
+    await admin.put(`/api/tracking/${e.id}`, { year: 2025, gross_salary: 6000, annual_balance: 21, total_balance: y25.total, target_days: 10, used_days: y25.used });
+    await admin.put(`/api/tracking/${e.id}`, { year: 2026, gross_salary: 6000, annual_balance: 21, total_balance: y26.total, target_days: 10, used_days: y26.used });
+    return e;
+  };
+  const a = await mk('C1', { total: 40, used: 2 }, { total: 30, used: 9 });     // تحسّن
+  const b = await mk('C2', { total: 30, used: 9 }, { total: 35, used: 1 });     // تراجع
+  const yrs = (await admin.get('/api/tracking/years')).json;
+  assert.ok(yrs.years.find(y => y.year === 2025 && y.employees >= 2) && yrs.years.find(y => y.year === yrs.current + 1));
+  // مستهدف سنة 2027: نسبة من الرصيد الكلي لسنة 2027 (غير موجود) → يُتخطّى، ثم قيمة ثابتة مع نسخ الراتب والرصيد السنوي
+  const none = await admin.post('/api/tracking/year-target', { year: 2027, mode: 'pct_total', value: 50, f: { q: 'مقارنة' } });
+  assert.equal(none.status, 200); assert.equal(none.json.updated, 0);
+  const fixed = await admin.post('/api/tracking/year-target', { year: 2027, mode: 'fixed', value: 14, source_year: 2026, copy_base: true, f: { q: 'مقارنة' } });
+  assert.equal(fixed.json.updated, 2);
+  const r27 = (await admin.get('/api/tracking?year=2027')).json.rows.find(x => x.employee_id === a.id);
+  assert.equal(r27.target_days, 14); assert.equal(r27.gross_salary, 6000); assert.equal(r27.annual_balance, 21);
+  await admin.put(`/api/tracking/${a.id}`, { year: 2027, target_days: 99 });
+  const again = await admin.post('/api/tracking/year-target', { year: 2027, mode: 'fixed', value: 20, only_empty: true, f: { q: 'مقارنة' } });
+  assert.equal(again.json.updated, 0); assert.equal(again.json.skipped, 2);       // لا يستبدل المُدخَل
+  const copy = await admin.post('/api/tracking/year-target', { year: 2028, mode: 'copy_prev', source_year: 2026, f: { q: 'مقارنة' } });
+  assert.equal(copy.json.updated, 2);
+  assert.equal((await admin.post('/api/tracking/year-target', { year: 2027, mode: 'fixed', value: '' })).status, 400);
+  // المقارنة 2025 ← 2026 على الموظفين المطابقين للفلتر
+  const cmp = (await admin.get('/api/tracking/compare?years=2025,2026&f=' + encodeURIComponent(JSON.stringify({ q: 'مقارنة' })))).json;
+  assert.equal(cmp.set_size, 2);
+  assert.equal(cmp.kpis[2025].used_days, 11); assert.equal(cmp.kpis[2026].used_days, 10);
+  assert.equal(cmp.delta.used_days.abs, -1);
+  const ea = cmp.employees.find(x => x.employee_id === a.id), eb = cmp.employees.find(x => x.employee_id === b.id);
+  assert.equal(ea.trend, 'improved'); assert.equal(eb.trend, 'declined'); assert.equal(ea.d_used, 7);
+  assert.equal(cmp.trends.improved, 1); assert.equal(cmp.trends.declined, 1);
+  assert.equal((await admin.get('/api/tracking/compare?years=2026')).status, 400);
+  const mgr = await t.as('mgr_trk');
+  const mc = (await mgr.get('/api/tracking/compare?years=2025,2026')).json;
+  assert.equal(mc.fin, false); assert.equal(mc.kpis[2026].cost_now, undefined);
+});

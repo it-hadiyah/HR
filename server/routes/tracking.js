@@ -191,6 +191,106 @@ r.get('/indicators', wrap(async (req, res) => {
     bands: bands.map(b => ({ label: b.label, count: b.count, lo: Number.isFinite(b.lo) ? b.lo : null, hi: Number.isFinite(b.hi) ? b.hi : null })), top, lagging, yearly });
 }));
 
+// السنوات المتاحة (التي فيها بيانات) مع عدد الصفوف والمستهدف، إضافة إلى السنة الحالية والتالية
+r.get('/years', wrap(async (req, res) => {
+  const cy = new Date().getFullYear();
+  const rows = (await q(`SELECT year, count(*)::int AS employees, count(target_days)::int AS with_target, COALESCE(sum(GREATEST(target_days, 0)), 0)::float8 AS target_days
+    FROM leave_tracking GROUP BY year ORDER BY year`)).rows;
+  const have = new Map(rows.map(x => [x.year, x]));
+  for (const y of [cy, cy + 1]) if (!have.has(y)) have.set(y, { year: y, employees: 0, with_target: 0, target_days: 0 });
+  res.json({ current: cy, years: [...have.values()].sort((a, b) => a.year - b.year) });
+}));
+
+// إعداد مستهدف سنة لمجموعة موظفين (المطابقين للفلاتر): قيمة ثابتة أو نسبة من الرصيد أو نسخ من سنة سابقة
+r.post('/year-target', requirePerm('employees'), wrap(async (req, res) => {
+  const b = req.body || {};
+  const year = +b.year; if (!(year >= 2000 && year <= 2100)) throw httpError(400, 'سنة غير صالحة');
+  const mode = ['fixed', 'pct_total', 'pct_annual', 'copy_prev'].includes(b.mode) ? b.mode : null;
+  if (!mode) throw httpError(400, 'طريقة التحديد غير صالحة');
+  const source = +b.source_year || year - 1;
+  const value = mode === 'copy_prev' ? null : numOrNull(b.value, 'القيمة');
+  if (mode !== 'copy_prev' && value === null) throw httpError(400, 'أدخل قيمة المستهدف');
+  if ((mode === 'pct_total' || mode === 'pct_annual') && value > 1000) throw httpError(400, 'النسبة كبيرة جداً');
+  const fin = canSeeFinancials(req.user);
+  const { rows: all, policy } = await loadRows(req, year, { status: b.status || 'active', unit: b.unit });
+  const rows = applyFilter(all, normalizeFilter(b.f), filterContext(all, year, policy), fin);
+  const srcRows = new Map((await q('SELECT employee_id, target_days::float8 AS target_days, annual_balance::float8 AS annual_balance, gross_salary::float8 AS gross_salary FROM leave_tracking WHERE year = $1', [source])).rows.map(x => [x.employee_id, x]));
+  const client = await pool.connect(); let updated = 0, skipped = 0;
+  try {
+    await client.query('BEGIN');
+    for (const e of rows) {
+      if (b.only_empty && e.target_days !== null) { skipped++; continue; }
+      let t = null;
+      if (mode === 'fixed') t = value;
+      else if (mode === 'pct_total') t = e.total_balance === null ? null : round2(Math.max(0, e.total_balance) * value / 100);
+      else if (mode === 'pct_annual') t = e.annual_balance === null ? null : round2(e.annual_balance * value / 100);
+      else t = srcRows.get(e.employee_id)?.target_days ?? null;
+      if (t === null) { skipped++; continue; }
+      const src = b.copy_base ? srcRows.get(e.employee_id) : null;   // نسخ الراتب والرصيد السنوي للمفقود فقط
+      await client.query(`INSERT INTO leave_tracking(employee_id, year, target_days, annual_balance, gross_salary, updated_by) VALUES ($1,$2,$3,$4,$5,$6)
+        ON CONFLICT (employee_id, year) DO UPDATE SET target_days = EXCLUDED.target_days,
+          annual_balance = COALESCE(leave_tracking.annual_balance, EXCLUDED.annual_balance), gross_salary = COALESCE(leave_tracking.gross_salary, EXCLUDED.gross_salary),
+          updated_by = EXCLUDED.updated_by, updated_at = now()`, [e.employee_id, year, t, src?.annual_balance ?? null, fin ? (src?.gross_salary ?? null) : null, req.user.username]);
+      updated++;
+    }
+    await client.query('COMMIT');
+  } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+  await audit(req, 'update', 'leave_tracking_targets', year, null, { year, mode, value, source, updated, skipped });
+  res.json({ year, updated, skipped });
+}));
+
+// مقارنة بين سنوات: الفلاتر تُطبَّق على السنة الأحدث، ثم يُقارَن الموظفون أنفسهم عبر السنوات
+r.get('/compare', wrap(async (req, res) => {
+  const years = [...new Set(String(req.query.years || '').split(',').map(Number).filter(y => y >= 2000 && y <= 2100))].sort().slice(-4);
+  if (years.length < 2) throw httpError(400, 'اختر سنتين على الأقل للمقارنة');
+  const latest = years[years.length - 1], first = years[0];
+  const level = ['sector', 'department', 'section'].includes(req.query.level) ? req.query.level : 'sector';
+  const base = { unit: req.query.unit, status: req.query.status || 'active' };
+  const filter = normalizeFilter(req.query.f);
+  const byYear = new Map(); let fin = false;
+  for (const y of years) { const lr = await loadRows(req, y, base); fin = lr.fin; byYear.set(y, lr); }
+  const lastLr = byYear.get(latest);
+  const set = applyFilter(lastLr.rows, filter, filterContext(lastLr.rows, latest, lastLr.policy), fin);
+  const ids = new Set(set.map(e => e.employee_id));
+  const rowsOf = y => byYear.get(y).rows.filter(e => ids.has(e.employee_id));
+  const pos = x => Math.max(0, x ?? 0);
+  const agg = (rs) => {
+    const sum = (f) => round2(rs.reduce((a, x) => a + f(x), 0));
+    const target = sum(x => pos(x.target_days)), used = sum(x => x.used_days ?? 0);
+    const k = { employees: rs.length, with_data: rs.filter(x => x.total_balance !== null || x.target_days !== null || x.used_days !== null).length, total_balance: sum(x => pos(x.total_balance)), annual_balance: sum(x => x.annual_balance ?? 0),
+      owed_days: sum(x => x.owed_days ?? 0), target_days: target, used_days: used, remaining_to_target: sum(x => x.remaining_to_target ?? 0), achievement_pct: target > 0 ? Math.min(100, round2(used / target * 100)) : null,
+      achieved: rs.filter(x => x.target_met).length, high_balance: rs.filter(x => x.high_balance).length };
+    if (fin) Object.assign(k, { cost_now: sum(x => x.cost_now ?? 0), cost_target: sum(x => x.cost_target ?? 0), cost_remaining_target: sum(x => x.cost_remaining_target ?? 0), owed_cost: sum(x => x.owed_cost ?? 0), saving: sum(x => x.saving ?? 0) });
+    return k;
+  };
+  const kpis = {}; for (const y of years) kpis[y] = agg(rowsOf(y));
+  const delta = {};
+  for (const k of Object.keys(kpis[latest])) { const a = kpis[first][k], b = kpis[latest][k]; if (typeof a === 'number' && typeof b === 'number') delta[k] = { abs: round2(b - a), pct: a !== 0 ? round2((b - a) / Math.abs(a) * 100) : null }; }
+  // الوحدات
+  const gmap = new Map();
+  for (const e of set) { const key = e[level] || (level === 'sector' ? 'بدون قطاع' : level === 'department' ? 'بدون إدارة' : 'بدون قسم'); if (!gmap.has(key)) gmap.set(key, []); gmap.get(key).push(e.employee_id); }
+  const groups = [...gmap.entries()].map(([name, gids]) => {
+    const gs = new Set(gids), per = {};
+    for (const y of years) per[y] = agg(rowsOf(y).filter(e => gs.has(e.employee_id)));
+    const a = per[first], b = per[latest];
+    return { name, employees: gids.length, per_year: per, d_used: round2(b.used_days - a.used_days), d_target: round2(b.target_days - a.target_days), d_total: round2(b.total_balance - a.total_balance),
+      d_achievement: a.achievement_pct !== null && b.achievement_pct !== null ? round2(b.achievement_pct - a.achievement_pct) : null, ...(fin ? { d_cost: round2(b.cost_now - a.cost_now) } : {}) };
+  }).sort((x, y) => y.per_year[latest].used_days - x.per_year[latest].used_days);
+  // الموظفون
+  const idx = new Map(); for (const y of years) idx.set(y, new Map(byYear.get(y).rows.map(e => [e.employee_id, e])));
+  const employees = set.slice(0, 150).map(e => {
+    const per = {}; for (const y of years) { const r = idx.get(y).get(e.employee_id); per[y] = r ? { total_balance: r.total_balance, target_days: r.target_days, used_days: r.used_days, progress_pct: r.progress_pct, ...(fin ? { cost_now: r.cost_now } : {}) } : null; }
+    const a = per[first], b = per[latest];
+    const dUsed = a && b ? round2((b.used_days ?? 0) - (a.used_days ?? 0)) : null;
+    const dProg = a?.progress_pct !== null && a?.progress_pct !== undefined && b?.progress_pct !== null && b?.progress_pct !== undefined ? round2(b.progress_pct - a.progress_pct) : null;
+    const trend = dProg === null ? (b?.progress_pct != null ? 'new' : 'none') : dProg > 5 ? 'improved' : dProg < -5 ? 'declined' : 'steady';
+    return { employee_id: e.employee_id, full_name: e.full_name, job_title: e.job_title, unit: [e.sector, e.department, e.section].filter(Boolean).join(' ‹ '), per_year: per, d_used: dUsed, d_progress: dProg, trend,
+      d_total: a?.total_balance != null && b?.total_balance != null ? round2(b.total_balance - a.total_balance) : null };
+  });
+  const trends = { improved: 0, steady: 0, declined: 0, new: 0, none: 0 }; for (const e of employees) trends[e.trend]++;
+  res.json({ years, first, latest, fin, level, set_size: set.length, base_total: lastLr.rows.length, filters_applied: filter, kpis, delta, groups, employees, trends });
+}));
+
 // تعديل حقول المتابعة لموظف وسنة (وتاريخ التعيين/الرقم الوظيفي في السجل المركزي)
 r.put('/:employeeId', requirePerm('employees'), wrap(async (req, res) => {
   const id = +req.params.employeeId; const b = req.body || {};

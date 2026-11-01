@@ -1,5 +1,5 @@
 // متابعة أرصدة الإجازات: جدول يعبّئه المسؤول لكل موظف، وتُحسب منه التكلفة المالية والمؤشرات تلقائياً.
-import { h, api, qs, state, fmt, num, select, toast, guard, confirmBox, EMP_STATUS, download } from '../core.js';
+import { h, api, qs, state, fmt, num, select, toast, guard, confirmBox, EMP_STATUS, download, modal, field } from '../core.js';
 import { getUnits } from '../filters.js';
 
 const UNIT_LABEL = { sector: 'قطاع', department: 'إدارة', section: 'قسم' };
@@ -16,7 +16,10 @@ export default async function tracking() {
   const f = { year: thisYear, unit: '', search: '', status: 'active', incomplete: false };
   const units = await getUnits();
   const unitSel = select([['', 'كل الوحدات'], ...units.filter(u => u.unit_type !== 'org').map(u => [u.id, `${UNIT_LABEL[u.unit_type] || ''}: ${u.name}`])], '', { 'aria-label': 'الوحدة' });
-  const yearSel = select([thisYear - 2, thisYear - 1, thisYear, thisYear + 1].map(y => [y, y]), thisYear, { 'aria-label': 'السنة' });
+  const yearsInfo = await api('/tracking/years');
+  const yearList = () => yearsInfo.years.map(y => y.year);
+  const mkYearSel = cur => select(yearList().map(y => { const i = yearsInfo.years.find(x => x.year === y); return [y, i && i.employees ? `${y}  (${i.employees} موظف)` : `${y}  (فارغة)`]; }), cur, { 'aria-label': 'السنة' });
+  let yearSel = mkYearSel(thisYear);
   const statusSel = select([['active', 'نشط'], ['suspended', 'معطّل'], ['all', 'الكل']], 'active', { 'aria-label': 'الحالة' });
   const search = h('input', { type: 'search', placeholder: 'بحث بالاسم أو الرقم الوظيفي أو المسمى', style: { minWidth: '260px' }, 'aria-label': 'بحث' });
   const incomplete = h('input', { type: 'checkbox' });
@@ -143,6 +146,29 @@ export default async function tracking() {
   function draw() { drawSummary(); drawTable(); }
 
   const canEdit = state.user.perms.includes('employees');
+  // إنشاء/تحديث مستهدف سنة لمجموعة موظفين (المعروضين حسب الفلاتر الحالية)
+  const targetBtn = canEdit ? h('button', { class: 'btn primary', title: 'إنشاء مستهدف سنة جديدة أو تحديثه للموظفين المعروضين', onclick: () => {
+    const yr = h('input', { type: 'number', min: 2000, max: 2100, value: f.year, class: 'cell-in', style: { width: '100%' } });
+    const rule = select([['fixed', 'قيمة ثابتة لكل موظف (يوم)'], ['pct_total', 'نسبة من الرصيد الكلي %'], ['pct_annual', 'نسبة من الرصيد السنوي %'], ['copy_prev', 'نسخ مستهدف سنة سابقة']], 'fixed');
+    const val = h('input', { type: 'text', inputmode: 'decimal', class: 'cell-in', style: { width: '100%' }, placeholder: 'مثال: 15' });
+    const src = h('input', { type: 'number', min: 2000, max: 2100, value: f.year - 1, class: 'cell-in', style: { width: '100%' } });
+    const empty = h('input', { type: 'checkbox', checked: true }), base = h('input', { type: 'checkbox', checked: true });
+    const valF = field('القيمة', val), srcF = field('السنة المنسوخ منها', src);
+    const sync = () => { valF.hidden = rule.value === 'copy_prev'; srcF.hidden = rule.value !== 'copy_prev' && !base.checked; };
+    rule.addEventListener('change', sync); base.addEventListener('change', sync); sync();
+    modal('إعداد مستهدف سنة', h('div', null,
+      h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', marginTop: 0 } }, `يُطبَّق على الموظفين المعروضين حالياً (${data.rows.length} موظف حسب الوحدة والحالة والبحث المحددة). تُنشأ للسنة صفوف جديدة عند الحاجة، ويمكن بعدها مقارنتها بالسنوات الأخرى.`),
+      h('div', { class: 'form-grid' }, field('السنة', yr), field('طريقة التحديد', rule), valF, srcF),
+      h('label', { class: 'row center', style: { gap: '6px', margin: '8px 0 0' } }, empty, 'تحديث من ليس له مستهدف فقط (لا يستبدل المُدخَل)'),
+      h('label', { class: 'row center', style: { gap: '6px', margin: '4px 0 0' } }, base, 'نسخ الراتب والرصيد السنوي من سنة المصدر لمن ليس لهم بيانات في هذه السنة')), { saveText: 'تطبيق', onSave: async () => {
+      const body = { year: +yr.value, mode: rule.value, value: val.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.'), source_year: +src.value, only_empty: empty.checked, copy_base: base.checked,
+        unit: f.unit, status: f.status, f: { q: f.search, segments: f.incomplete ? ['incomplete'] : [] } };
+      const r = await api('/tracking/year-target', { method: 'POST', body });
+      toast(`تم تحديث مستهدف ${r.year} لـ ${r.updated} موظف${r.skipped ? ` (تخطّي ${r.skipped})` : ''}`);
+      Object.assign(yearsInfo, await api('/tracking/years'));
+      const nv = mkYearSel(r.year); yearSel.replaceWith(nv); yearSel = nv; nv.addEventListener('change', guard(load)); await load();
+    } });
+  } }, 'إعداد مستهدف سنة') : null;
   const copyBtn = canEdit ? h('button', { class: 'btn', title: 'ينسخ الراتب الإجمالي والرصيد السنوي من السنة السابقة لمن ليس لهم صف في السنة المختارة', onclick: () => confirmBox(`نسخ بيانات ${f.year - 1} (الراتب والرصيد السنوي) إلى ${f.year} لمن ليس لهم بيانات؟`, async () => {
     const r = await api('/tracking/copy-year', { method: 'POST', body: { from: f.year - 1, to: f.year } }); toast(`تم نسخ ${r.copied} سجل`); await load();
   }, false) }, 'نسخ من السنة السابقة') : null;
@@ -154,7 +180,7 @@ export default async function tracking() {
     h('div', { class: 'card filters' }, h('div', { class: 'row center' },
       h('label', { class: 'f' }, 'السنة', yearSel), h('label', { class: 'f' }, 'الوحدة', unitSel), h('label', { class: 'f' }, 'الحالة', statusSel), search,
       h('label', { class: 'row center', style: { gap: '6px' } }, incomplete, 'الناقص فقط'), h('div', { class: 'spacer' }),
-      copyBtn, canEdit ? h('a', { class: 'btn', href: '#/import' }, 'استيراد من Excel') : null,
+      targetBtn, copyBtn, canEdit ? h('a', { class: 'btn', href: '#/import' }, 'استيراد من Excel') : null,
       h('button', { class: 'btn', onclick: () => download('/tracking/export' + qs({ year: f.year, unit: f.unit, status: f.status, search: f.search, incomplete: f.incomplete ? 1 : '' })) }, 'تصدير Excel'))),
     summaryBox,
     h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', margin: '0 0 8px' } },

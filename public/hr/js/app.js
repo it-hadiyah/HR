@@ -2,6 +2,7 @@ import { h, state, api, field, guard } from './core.js';
 import { resetUnits } from './filters.js';
 import tracking from './pages/tracking.js';
 import indicators from './pages/indicators.js';
+import compare from './pages/compare.js';
 import dashboard from './pages/dashboard.js';
 import org from './pages/org.js';
 import employees, { employeeDetail } from './pages/employees.js';
@@ -37,6 +38,7 @@ export function icon(name) {
 const NAV = [
   ['#/', 'متابعة الأرصدة', 'calendar'],
   ['#/indicators', 'لوحة المؤشرات', 'chart'],
+  ['#/compare', 'مقارنة السنوات', 'dashboard'],
   ['#/import', 'الاستيراد والتصدير', 'upload', u => u.perms.includes('import')],
   ['#/admin', 'الإدارة والإعدادات', 'settings'],
 ];
@@ -50,9 +52,9 @@ const NAV_ADVANCED = [
   ['#/analysis', 'التحليل والتنبيهات', 'chart'],
   ['#/reports', 'التقارير', 'report'],
 ];
-const TITLES = { '': 'متابعة الأرصدة', indicators: 'لوحة المؤشرات', dashboard: 'لوحة المعلومات', org: 'الهيكل التنظيمي', employees: 'الموظفون', leaves: 'حركات الإجازات', targets: 'المستهدفات', analysis: 'التحليل والتنبيهات',
+const TITLES = { '': 'متابعة الأرصدة', indicators: 'لوحة المؤشرات', compare: 'مقارنة السنوات', dashboard: 'لوحة المعلومات', org: 'الهيكل التنظيمي', employees: 'الموظفون', leaves: 'حركات الإجازات', targets: 'المستهدفات', analysis: 'التحليل والتنبيهات',
   reports: 'التقارير', import: 'الاستيراد والتصدير', admin: 'الإدارة والإعدادات', employee: 'بيانات الموظف' };
-const PAGES = { '': tracking, indicators, dashboard, org, employees, leaves, targets, analysis, reports, import: importPage, admin };
+const PAGES = { '': tracking, indicators, compare, dashboard, org, employees, leaves, targets, analysis, reports, import: importPage, admin };
 
 const app = document.getElementById('app');
 
