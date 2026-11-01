@@ -88,7 +88,7 @@ export default async function compare() {
     // جدول الموظفين
     out.append(h('div', { class: 'section-title' }, `الموظفون (${fmt.int(d.set_size)}${d.set_size > d.employees.length ? ` — عرض أول ${d.employees.length}` : ''})`),
       table([
-        { key: 'full_name', label: 'الموظف', render: e => h('a', { href: '#/employee/' + e.employee_id }, e.full_name) }, { key: 'unit', label: 'الوحدة' },
+        { key: 'full_name', label: 'الموظف', render: e => h('span', null, e.full_name) }, { key: 'unit', label: 'الوحدة' },
         ...ys.map(y => ({ key: 'y' + y, label: String(y) + ' (مستخدم/مستهدف)', render: e => { const v = e.per_year[y]; return v ? num(`${fmt.days(v.used_days)} / ${fmt.days(v.target_days)}`) : '—'; }, sortValue: e => e.per_year[y]?.used_days ?? -1e9, sortable: true })),
         { key: 'd_used', label: 'فرق المستخدم', num: true, render: e => arrow(e.d_used, true), sortValue: e => e.d_used ?? -1e9 },
         { key: 'd_progress', label: 'فرق الإنجاز (نقاط)', num: true, render: e => arrow(e.d_progress, true, fmt.pct), sortValue: e => e.d_progress ?? -1e9 },

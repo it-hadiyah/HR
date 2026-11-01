@@ -129,7 +129,7 @@ export default async function indicators() {
 
     const empTable = (t, rows, valueLabel) => h('div', { class: 'card' }, h('h3', null, t), h('div', { class: 'tbl-wrap' }, h('table', null,
       h('thead', null, h('tr', null, ['الموظف', 'الوحدة', 'الرصيد', 'المستهدف', 'المستخدم', valueLabel].map(x => h('th', null, x)))),
-      h('tbody', null, rows.length ? rows.map(e => h('tr', null, h('td', null, h('a', { href: '#/employee/' + e.employee_id }, e.full_name)), h('td', { class: 'sub' }, e.unit || '—'), h('td', { class: 'n' }, fmt.days(e.total_balance)),
+      h('tbody', null, rows.length ? rows.map(e => h('tr', null, h('td', null, h('span', null, e.full_name)), h('td', { class: 'sub' }, e.unit || '—'), h('td', { class: 'n' }, fmt.days(e.total_balance)),
         h('td', { class: 'n' }, fmt.days(e.target_days)), h('td', { class: 'n' }, fmt.days(e.used_days)), h('td', { class: 'n' }, valueLabel === 'التكلفة (ر.س)' ? money(e.cost_now) : fmt.days(e.remaining_to_target)))) : h('tr', null, h('td', { colspan: 6, class: 'sub' }, 'لا يوجد'))))));
     out.append(h('div', { class: 'grid charts', style: { marginTop: '14px' } },
       empTable(fin ? 'أعلى 10 موظفين من حيث التكلفة' : 'أعلى 10 موظفين من حيث الرصيد', d.top, fin ? 'التكلفة (ر.س)' : 'المتبقي للمستهدف'),
@@ -137,7 +137,7 @@ export default async function indicators() {
     const STATE = { achieved: ['حقق المستهدف', 'ok'], on_track: ['وفق الخطة', 'info'], lagging: ['متأخر', 'bad'], no_target: ['بلا مستهدف', ''] };
     out.append(title(`الموظفون المطابقون (${fmt.int(d.matched)}${d.matched > d.employees.length ? ` — عرض أول ${d.employees.length}` : ''})`),
       table([
-        { key: 'full_name', label: 'الموظف', render: e => h('a', { href: '#/employee/' + e.employee_id }, e.full_name) },
+        { key: 'full_name', label: 'الموظف', render: e => h('span', null, e.full_name) },
         { key: 'job_title', label: 'المسمى' }, { key: 'unit', label: 'الوحدة' },
         { key: 'hire_date', label: 'التعيين', render: e => fmt.date(e.hire_date), sortValue: e => e.hire_date || '' },
         { key: 'total_balance', label: 'الرصيد الكلي', num: true, render: e => num(fmt.days(e.total_balance)), sortValue: e => e.total_balance ?? -1e9 },

@@ -202,10 +202,20 @@ test('تحقق المدخلات: مستهدف فارغ مرفوض، رصيد ا�
   assert.match(dup.json.error, /الرقم الوظيفي/);
 });
 
+let trk;      // موظف متابعة رئيسي للاختبارات (جدول leave_staff المستقل)
+const mkStaff = async (name, extra = {}) => { const r = await admin.post('/api/tracking/staff', { full_name: name, org_unit_id: unitB.id, ...extra }); assert.equal(r.status, 201, JSON.stringify(r.json)); return r.json.row.employee_id; };
+test('إعداد: موظف متابعة مستقل عن دليل البوابة', { skip }, async () => {
+  const r = await admin.post('/api/tracking/staff', { full_name: 'سارة محمد الأحمد', emp_no: 'E5001', job_title: 'محللة', hire_date: '2021-01-01', org_unit_id: unitB.id });
+  assert.equal(r.status, 201); trk = { id: r.json.row.employee_id };
+  assert.equal(r.json.row.status, 'active');
+  assert.equal((await t.q("SELECT count(*)::int AS n FROM employees WHERE emp_no = 'E5001' AND full_name = 'سارة محمد الأحمد' AND id = $1", [trk.id])).rows[0].n, 0);   // لا يظهر في جدول الموظفين المركزي
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM leave_staff')).rows[0].n >= 1, true);
+});
+
 test('متابعة الأرصدة: الحقول اليدوية والتكلفة المالية وتحقق المدخلات وإخفاء المالي عمّن لا يملك صلاحيته', { skip }, async () => {
   const y = 2026;
   const put = (id, body) => admin.put(`/api/tracking/${id}`, { year: y, ...body });
-  const r1 = await put(emp.id, { gross_salary: 12000, annual_balance: 21, total_balance: 45, target_days: 15, used_days: 6, emp_no: 'E5001', hire_date: '2021-01-01' });
+  const r1 = await put(trk.id, { gross_salary: 12000, annual_balance: 21, total_balance: 45, target_days: 15, used_days: 6, emp_no: 'E5001', hire_date: '2021-01-01' });
   assert.equal(r1.status, 200);
   const row = r1.json.row;
   assert.equal(row.day_rate, 400);                       // 12000 ÷ 30
@@ -216,27 +226,27 @@ test('متابعة الأرصدة: الحقول اليدوية والتكلفة 
   assert.equal(row.saving, 3600);
   assert.equal(row.complete, true);
   const list = (await admin.get(`/api/tracking?year=${y}`)).json;
-  assert.ok(list.rows.find(x => x.employee_id === emp.id));
+  assert.ok(list.rows.find(x => x.employee_id === trk.id));
   assert.equal(list.summary.cost_now >= 18000, true);
-  assert.equal((await put(emp.id, { target_days: 'abc' })).status, 400);
-  assert.equal((await put(emp.id, { hire_date: 'x' })).status, 400);
-  assert.equal((await put(emp.id, { emp_no: '' })).status, 400);
+  assert.equal((await put(trk.id, { target_days: 'abc' })).status, 400);
+  assert.equal((await put(trk.id, { hire_date: 'x' })).status, 400);
+  assert.equal((await put(trk.id, { emp_no: '' })).status, 400);
   // سنة أخرى مستقلة
-  const r2 = await admin.put(`/api/tracking/${emp.id}`, { year: 2027, total_balance: 10 });
+  const r2 = await admin.put(`/api/tracking/${trk.id}`, { year: 2027, total_balance: 10 });
   assert.equal(r2.json.row.total_balance, 10); assert.equal(r2.json.row.annual_balance, null);
   // مدير بلا صلاحية مالية لا يرى الراتب ولا التكلفة ولا يعدّله
-  const curUnit = (await t.q('SELECT org_unit_id FROM employees WHERE id = $1', [emp.id])).rows[0].org_unit_id;
+  const curUnit = unitB.id;
   await t.mkUser('mgr_trk', ['department_manager'], { org_unit_id: curUnit });
   const mgr = await t.as('mgr_trk');
   const ml = (await mgr.get(`/api/tracking?year=${y}`)).json;
   assert.equal(ml.fin, false);
-  const mrow = ml.rows.find(x => x.employee_id === emp.id);
+  const mrow = ml.rows.find(x => x.employee_id === trk.id);
   assert.ok(mrow); assert.equal(mrow.gross_salary, undefined); assert.equal(mrow.cost_now, undefined);
-  assert.equal((await mgr.put(`/api/tracking/${emp.id}`, { year: y, gross_salary: 1 })).status, 403);
+  assert.equal((await mgr.put(`/api/tracking/${trk.id}`, { year: y, gross_salary: 1 })).status, 403);
 });
 
 test('لوحة المؤشرات تُجمّع بيانات المتابعة، وPUT تعمل أيضاً عبر POST مع X-HTTP-Method-Override، والأرقام العربية تُحفظ', { skip }, async () => {
-  const via = await admin.post(`/api/tracking/${emp.id}`, { year: 2026, total_balance: '٣٠٫٥', target_days: '١٥', used_days: '٥' }, { 'X-HTTP-Method-Override': 'PUT' });
+  const via = await admin.post(`/api/tracking/${trk.id}`, { year: 2026, total_balance: '٣٠٫٥', target_days: '١٥', used_days: '٥' }, { 'X-HTTP-Method-Override': 'PUT' });
   assert.equal(via.status, 200);
   assert.equal(via.json.row.total_balance, 30.5);
   const d = (await admin.get('/api/tracking/indicators?year=2026&level=sector')).json;
@@ -253,14 +263,13 @@ test('لوحة المؤشرات تُجمّع بيانات المتابعة، وP
 
 test('الفلترة المتقدمة: نطاقات وشرائح ذكية وبيانات ناقصة وقوائم متعددة، ومرشحات مالية تُتجاهل لمن لا يملك الصلاحية', { skip }, async () => {
   const mk = async (no, total, target, used, sal, job) => {
-    const e = await t.svc.employees.createEmployee({ full_name: 'فلتر ' + no, job_title: job, org_unit_id: unitB.id }, t.sys);
-    await t.q("UPDATE employees SET emp_no = $2, hire_date = '2020-01-01' WHERE id = $1", [e.id, no]);
+    const e = { id: await mkStaff('فلتر ' + no, { emp_no: no, job_title: job, hire_date: '2020-01-01' }) };
     await admin.put(`/api/tracking/${e.id}`, { year: 2026, annual_balance: 21, total_balance: total, target_days: target, used_days: used, gross_salary: sal });
     return e;
   };
   const a = await mk('F1', 50, 20, 20, 9000, 'محاسب');       // رصيد مرتفع وحقق المستهدف
   const b = await mk('F2', 10, 20, 0, 6000, 'مهندس');         // لم يستخدم، بلا إنجاز
-  const c = await t.svc.employees.createEmployee({ full_name: 'فلتر ناقص', job_title: 'محاسب', org_unit_id: unitB.id }, t.sys);  // بيانات ناقصة
+  const c = { id: await mkStaff('فلتر ناقص', { job_title: 'محاسب' }) };  // بيانات ناقصة
   const get = (f) => admin.get('/api/tracking/indicators?year=2026&f=' + encodeURIComponent(JSON.stringify(f)));
   const ids = r => r.json.employees.map(x => x.employee_id);
   let r = await get({ ranges: { total: [40, null] } });
@@ -291,7 +300,7 @@ test('الفلترة المتقدمة: نطاقات وشرائح ذكية وبي
 });
 
 test('تكاليف الإجازة الأربع: الكلية والمستهدفة والمتبقي من المستهدف والمتبقي من الكلي', { skip }, async () => {
-  const r = await admin.put(`/api/tracking/${emp.id}`, { year: 2026, gross_salary: 12000, total_balance: 45, target_days: 15, used_days: 6 });
+  const r = await admin.put(`/api/tracking/${trk.id}`, { year: 2026, gross_salary: 12000, total_balance: 45, target_days: 15, used_days: 6 });
   const x = r.json.row;                       // أجر اليوم 400
   assert.equal(x.cost_now, 18000);            // 45 × 400
   assert.equal(x.cost_target, 6000);          // 15 × 400
@@ -302,7 +311,7 @@ test('تكاليف الإجازة الأربع: الكلية والمستهدف�
   const ind = (await admin.get('/api/tracking/indicators?year=2026')).json.kpis;
   for (const k of ['cost_now', 'cost_target', 'cost_remaining_target', 'cost_remaining_total']) assert.equal(typeof ind[k], 'number');
   const mgr = await t.as('mgr_trk');
-  const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === emp.id);
+  const mrow = (await mgr.get('/api/tracking?year=2026')).json.rows.find(y => y.employee_id === trk.id);
   assert.equal(mrow.cost_target, undefined); assert.equal(mrow.cost_remaining_total, undefined); assert.equal(typeof mrow.remaining_total, 'number');
 });
 
@@ -323,7 +332,7 @@ test('استيراد المتابعة: ترويسة بعد صف عنوان، ا�
   const c = await send('mode=commit&create_missing=1');
   assert.equal(c.status, 200); assert.equal(c.json.applied, 2);
   const row = (await admin.get('/api/tracking?year=2026')).json.rows;
-  const sarah = row.find(x => x.employee_id === emp.id), neu = row.find(x => x.emp_no === '701');
+  const sarah = row.find(x => x.employee_id === trk.id), neu = row.find(x => x.emp_no === '701');
   assert.equal(sarah.emp_no, 'E5001');             // رقمها في النظام يبقى كما هو (مع تحذير في المعاينة)
   assert.ok(p1.json.rows.find(r => r.ok && r.warnings.some(w => /يختلف/.test(w))));
   assert.equal(sarah.total_balance, 40); assert.equal(sarah.gross_salary, 8000);
@@ -331,7 +340,7 @@ test('استيراد المتابعة: ترويسة بعد صف عنوان، ا�
 });
 
 test('الرصيد السالب مستحق على الموظف: يُقبل مع المستهدف والمستخدم السالبين، ولا يدخل في إجمالي الأرصدة ولا تكلفة الجهة', { skip }, async () => {
-  const e2 = await t.svc.employees.createEmployee({ full_name: 'سالب الرصيد', job_title: 'x', org_unit_id: unitB.id }, t.sys);
+  const e2 = { id: await mkStaff('سالب الرصيد', { job_title: 'x' }) };
   const r = await admin.put(`/api/tracking/${e2.id}`, { year: 2026, gross_salary: 9000, total_balance: -20, target_days: -7, used_days: -21 });
   assert.equal(r.status, 200);
   const x = r.json.row;
@@ -351,8 +360,7 @@ test('الرصيد السالب مستحق على الموظف: يُقبل مع 
 
 test('مستهدف لكل سنة والمقارنة بين السنوات: إعداد جماعي، عدم استبدال المُدخَل، قائمة السنوات، الفرق والأداء', { skip }, async () => {
   const mk = async (no, y25, y26) => {
-    const e = await t.svc.employees.createEmployee({ full_name: 'مقارنة ' + no, job_title: 'م', org_unit_id: unitB.id }, t.sys);
-    await t.q("UPDATE employees SET emp_no = $2, hire_date = '2020-01-01' WHERE id = $1", [e.id, no]);
+    const e = { id: await mkStaff('مقارنة ' + no, { emp_no: no, job_title: 'م', hire_date: '2020-01-01' }) };
     await admin.put(`/api/tracking/${e.id}`, { year: 2025, gross_salary: 6000, annual_balance: 21, total_balance: y25.total, target_days: 10, used_days: y25.used });
     await admin.put(`/api/tracking/${e.id}`, { year: 2026, gross_salary: 6000, annual_balance: 21, total_balance: y26.total, target_days: 10, used_days: y26.used });
     return e;
@@ -386,4 +394,37 @@ test('مستهدف لكل سنة والمقارنة بين السنوات: إع�
   const mgr = await t.as('mgr_trk');
   const mc = (await mgr.get('/api/tracking/compare?years=2025,2026')).json;
   assert.equal(mc.fin, false); assert.equal(mc.kpis[2026].cost_now, undefined);
+});
+
+test('موظفو المتابعة مفصولون عن دليل البوابة: إضافة وتعديل وأرشفة واستعادة وحذف مع نطاق الوحدة', { skip }, async () => {
+  const empBefore = (await t.q('SELECT count(*)::int AS n FROM employees')).rows[0].n;
+  const dirBefore = (await admin.get('/portal/data/employeeInfo.json')).json.length;
+  const bad = await admin.post('/api/tracking/staff', { full_name: 'x' });
+  assert.equal(bad.status, 400);
+  const id = await mkStaff('موظف مستقل', { emp_no: 'S900', job_title: 'مدخل بيانات', hire_date: '2024-02-02' });
+  assert.equal((await admin.post('/api/tracking/staff', { full_name: 'مكرر', emp_no: 'S900', org_unit_id: unitB.id })).status, 409);
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM employees')).rows[0].n, empBefore);            // لا يُنشأ في جدول الموظفين المركزي
+  assert.equal((await admin.get('/portal/data/employeeInfo.json')).json.length, dirBefore);               // ولا يظهر في دليل البوابة
+  // تعديل البيانات الأساسية
+  const upd = await admin.put(`/api/tracking/${id}`, { year: 2026, full_name: 'موظف مستقل معدّل', job_title: 'محاسب', org_unit_id: unitA.id, total_balance: 12 });
+  assert.equal(upd.status, 200); assert.equal(upd.json.row.full_name, 'موظف مستقل معدّل'); assert.equal(upd.json.row.org_unit_id, unitA.id);
+  assert.equal((await admin.put(`/api/tracking/${id}`, { year: 2026, org_unit_id: 999999 })).status, 400);
+  // أرشفة: تخرج من القائمة الافتراضية والمؤشرات وتظهر في فلتر المؤرشفين
+  const inList = async (st) => !!(await admin.get(`/api/tracking?year=2026${st ? '&status=' + st : ''}`)).json.rows.find(x => x.employee_id === id);
+  assert.ok(await inList());
+  assert.equal((await admin.post('/api/tracking/staff/bulk', { ids: [id], action: 'archive' })).json.affected, 1);
+  assert.ok(!(await inList())); assert.ok(await inList('archived')); assert.ok(await inList('all'));
+  assert.equal((await admin.post('/api/tracking/staff/bulk', { ids: [id], action: 'restore' })).json.affected, 1);
+  assert.ok(await inList());
+  // مدير الوحدة يطّلع فقط ولا يملك صلاحية الإضافة أو الأرشفة أو الحذف
+  const mgr = await t.as('mgr_trk');
+  assert.equal((await mgr.post('/api/tracking/staff', { full_name: 'محاولة إضافة', org_unit_id: unitB.id })).status, 403);
+  assert.equal((await mgr.post('/api/tracking/staff/bulk', { ids: [id], action: 'delete' })).status, 403);
+  // حذف نهائي مع بيانات المتابعة
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM leave_tracking WHERE employee_id = $1', [id])).rows[0].n >= 1, true);
+  assert.equal((await admin.post('/api/tracking/staff/bulk', { ids: [id], action: 'delete' })).json.affected, 1);
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM leave_staff WHERE id = $1', [id])).rows[0].n, 0);
+  assert.equal((await t.q('SELECT count(*)::int AS n FROM leave_tracking WHERE employee_id = $1', [id])).rows[0].n, 0);
+  assert.equal((await t.q("SELECT count(*)::int AS n FROM audit_logs WHERE entity = 'leave_staff' AND action = 'delete'")).rows[0].n >= 1, true);
+  assert.equal((await admin.post('/api/tracking/staff/bulk', { ids: [id], action: 'nope' })).status, 400);
 });

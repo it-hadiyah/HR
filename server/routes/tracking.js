@@ -61,7 +61,7 @@ export function derive(row, policy, fin) {
 const SELECT = `SELECT e.id AS employee_id, e.emp_no, e.full_name, e.job_title, e.hire_date::text AS hire_date, e.status, e.org_unit_id, e.version,
     t.annual_balance::float8 AS annual_balance, t.total_balance::float8 AS total_balance, t.target_days::float8 AS target_days, t.used_days::float8 AS used_days,
     t.gross_salary::float8 AS gross_salary, t.notes, t.updated_by, t.updated_at
-  FROM employees e LEFT JOIN leave_tracking t ON t.employee_id = e.id AND t.year = $1`;
+  FROM leave_staff e LEFT JOIN leave_tracking t ON t.employee_id = e.id AND t.year = $1`;
 
 async function unitPaths() {
   const units = (await q('SELECT id, name, unit_type, parent_id FROM org_units')).rows;
@@ -85,8 +85,7 @@ async function loadRows(req, year, { search = '', unit, status = 'active', incom
   if (!sc.all) {
     const parts = [];
     if (sc.unitIds?.size) { p.push([...sc.unitIds]); parts.push(`e.org_unit_id = ANY($${p.length}::int[])`); }
-    if (sc.employeeIds?.size) { p.push([...sc.employeeIds]); parts.push(`e.id = ANY($${p.length}::int[])`); }
-    where.push(parts.length ? `(${parts.join(' OR ')})` : 'FALSE');
+    where.push(parts.length ? `(${parts.join(' OR ')})` : 'FALSE');   // موظفو المتابعة لا يرتبطون بحسابات الدخول؛ النطاق بالوحدات فقط
   }
   const rows = (await q(`${SELECT} WHERE ${where.join(' AND ')} ORDER BY e.full_name, e.id`, p)).rows;
   let out = rows.map(x => {
@@ -191,6 +190,49 @@ r.get('/indicators', wrap(async (req, res) => {
     bands: bands.map(b => ({ label: b.label, count: b.count, lo: Number.isFinite(b.lo) ? b.lo : null, hi: Number.isFinite(b.hi) ? b.hi : null })), top, lagging, yearly });
 }));
 
+// ---- إدارة موظفي المتابعة (جدول مستقل عن دليل البوابة): إضافة / أرشفة / استعادة / حذف ----
+r.post('/staff', requirePerm('employees'), wrap(async (req, res) => {
+  const b = req.body || {};
+  const name = String(b.full_name ?? '').trim();
+  if (name.length < 2) throw httpError(400, 'الاسم مطلوب');
+  const empNo = String(b.emp_no ?? '').trim() || null;
+  if (b.hire_date && !isDate(String(b.hire_date))) throw httpError(400, 'تاريخ التعيين غير صالح');
+  const unit = b.org_unit_id === '' || b.org_unit_id === null || b.org_unit_id === undefined ? null : +b.org_unit_id;
+  const sc = await resolveScope(req.user, 'hr', 'view');
+  if (unit !== null) {
+    if (!(await q('SELECT 1 FROM org_units WHERE id = $1', [unit])).rows.length) throw httpError(400, 'الوحدة غير موجودة');
+    if (!sc.all && !sc.unitIds?.has(unit)) throw httpError(403, 'الوحدة خارج نطاقك');
+  } else if (!sc.all) throw httpError(400, 'حدد الوحدة التنظيمية');
+  let row;
+  try {
+    row = (await q('INSERT INTO leave_staff(emp_no, full_name, job_title, hire_date, org_unit_id, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [empNo, name.slice(0, 160), String(b.job_title ?? '').trim().slice(0, 160) || null, b.hire_date || null, unit, req.user.username])).rows[0];
+  } catch (e) { if (e.code === '23505') throw httpError(409, 'الرقم الوظيفي مستخدم لموظف آخر'); throw e; }
+  await audit(req, 'create', 'leave_staff', row.id, null, row);
+  const year = +b.year || new Date().getFullYear();
+  res.status(201).json({ row: (await loadRows(req, year, { status: 'all', ids: [row.id] })).rows[0] });
+}));
+
+r.post('/staff/bulk', requirePerm('employees'), wrap(async (req, res) => {
+  const action = req.body?.action;
+  if (!['archive', 'restore', 'delete'].includes(action)) throw httpError(400, 'إجراء غير صالح');
+  const want = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 1000);
+  if (!want.length) throw httpError(400, 'لم يُحدَّد موظفون');
+  const year = +req.body?.year || new Date().getFullYear();
+  const { rows: vis } = await loadRows(req, year, { status: 'all', ids: want });      // يقتصر على ما يراه المستخدم ضمن نطاقه
+  const ids = vis.map(x => x.employee_id);
+  if (!ids.length) throw httpError(404, 'الموظفون غير موجودون');
+  if (action === 'delete') {
+    await q('DELETE FROM leave_staff WHERE id = ANY($1::int[])', [ids]);       // تُحذف بيانات متابعتهم تلقائياً (ON DELETE CASCADE)
+    await audit(req, 'delete', 'leave_staff', ids.join(','), vis.map(x => ({ id: x.employee_id, emp_no: x.emp_no, full_name: x.full_name, status: x.status })), null);
+  } else {
+    const st = action === 'archive' ? 'archived' : 'active';
+    await q('UPDATE leave_staff SET status = $2, version = version + 1, updated_at = now() WHERE id = ANY($1::int[])', [ids, st]);
+    await audit(req, action, 'leave_staff', ids.join(','), vis.map(x => ({ id: x.employee_id, status: x.status })), { status: st });
+  }
+  res.json({ action, affected: ids.length });
+}));
+
 // السنوات المتاحة (التي فيها بيانات) مع عدد الصفوف والمستهدف، إضافة إلى السنة الحالية والتالية
 r.get('/years', wrap(async (req, res) => {
   const cy = new Date().getFullYear();
@@ -291,15 +333,15 @@ r.get('/compare', wrap(async (req, res) => {
   res.json({ years, first, latest, fin, level, set_size: set.length, base_total: lastLr.rows.length, filters_applied: filter, kpis, delta, groups, employees, trends });
 }));
 
-// تعديل حقول المتابعة لموظف وسنة (وتاريخ التعيين/الرقم الوظيفي في السجل المركزي)
+// تعديل حقول المتابعة لموظف وسنة (وبيانات الموظف الأساسية في جدول موظفي المتابعة المستقل)
 r.put('/:employeeId', requirePerm('employees'), wrap(async (req, res) => {
   const id = +req.params.employeeId; const b = req.body || {};
   const year = +b.year || new Date().getFullYear();
   const fin = canSeeFinancials(req.user);
-  const emp = (await q('SELECT * FROM employees WHERE id = $1', [id])).rows[0];
+  const emp = (await q('SELECT * FROM leave_staff WHERE id = $1', [id])).rows[0];
   if (!emp) throw httpError(404, 'الموظف غير موجود');
   const sc = await resolveScope(req.user, 'hr', 'view');
-  if (!sc.all && !(sc.unitIds?.has(emp.org_unit_id) || sc.employeeIds?.has(id))) throw httpError(404, 'الموظف غير موجود');
+  if (!sc.all && !sc.unitIds?.has(emp.org_unit_id)) throw httpError(404, 'الموظف غير موجود');
 
   const trackCols = {};
   if ('annual_balance' in b) trackCols.annual_balance = numOrNull(b.annual_balance, 'الرصيد السنوي');
@@ -314,6 +356,9 @@ r.put('/:employeeId', requirePerm('employees'), wrap(async (req, res) => {
   const empCols = {};
   if ('emp_no' in b) { const v = String(b.emp_no ?? '').trim(); if (!v) throw httpError(400, 'لا يمكن تفريغ الرقم الوظيفي'); empCols.emp_no = v; }
   if ('hire_date' in b) { const v = String(b.hire_date ?? '').trim(); if (!isDate(v)) throw httpError(400, 'تاريخ التعيين غير صالح'); empCols.hire_date = v; }
+  if ('full_name' in b) { const v = String(b.full_name ?? '').trim(); if (v.length < 2) throw httpError(400, 'الاسم مطلوب'); empCols.full_name = v.slice(0, 160); }
+  if ('job_title' in b) empCols.job_title = String(b.job_title ?? '').trim().slice(0, 160) || null;
+  if ('org_unit_id' in b) { const u = b.org_unit_id === '' || b.org_unit_id === null ? null : +b.org_unit_id; if (u !== null && !(await q('SELECT 1 FROM org_units WHERE id = $1', [u])).rows.length) throw httpError(400, 'الوحدة غير موجودة'); if (u !== null && !sc.all && !sc.unitIds?.has(u)) throw httpError(403, 'الوحدة خارج نطاقك'); empCols.org_unit_id = u; }
 
   const old = (await loadRows(req, year, { status: 'all', ids: [id] })).rows[0];
   const client = await pool.connect();
@@ -321,7 +366,7 @@ r.put('/:employeeId', requirePerm('employees'), wrap(async (req, res) => {
     await client.query('BEGIN');
     if (Object.keys(empCols).length) {
       const ks = Object.keys(empCols);
-      await client.query(`UPDATE employees SET ${ks.map((k, i) => `${k} = $${i + 2}`).join(', ')}, version = version + 1, updated_at = now() WHERE id = $1`, [id, ...ks.map(k => empCols[k])]);
+      await client.query(`UPDATE leave_staff SET ${ks.map((k, i) => `${k} = $${i + 2}`).join(', ')}, version = version + 1, updated_at = now() WHERE id = $1`, [id, ...ks.map(k => empCols[k])]);
     }
     const ks = Object.keys(trackCols);
     if (ks.length) {

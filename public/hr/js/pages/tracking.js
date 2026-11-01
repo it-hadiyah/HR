@@ -20,7 +20,7 @@ export default async function tracking() {
   const yearList = () => yearsInfo.years.map(y => y.year);
   const mkYearSel = cur => select(yearList().map(y => { const i = yearsInfo.years.find(x => x.year === y); return [y, i && i.employees ? `${y}  (${i.employees} موظف)` : `${y}  (فارغة)`]; }), cur, { 'aria-label': 'السنة' });
   let yearSel = mkYearSel(thisYear);
-  const statusSel = select([['active', 'نشط'], ['suspended', 'معطّل'], ['all', 'الكل']], 'active', { 'aria-label': 'الحالة' });
+  const statusSel = select([['active', 'نشط'], ['archived', 'مؤرشف'], ['all', 'الكل']], 'active', { 'aria-label': 'الحالة' });
   const search = h('input', { type: 'search', placeholder: 'بحث بالاسم أو الرقم الوظيفي أو المسمى', style: { minWidth: '260px' }, 'aria-label': 'بحث' });
   const incomplete = h('input', { type: 'checkbox' });
   const summaryBox = h('div'), tableBox = h('div');
@@ -108,15 +108,17 @@ export default async function tracking() {
 
   function drawTable() {
     const fin = data.fin;
-    const head = ['#', 'الموظف', 'الرقم الوظيفي', 'تاريخ التعيين', ...(fin ? ['الراتب الإجمالي'] : []), 'الرصيد السنوي', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي للمستهدف', 'المتبقي من الكلي', 'مستحق على الموظف (يوم)', 'التقدم',
+    const selAll = h('input', { type: 'checkbox', 'aria-label': 'تحديد الكل', title: 'تحديد كل المعروضين', onchange: ev => { sel.clear(); if (ev.target.checked) data.rows.forEach(r => sel.add(r.employee_id)); tbody.querySelectorAll('input.rowsel').forEach(c => { c.checked = ev.target.checked; }); updateBulk(); } });
+    const head = [data.can_edit ? selAll : '#', 'الموظف', 'الرقم الوظيفي', 'تاريخ التعيين', ...(fin ? ['الراتب الإجمالي'] : []), 'الرصيد السنوي', 'الرصيد الكلي', 'المستهدف', 'المستخدم', 'المتبقي للمستهدف', 'المتبقي من الكلي', 'مستحق على الموظف (يوم)', 'التقدم',
       ...(fin ? ['أجر اليوم', 'مبلغ مستحق على الموظف', 'تكلفة الإجازة الكلية', 'تكلفة المستهدف لنهاية السنة', 'تكلفة المتبقي من المستهدف', 'تكلفة المتبقي من الكلي', 'التكلفة بعد تحقق المستهدف', 'التوفير المتوقع'] : []), 'ملاحظات', 'الحالة', ''];
     const tbody = h('tbody');
+    sel.clear(); updateBulk();
     data.rows.forEach((e, i) => {
       const c = calc[e.employee_id] = { save: h('span', { class: 'save-state' }), remaining: h('td', { class: 'n' }), remTotal: h('td', { class: 'n' }), owed: h('td', { class: 'n' }), owedCost: h('td', { class: 'n' }), progress: h('td'), status: h('td'), rate: h('td', { class: 'n' }), cost: h('td', { class: 'n strong' }), cTarget: h('td', { class: 'n' }), cRemT: h('td', { class: 'n' }), cRemTot: h('td', { class: 'n' }), after: h('td', { class: 'n' }), saving: h('td', { class: 'n' }) };
       const notes = data.can_edit ? inputFor(e, 'notes', { type: 'text', width: '150px', dir: 'rtl' }) : h('span', null, e.notes || '—');
       const tr = h('tr', null,
-        h('td', { class: 'n' }, String(i + 1)),
-        h('td', { class: 'who' }, h('a', { href: '#/employee/' + e.employee_id, title: 'فتح الملف التفصيلي' }, e.full_name), h('div', { class: 'sub' }, [e.job_title, unitPath(e), e.service_years !== null ? `خدمة ${fmt.days(e.service_years)} سنة` : ''].filter(Boolean).join(' · '))),
+        h('td', { class: 'n' }, data.can_edit ? h('input', { type: 'checkbox', class: 'rowsel', 'aria-label': 'تحديد', onchange: ev => { ev.target.checked ? sel.add(e.employee_id) : sel.delete(e.employee_id); updateBulk(); } }) : null, ' ', String(i + 1)),
+        h('td', { class: 'who' }, h('b', null, e.full_name), e.status === 'archived' ? h('span', { class: 'badge', style: { marginInlineStart: '6px' } }, 'مؤرشف') : null, h('div', { class: 'sub' }, [e.job_title, unitPath(e), e.service_years !== null ? `خدمة ${fmt.days(e.service_years)} سنة` : ''].filter(Boolean).join(' · '))),
         h('td', null, inputFor(e, 'emp_no', { type: 'text', width: '92px' })),
         h('td', null, inputFor(e, 'hire_date', { type: 'date', width: '138px' })),
         fin ? h('td', null, inputFor(e, 'gross_salary', { step: '0.01', width: '104px' })) : null,
@@ -124,8 +126,10 @@ export default async function tracking() {
         c.remaining, c.remTotal, c.owed, c.progress,
         ...(fin ? [c.rate, c.owedCost, c.cost, c.cTarget, c.cRemT, c.cRemTot, c.after, c.saving] : []),
         h('td', null, notes), c.status,
-        h('td', { style: { whiteSpace: 'nowrap' } }, c.save, ' ', data.can_edit ? h('button', { class: 'btn sm ' + (e.status === 'active' ? 'danger' : 'primary'), title: e.status === 'active' ? 'تعطيل الموظف وإخفاؤه' : 'تنشيط الموظف',
-          onclick: () => toggle(e) }, e.status === 'active' ? 'تعطيل' : 'تنشيط') : (e.status !== 'active' ? h('span', { class: 'badge' }, EMP_STATUS[e.status]) : '')));
+        h('td', { style: { whiteSpace: 'nowrap' } }, c.save, ' ', data.can_edit ? h('span', { class: 'row-acts' },
+          h('button', { class: 'btn sm', title: 'تعديل بيانات الموظف', onclick: () => staffDialog(e) }, 'تعديل'),
+          h('button', { class: 'btn sm', title: e.status === 'archived' ? 'إعادة الموظف إلى القائمة النشطة' : 'إخفاء الموظف مع حفظ بياناته', onclick: () => bulk([e.employee_id], e.status === 'archived' ? 'restore' : 'archive', e.full_name) }, e.status === 'archived' ? 'استعادة' : 'أرشفة'),
+          h('button', { class: 'btn sm danger', title: 'حذف الموظف وكل بيانات متابعته نهائياً', onclick: () => bulk([e.employee_id], 'delete', e.full_name) }, 'حذف')) : null));
       tbody.append(tr); refreshRow(tr, e);
     });
     const s = data.summary;
@@ -137,10 +141,36 @@ export default async function tracking() {
       data.rows.length ? null : h('div', { class: 'card', style: { textAlign: 'center', color: 'var(--muted)' } }, 'لا يوجد موظفون مطابقون.'));
   }
 
-  function toggle(e) {
-    const off = e.status === 'active';
-    const run = async () => { await api('/employees/' + e.employee_id, { method: 'PUT', body: { status: off ? 'suspended' : 'active' } }); toast(off ? 'تم التعطيل' : 'تم التنشيط'); await load(); };
-    if (off) confirmBox(`تعطيل ${e.full_name}؟ سيُخفى من هذه القائمة ومن دليل البوابة ويمكن إعادته بتنشيطه.`, run); else guard(run)();
+  // ---- إدارة موظفي المتابعة: إضافة / تعديل / أرشفة / استعادة / حذف (جدول مستقل عن دليل البوابة) ----
+  const sel = new Set();
+  const bulkBox = h('div', { class: 'bulk-bar no-print', hidden: true });
+  function updateBulk() {
+    bulkBox.hidden = sel.size === 0; if (!sel.size) return;
+    const ids = [...sel];
+    bulkBox.replaceChildren(h('b', null, `${sel.size} محدد`), h('button', { class: 'btn sm', onclick: () => bulk(ids, 'archive') }, 'أرشفة المحدد'), h('button', { class: 'btn sm', onclick: () => bulk(ids, 'restore') }, 'استعادة المحدد'),
+      h('button', { class: 'btn sm danger', onclick: () => bulk(ids, 'delete') }, 'حذف المحدد نهائياً'), h('button', { class: 'btn sm', onclick: () => { sel.clear(); tableBox.querySelectorAll('input[type=checkbox]').forEach(c => { c.checked = false; }); updateBulk(); } }, 'إلغاء التحديد'));
+  }
+  function bulk(ids, action, name) {
+    const what = name ? `«${name}»` : `${ids.length} موظف`;
+    const MSG = { archive: `أرشفة ${what}؟ يُخفون من القوائم والمؤشرات وتبقى بياناتهم ويمكن استعادتهم.`, restore: `استعادة ${what} إلى القائمة النشطة؟`,
+      delete: `حذف ${what} نهائياً مع كل بيانات متابعتهم في كل السنوات؟ لا يمكن التراجع. (للإخفاء المؤقت استخدم الأرشفة)` };
+    const run = async () => { const r = await api('/tracking/staff/bulk', { method: 'POST', body: { ids, action, year: f.year } }); toast({ archive: 'تمت الأرشفة', restore: 'تمت الاستعادة', delete: 'تم الحذف' }[action] + ` (${r.affected})`); Object.assign(yearsInfo, await api('/tracking/years')); await load(); };
+    if (action === 'restore') guard(run)(); else confirmBox(MSG[action], run, action === 'delete');
+  }
+  function staffDialog(e) {
+    const inp = (v, extra = {}) => h('input', { type: 'text', value: v ?? '', class: 'cell-in', style: { width: '100%', textAlign: 'start' }, autocomplete: 'off', ...extra });
+    const name = inp(e?.full_name), no = inp(e?.emp_no, { dir: 'ltr' }), title = inp(e?.job_title);
+    const hire = h('input', { type: 'date', value: e?.hire_date || '', class: 'cell-in', style: { width: '100%' } });
+    const unit = select([['', 'بدون وحدة'], ...units.filter(u => u.unit_type !== 'org').map(u => [u.id, `${UNIT_LABEL[u.unit_type] || ''}: ${u.name}`])], e?.org_unit_id ?? '');
+    modal(e ? `تعديل ${e.full_name}` : 'إضافة موظف إلى المتابعة', h('div', null,
+      h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', marginTop: 0 } }, 'موظفو المتابعة جدول مستقل عن دليل موظفي البوابة؛ ما تضيفه هنا لا يظهر في البوابة ولا يتأثر بتعديلاتها.'),
+      h('div', { class: 'form-grid' }, field('الاسم *', name), field('الرقم الوظيفي', no), field('المسمى الوظيفي', title), field('الوحدة التنظيمية', unit), field('تاريخ التعيين', hire))),
+    { saveText: e ? 'حفظ' : 'إضافة', onSave: async () => {
+      const body = { year: f.year, full_name: name.value, job_title: title.value, org_unit_id: unit.value };
+      if (no.value.trim()) body.emp_no = no.value.trim(); if (hire.value) body.hire_date = hire.value;
+      if (e) await api('/tracking/' + e.employee_id, { method: 'PUT', body }); else await api('/tracking/staff', { method: 'POST', body });
+      toast(e ? 'تم حفظ التعديل' : 'تمت الإضافة'); Object.assign(yearsInfo, await api('/tracking/years')); await load();
+    } });
   }
 
   function draw() { drawSummary(); drawTable(); }
@@ -180,12 +210,12 @@ export default async function tracking() {
     h('div', { class: 'card filters' }, h('div', { class: 'row center' },
       h('label', { class: 'f' }, 'السنة', yearSel), h('label', { class: 'f' }, 'الوحدة', unitSel), h('label', { class: 'f' }, 'الحالة', statusSel), search,
       h('label', { class: 'row center', style: { gap: '6px' } }, incomplete, 'الناقص فقط'), h('div', { class: 'spacer' }),
-      targetBtn, copyBtn, canEdit ? h('a', { class: 'btn', href: '#/import' }, 'استيراد من Excel') : null,
+      canEdit ? h('button', { class: 'btn primary', onclick: () => staffDialog() }, '+ إضافة موظف') : null, targetBtn, copyBtn, canEdit ? h('a', { class: 'btn', href: '#/import' }, 'استيراد من Excel') : null,
       h('button', { class: 'btn', onclick: () => download('/tracking/export' + qs({ year: f.year, unit: f.unit, status: f.status, search: f.search, incomplete: f.incomplete ? 1 : '' })) }, 'تصدير Excel'))),
     summaryBox,
     h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', margin: '0 0 8px' } },
       'عبّئ الحقول مباشرة في الجدول وتُحفظ تلقائياً عند الانتقال من الخانة. الرصيد الكلي السالب = مستحق على الموظف (لا يُحسب التزاماً على الجهة ولا يدخل في إجمالي الأرصدة). أجر اليوم = الراتب الإجمالي ÷ قاسم اليوم في السياسة. تكلفة الإجازة الكلية = الرصيد الكلي × أجر اليوم. تكلفة المستهدف = المستهدف × أجر اليوم. المتبقي للمستهدف = المستهدف − المستخدم وتكلفته × أجر اليوم. المتبقي من الكلي = الرصيد الكلي − المستخدم وتكلفته × أجر اليوم.'),
-    tableBox);
+    bulkBox, tableBox);
   await load();
   return root;
 }

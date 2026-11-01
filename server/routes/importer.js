@@ -215,7 +215,7 @@ const processors = {
 
   async tracking(rows, apply, client, opts = {}) {
     const results = [];
-    const emps = (await client.query('SELECT id, emp_no, full_name FROM employees')).rows.map(e => ({ ...e, norm: normalizeName(e.full_name), tokens: new Set(normalizeName(e.full_name).split(' ').filter(Boolean)) }));
+    const emps = (await client.query('SELECT id, emp_no, full_name FROM leave_staff')).rows.map(e => ({ ...e, norm: normalizeName(e.full_name), tokens: new Set(normalizeName(e.full_name).split(' ').filter(Boolean)) }));
     const byNo = new Map(emps.filter(e => e.emp_no).map(e => [String(e.emp_no), e]));
     const usedNo = new Set(byNo.keys()); const seen = new Set(); let tmp = 0;
     const num = (v, label, errs, min = 0) => { if (v === '' || v === undefined) return undefined; const n = toNum(v); if (!Number.isFinite(n) || (min !== null && n < min)) { errs.push(`${label} غير صالح`); return undefined; } return n; };
@@ -250,15 +250,15 @@ const processors = {
         target_days: num(r0.target_days, 'المستهدف', errs, null), used_days: num(r0.used_days, 'المستخدم', errs, null), notes: r0.notes ? String(r0.notes).slice(0, 500) : undefined };
       const ks = Object.keys(v).filter(k => v[k] !== undefined);
       if (!errs.length && !ks.length && hire === undefined) warn.push('لا توجد قيم للتحديث');
-      if (create && !errs.length) warn.push('سيُنشأ الموظف بلا وحدة تنظيمية (عيّنها من الإدارة المركزية)');
+      if (create && !errs.length) warn.push('سيُنشأ الموظف في موظفي المتابعة بلا وحدة تنظيمية (عيّنها بالتعديل من صفحة المتابعة)');
       if (!errs.length && apply) {
         let eid = emp?.id;
         if (create) {
-          eid = (await client.query("INSERT INTO employees(emp_no, full_name, job_title, hire_date, status, leave_enabled) VALUES ($1,$2,$3,$4,'active',FALSE) RETURNING id", [emp_no, fname, r0.job_title ? String(r0.job_title).trim() : null, hire && isDate(hire) ? hire : null])).rows[0].id;
+          eid = (await client.query("INSERT INTO leave_staff(emp_no, full_name, job_title, hire_date, status) VALUES ($1,$2,$3,$4,'active') RETURNING id", [emp_no, fname, r0.job_title ? String(r0.job_title).trim() : null, hire && isDate(hire) ? hire : null])).rows[0].id;
           usedNo.add(emp_no);
         } else {
-          if (setNo) { await client.query('UPDATE employees SET emp_no = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, setNo]); usedNo.add(setNo); }
-          if (hire !== undefined) await client.query('UPDATE employees SET hire_date = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, hire]);
+          if (setNo) { await client.query('UPDATE leave_staff SET emp_no = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, setNo]); usedNo.add(setNo); }
+          if (hire !== undefined) await client.query('UPDATE leave_staff SET hire_date = $2, version = version + 1, updated_at = now() WHERE id = $1', [eid, hire]);
         }
         if (ks.length) await client.query(`INSERT INTO leave_tracking(employee_id, year, ${ks.join(', ')}) VALUES ($1, $2, ${ks.map((_, i) => `$${i + 3}`).join(', ')})
           ON CONFLICT (employee_id, year) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(', ')}, updated_at = now()`, [eid, year, ...ks.map(k => v[k])]);

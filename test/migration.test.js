@@ -27,10 +27,13 @@ test('الترحيل 001-003 على بيانات قديمة: دمج، ربط ح�
   await q("INSERT INTO audit_log(username, action, entity, entity_id) VALUES ('old','create','employee','1')");
 
   const applied = await runMigrations({ backup: false });
-  assert.deepEqual(applied, ['001_unified_employees.js', '002_rbac_sessions.js', '003_audit_logs.sql', '004_report_builder.js', '005_leave_tracking.js', '006_tracking_negatives.js']);
+  assert.deepEqual(applied, ['001_unified_employees.js', '002_rbac_sessions.js', '003_audit_logs.sql', '004_report_builder.js', '005_leave_tracking.js', '006_tracking_negatives.js', '007_leave_staff.js']);
 
   // لا فقدان: 1 مدموج + 2 جديدان = 3 موظفين، وسجل الإجازات والراتب سليمان
   assert.equal((await q('SELECT count(*)::int AS n FROM employees')).rows[0].n, 3);
+  // موظفو المتابعة نُسخوا بالمعرّفات نفسها دون تغيير في employees
+  assert.equal((await q('SELECT count(*)::int AS n FROM leave_staff')).rows[0].n, 3);
+  assert.equal((await q('SELECT full_name FROM leave_staff WHERE id = $1', [e1])).rows[0].full_name, 'محمد ابراهيم كشك');
   const kishk = (await q('SELECT * FROM employees WHERE id = $1', [e1])).rows[0];
   assert.equal(kishk.extension, 101); assert.equal(kishk.email, 'm@x.org'); assert.equal(kishk.photo, 'images/a.png');
   assert.equal(kishk.basic_salary, 10000); assert.equal(kishk.leave_enabled, true); assert.equal(kishk.org_unit_id, u2);   // وحدة الإجازات محفوظة
