@@ -428,3 +428,18 @@ test('موظفو المتابعة مفصولون عن دليل البوابة: �
   assert.equal((await t.q("SELECT count(*)::int AS n FROM audit_logs WHERE entity = 'leave_staff' AND action = 'delete'")).rows[0].n >= 1, true);
   assert.equal((await admin.post('/api/tracking/staff/bulk', { ids: [id], action: 'nope' })).status, 400);
 });
+
+test('أمان: رفض الطلبات المغيِّرة من موقع آخر (Sec-Fetch-Site) وعدم تمرير روابط إعادة التوجيه الخارجية', { skip }, async () => {
+  const cross = await admin.post(`/api/tracking/${trk.id}`, { year: 2026, notes: 'x' }, { 'X-HTTP-Method-Override': 'PUT', 'Sec-Fetch-Site': 'cross-site' });
+  assert.equal(cross.status, 403);
+  const sameSite = await admin.post('/api/tracking/staff/bulk', { ids: [trk.id], action: 'restore' }, { 'Sec-Fetch-Site': 'same-site' });
+  assert.equal(sameSite.status, 403);                                  // نطاق فرعي آخر لا يُسمح له
+  const ok = await admin.post(`/api/tracking/${trk.id}`, { year: 2026, notes: 'ok' }, { 'X-HTTP-Method-Override': 'PUT', 'Sec-Fetch-Site': 'same-origin' });
+  assert.equal(ok.status, 200);
+  const get = await admin.get('/api/tracking?year=2026', { 'Sec-Fetch-Site': 'cross-site' });   // القراءة لا تتأثر
+  assert.equal(get.status, 200);
+  const none = await admin.post(`/api/tracking/${trk.id}`, { year: 2026, notes: 'y' }, { 'X-HTTP-Method-Override': 'PUT' });   // عملاء بلا الترويسة (الاختبارات/السكربتات)
+  assert.equal(none.status, 200);
+  const login = await t.client().post('/api/auth/login', { username: 'root', password: 'x' }, { 'Sec-Fetch-Site': 'cross-site' });
+  assert.equal(login.status, 403);                                     // لا تسجيل دخول عبر نموذج من موقع آخر
+});

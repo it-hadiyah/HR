@@ -66,6 +66,14 @@ const looseCsp = helmet({
 app.use((req, res, next) => (/^\/(portal|card|report-builder)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
 // بعض الوسطاء (وحدة WebDAV في IIS) تحجب PUT/DELETE؛ تُرسَل كـ POST مع X-HTTP-Method-Override
 app.use((req, res, next) => { const o = String(req.headers['x-http-method-override'] || '').toUpperCase(); if (req.method === 'POST' && ['PUT', 'DELETE', 'PATCH'].includes(o)) req.method = o; next(); });
+// حماية CSRF: المتصفحات الحديثة ترسل Sec-Fetch-Site؛ تُرفض الطلبات المغيِّرة القادمة من موقع آخر أو نطاق فرعي آخر
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const site = req.get('sec-fetch-site');
+    if (site && site !== 'same-origin' && site !== 'none') return res.status(403).json({ error: 'طلب غير موثوق المصدر' });
+  }
+  next();
+});
 app.use(cookieParser());
 app.use(requestContext);
 
@@ -144,6 +152,7 @@ app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
 
 app.get('/', (req, res) => res.redirect('/portal/'));   // الرابط الرئيسي يفتح البوابة
 mount('/portal', 'portal', PORTAL_DIR);
+app.use('/card', (req, res, next) => (/^\/(src|tools)(\/|$)/.test(req.path) ? res.status(404).end() : next()));   // لا تُخدَّم ملفات البناء
 mount('/card', 'card', path.join(MODULES, 'card'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));

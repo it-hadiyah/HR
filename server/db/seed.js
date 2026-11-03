@@ -10,11 +10,12 @@ const orgName = process.env.ORG_NAME || 'هدية الحاج';
 let root = (await q("SELECT id FROM org_units WHERE unit_type = 'org' LIMIT 1")).rows[0];
 if (!root) root = (await q("INSERT INTO org_units(unit_type, name) VALUES ('org', $1) RETURNING id", [orgName])).rows[0];
 
-const adminPass = process.env.ADMIN_PASSWORD || 'ChangeMe#2026';
+const generated = !process.env.ADMIN_PASSWORD;
+const adminPass = process.env.ADMIN_PASSWORD || (await import('node:crypto')).randomBytes(12).toString('base64url') + '#9a';   // لا كلمة مرور افتراضية معروفة
 if (!(await q("SELECT 1 FROM users WHERE username = 'admin'")).rows.length) {
   const u = (await q("INSERT INTO users(username, full_name, password_hash, role) VALUES ('admin','مدير النظام',$1,'admin') RETURNING id", [await bcrypt.hash(adminPass, 10)])).rows[0];
   await q("INSERT INTO user_roles(user_id, role_id) SELECT $1, id FROM roles WHERE key = 'admin' ON CONFLICT DO NOTHING", [u.id]);
-  console.log(`أُنشئ المستخدم admin بكلمة المرور: ${adminPass} (غيّرها بعد أول دخول)`);
+  console.log(generated ? `أُنشئ المستخدم admin بكلمة مرور مولّدة: ${adminPass} (احفظها وغيّرها بعد أول دخول)` : 'أُنشئ المستخدم admin بكلمة المرور من ADMIN_PASSWORD (غيّرها بعد أول دخول)');
 }
 
 const hols = [['2026-02-22', 'يوم التأسيس'], ['2026-09-23', 'اليوم الوطني']];

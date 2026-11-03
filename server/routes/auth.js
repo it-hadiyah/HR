@@ -8,6 +8,7 @@ import { effectiveGrants } from '../lib/rbac.js';
 import { httpError } from '../lib/util.js';
 
 const r = Router();
+const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 10);
 const HR_PERMS = ['employees', 'leaves', 'targets', 'org', 'import', 'settings', 'snapshots'];
 
 r.post('/login', wrap(async (req, res) => {
@@ -19,7 +20,7 @@ r.post('/login', wrap(async (req, res) => {
     await audit(req, 'login_failed', 'user', u?.id ?? name, null, { username: name }, { platform: 'platform', result: 'failure', reason, user: u ? { id: u.id, username: u.username } : { username: name } });
     throw httpError(status, msg);
   };
-  if (!u) return fail('مستخدم غير موجود');
+  if (!u) { await bcrypt.compare(String(password), DUMMY_HASH); return fail('مستخدم غير موجود'); }   // يساوي زمن الرد لمنع كشف الأسماء
   if (u.locked_until && new Date(u.locked_until) > new Date()) return fail('الحساب مقفل مؤقتاً', 423, 'الحساب مقفل مؤقتاً بسبب محاولات فاشلة متكررة. حاول لاحقاً.');
   if (!u.active) return fail('حساب معطّل');
   if (!(await bcrypt.compare(String(password), u.password_hash))) {

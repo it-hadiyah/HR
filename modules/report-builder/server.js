@@ -341,6 +341,7 @@ async function handleShare(req, res, p) {
       if (!SH.unlockOk(sh, ck)) {
         if (m[2] && req.method === 'POST') {
           if (!sameOrigin(req)) return msgPage(res, 403, 'طلب مرفوض', 'مصدر الطلب غير موثوق.');
+          if (unlockFails.size > 5000) for (const [k, v] of unlockFails) if (v.until < Date.now()) unlockFails.delete(k);   // يمنع نمو الذاكرة
           const key = ip + '|' + sh.token, f = unlockFails.get(key) || { n: 0, until: 0 };
           if (f.until > Date.now()) return pwPage(res, sh.token, 'محاولات كثيرة. حاول بعد قليل.');
           const body = new URLSearchParams(await readBody(req, 4000));

@@ -47,7 +47,12 @@ if (Get-Service $Name -ErrorAction SilentlyContinue) { & $nssm stop $Name | Out-
 & $nssm set $Name AppRotateBytes 10485760 | Out-Null
 
 # 4) firewall (only needed if people reach the port directly; with IIS in front you can remove this rule)
-if (-not (Get-NetFirewallRule -DisplayName $Name -ErrorAction SilentlyContinue)) {
+if (Test-Path $iisCfg) {
+  # behind IIS: listen on localhost only and do NOT open the port (clients must use IIS/HTTPS)
+  & $nssm set $Name AppEnvironmentExtra "HOST=127.0.0.1" | Out-Null
+  Get-NetFirewallRule -DisplayName $Name -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+  "IIS proxy detected: service bound to 127.0.0.1, firewall port not opened."
+} elseif (-not (Get-NetFirewallRule -DisplayName $Name -ErrorAction SilentlyContinue)) {
   New-NetFirewallRule -DisplayName $Name -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow | Out-Null
 }
 & $nssm start $Name

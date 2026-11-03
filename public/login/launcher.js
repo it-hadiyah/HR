@@ -9,7 +9,8 @@ const api = async (path, opt) => {
 // يمنع إعادة التوجيه إلى مواقع خارجية بعد الدخول
 const nextUrl = () => {
   const n = new URLSearchParams(location.search).get('next');
-  return n && n.startsWith('/') && !n.startsWith('//') ? n : null;
+  // مسار داخلي فقط: يُرفض // و /\ (يفسّرها المتصفح كنطاق خارجي) والمحارف الخاصة
+  return n && /^\/(?![\/\\])[^\\\u0000-\u001f]*$/.test(n) ? n : null;
 };
 
 const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
