@@ -1,6 +1,7 @@
 // متابعة أرصدة الإجازات: جدول يعبّئه المسؤول لكل موظف، وتُحسب منه التكلفة المالية والمؤشرات تلقائياً.
 import { h, api, qs, state, fmt, num, select, toast, guard, confirmBox, EMP_STATUS, download, modal, field } from '../core.js';
 import { getUnits } from '../filters.js';
+import { createFilterPanel, emptySpec, specCount } from '../filter-panel.js';
 
 const UNIT_LABEL = { sector: 'قطاع', department: 'إدارة', section: 'قسم' };
 const unitPath = e => [e.sector, e.department, e.section].filter(Boolean).join(' ‹ ') || '—';
@@ -13,26 +14,34 @@ function kpi(label, value, unit, { hint, tone } = {}) {
 export default async function tracking() {
   const root = h('div');
   const thisYear = new Date().getFullYear();
-  const f = { year: thisYear, unit: '', search: '', status: 'active', incomplete: false };
+  const f = { year: thisYear, status: 'active' };
+  let spec = emptySpec(), panel = null;   // مواصفة الفلترة المتقدمة (نفس نظام لوحة المؤشرات)
   const units = await getUnits();
-  const unitSel = select([['', 'كل الوحدات'], ...units.filter(u => u.unit_type !== 'org').map(u => [u.id, `${UNIT_LABEL[u.unit_type] || ''}: ${u.name}`])], '', { 'aria-label': 'الوحدة' });
   const yearsInfo = await api('/tracking/years');
   const yearList = () => yearsInfo.years.map(y => y.year);
   const mkYearSel = cur => select(yearList().map(y => { const i = yearsInfo.years.find(x => x.year === y); return [y, i && i.employees ? `${y}  (${i.employees} موظف)` : `${y}  (فارغة)`]; }), cur, { 'aria-label': 'السنة' });
   let yearSel = mkYearSel(thisYear);
   const statusSel = select([['active', 'نشط'], ['archived', 'مؤرشف'], ['all', 'الكل']], 'active', { 'aria-label': 'الحالة' });
-  const search = h('input', { type: 'search', placeholder: 'بحث بالاسم أو الرقم الوظيفي أو المسمى', style: { minWidth: '260px' }, 'aria-label': 'بحث' });
-  const incomplete = h('input', { type: 'checkbox' });
-  const summaryBox = h('div'), tableBox = h('div');
+  const summaryBox = h('div'), tableBox = h('div'), panelBox = h('div'), matchBox = h('div');
   let data = null;
 
   const fmtMoney = v => (v === null || v === undefined ? '—' : fmt.sar(v));
 
   async function load() {
-    Object.assign(f, { year: +yearSel.value, unit: unitSel.value, status: statusSel.value, search: search.value.trim(), incomplete: incomplete.checked });
-    data = await api('/tracking' + qs({ year: f.year, unit: f.unit, status: f.status, search: f.search, incomplete: f.incomplete ? 1 : '' }));
+    Object.assign(f, { year: +yearSel.value, status: statusSel.value });
+    data = await api('/tracking' + qs({ year: f.year, status: f.status, f: specCount(spec) ? JSON.stringify(spec) : '' }));
+    const pct = data.base_total ? Math.round(data.rows.length / data.base_total * 100) : 0;
+    matchBox.replaceChildren(h('div', { class: 'match-bar' }, h('b', { style: { color: 'var(--text)' } }, `${fmt.int(data.rows.length)} من ${fmt.int(data.base_total)} موظف`), h('span', { class: 'ibar' }, h('i', { style: { width: pct + '%' } })), specCount(spec) ? `${pct}% مطابقون للفلاتر` : 'بلا فلاتر'));
     draw();
   }
+
+  // لوحة الفلترة: خياراتها وعدّاداتها تعتمد على السنة والحالة المختارتين
+  async function buildPanel() {
+    const facets = await api('/tracking/facets' + qs({ year: yearSel.value, status: statusSel.value }));
+    panel = createFilterPanel({ facets, spec, fin: facets.fin, viewsKey: 'hr.tracking.views', onChange: sp => { spec = sp; guard(load)(); } });
+    panelBox.replaceChildren(panel.el);
+  }
+  const reloadAll = guard(async () => { await buildPanel(); await load(); });
 
   function drawSummary() {
     const s = data.summary, fin = data.fin;
@@ -154,7 +163,7 @@ export default async function tracking() {
     const what = name ? `«${name}»` : `${ids.length} موظف`;
     const MSG = { archive: `أرشفة ${what}؟ يُخفون من القوائم والمؤشرات وتبقى بياناتهم ويمكن استعادتهم.`, restore: `استعادة ${what} إلى القائمة النشطة؟`,
       delete: `حذف ${what} نهائياً مع كل بيانات متابعتهم في كل السنوات؟ لا يمكن التراجع. (للإخفاء المؤقت استخدم الأرشفة)` };
-    const run = async () => { const r = await api('/tracking/staff/bulk', { method: 'POST', body: { ids, action, year: f.year } }); toast({ archive: 'تمت الأرشفة', restore: 'تمت الاستعادة', delete: 'تم الحذف' }[action] + ` (${r.affected})`); Object.assign(yearsInfo, await api('/tracking/years')); await load(); };
+    const run = async () => { const r = await api('/tracking/staff/bulk', { method: 'POST', body: { ids, action, year: f.year } }); toast({ archive: 'تمت الأرشفة', restore: 'تمت الاستعادة', delete: 'تم الحذف' }[action] + ` (${r.affected})`); Object.assign(yearsInfo, await api('/tracking/years')); await reloadAll(); };
     if (action === 'restore') guard(run)(); else confirmBox(MSG[action], run, action === 'delete');
   }
   function staffDialog(e) {
@@ -169,7 +178,7 @@ export default async function tracking() {
       const body = { year: f.year, full_name: name.value, job_title: title.value, org_unit_id: unit.value };
       if (no.value.trim()) body.emp_no = no.value.trim(); if (hire.value) body.hire_date = hire.value;
       if (e) await api('/tracking/' + e.employee_id, { method: 'PUT', body }); else await api('/tracking/staff', { method: 'POST', body });
-      toast(e ? 'تم حفظ التعديل' : 'تمت الإضافة'); Object.assign(yearsInfo, await api('/tracking/years')); await load();
+      toast(e ? 'تم حفظ التعديل' : 'تمت الإضافة'); Object.assign(yearsInfo, await api('/tracking/years')); await reloadAll();
     } });
   }
 
@@ -187,35 +196,33 @@ export default async function tracking() {
     const sync = () => { valF.hidden = rule.value === 'copy_prev'; srcF.hidden = rule.value !== 'copy_prev' && !base.checked; };
     rule.addEventListener('change', sync); base.addEventListener('change', sync); sync();
     modal('إعداد مستهدف سنة', h('div', null,
-      h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', marginTop: 0 } }, `يُطبَّق على الموظفين المعروضين حالياً (${data.rows.length} موظف حسب الوحدة والحالة والبحث المحددة). تُنشأ للسنة صفوف جديدة عند الحاجة، ويمكن بعدها مقارنتها بالسنوات الأخرى.`),
+      h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', marginTop: 0 } }, `يُطبَّق على الموظفين المعروضين حالياً (${data.rows.length} موظف حسب الفلاتر والحالة المحددة). تُنشأ للسنة صفوف جديدة عند الحاجة، ويمكن بعدها مقارنتها بالسنوات الأخرى.`),
       h('div', { class: 'form-grid' }, field('السنة', yr), field('طريقة التحديد', rule), valF, srcF),
       h('label', { class: 'row center', style: { gap: '6px', margin: '8px 0 0' } }, empty, 'تحديث من ليس له مستهدف فقط (لا يستبدل المُدخَل)'),
       h('label', { class: 'row center', style: { gap: '6px', margin: '4px 0 0' } }, base, 'نسخ الراتب والرصيد السنوي من سنة المصدر لمن ليس لهم بيانات في هذه السنة')), { saveText: 'تطبيق', onSave: async () => {
       const body = { year: +yr.value, mode: rule.value, value: val.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.'), source_year: +src.value, only_empty: empty.checked, copy_base: base.checked,
-        unit: f.unit, status: f.status, f: { q: f.search, segments: f.incomplete ? ['incomplete'] : [] } };
+        status: f.status, f: spec };
       const r = await api('/tracking/year-target', { method: 'POST', body });
       toast(`تم تحديث مستهدف ${r.year} لـ ${r.updated} موظف${r.skipped ? ` (تخطّي ${r.skipped})` : ''}`);
       Object.assign(yearsInfo, await api('/tracking/years'));
-      const nv = mkYearSel(r.year); yearSel.replaceWith(nv); yearSel = nv; nv.addEventListener('change', guard(load)); await load();
+      const nv = mkYearSel(r.year); yearSel.replaceWith(nv); yearSel = nv; nv.addEventListener('change', reloadAll); await reloadAll();
     } });
   } }, 'إعداد مستهدف سنة') : null;
   const copyBtn = canEdit ? h('button', { class: 'btn', title: 'ينسخ الراتب الإجمالي والرصيد السنوي من السنة السابقة لمن ليس لهم صف في السنة المختارة', onclick: () => confirmBox(`نسخ بيانات ${f.year - 1} (الراتب والرصيد السنوي) إلى ${f.year} لمن ليس لهم بيانات؟`, async () => {
     const r = await api('/tracking/copy-year', { method: 'POST', body: { from: f.year - 1, to: f.year } }); toast(`تم نسخ ${r.copied} سجل`); await load();
   }, false) }, 'نسخ من السنة السابقة') : null;
 
-  for (const el of [yearSel, unitSel, statusSel, incomplete]) el.addEventListener('change', guard(load));
-  let timer; search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(guard(load), 300); });
+  for (const el of [yearSel, statusSel]) el.addEventListener('change', reloadAll);
 
   root.append(
     h('div', { class: 'card filters' }, h('div', { class: 'row center' },
-      h('label', { class: 'f' }, 'السنة', yearSel), h('label', { class: 'f' }, 'الوحدة', unitSel), h('label', { class: 'f' }, 'الحالة', statusSel), search,
-      h('label', { class: 'row center', style: { gap: '6px' } }, incomplete, 'الناقص فقط'), h('div', { class: 'spacer' }),
+      h('label', { class: 'f' }, 'السنة', yearSel), h('label', { class: 'f' }, 'الحالة', statusSel), h('div', { class: 'spacer' }),
       canEdit ? h('button', { class: 'btn primary', onclick: () => staffDialog() }, '+ إضافة موظف') : null, targetBtn, copyBtn, canEdit ? h('a', { class: 'btn', href: '#/import' }, 'استيراد من Excel') : null,
-      h('button', { class: 'btn', onclick: () => download('/tracking/export' + qs({ year: f.year, unit: f.unit, status: f.status, search: f.search, incomplete: f.incomplete ? 1 : '' })) }, 'تصدير Excel'))),
-    summaryBox,
+      h('button', { class: 'btn', onclick: () => download('/tracking/export' + qs({ year: f.year, status: f.status, f: specCount(spec) ? JSON.stringify(spec) : '' })) }, 'تصدير Excel'))),
+    panelBox, matchBox, summaryBox,
     h('p', { style: { color: 'var(--muted)', fontSize: '12.5px', margin: '0 0 8px' } },
       'عبّئ الحقول مباشرة في الجدول وتُحفظ تلقائياً عند الانتقال من الخانة. الرصيد الكلي السالب = مستحق على الموظف (لا يُحسب التزاماً على الجهة ولا يدخل في إجمالي الأرصدة). أجر اليوم = الراتب الإجمالي ÷ قاسم اليوم في السياسة. تكلفة الإجازة الكلية = الرصيد الكلي × أجر اليوم. تكلفة المستهدف = المستهدف × أجر اليوم. المتبقي للمستهدف = المستهدف − المستخدم وتكلفته × أجر اليوم. المتبقي من الكلي = الرصيد الكلي − المستخدم وتكلفته × أجر اليوم.'),
     bulkBox, tableBox);
-  await load();
+  await buildPanel(); await load();
   return root;
 }

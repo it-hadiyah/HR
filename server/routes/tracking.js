@@ -114,7 +114,7 @@ r.get('/', wrap(async (req, res) => {
   const year = yearOf(req);
   const { rows: all, fin, policy } = await loadRows(req, year, { search: (req.query.search || '').trim(), unit: req.query.unit, status: req.query.status || 'active', incomplete: req.query.incomplete === '1' });
   const rows = applyFilter(all, normalizeFilter(req.query.f), filterContext(all, year, policy), fin);
-  res.json({ year, fin, max_balance_cap: policy.max_balance_cap, can_edit: can(req.user, 'employees'), rows, summary: summarize(rows, fin) });
+  res.json({ year, fin, max_balance_cap: policy.max_balance_cap, can_edit: can(req.user, 'employees'), base_total: all.length, rows, summary: summarize(rows, fin) });
 }));
 
 // لوحة المؤشرات: نتائج وأداء وخطة وإحصاءات مجمّعة من بيانات المتابعة (للقراءة فقط)
