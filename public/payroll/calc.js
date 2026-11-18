@@ -8,6 +8,9 @@ export const DEFAULT_SETTINGS = {
   salary_basis: 'gross',            // gross: الراتب الإجمالي | basic: الأساسي فقط
   days_per_month: 30,
   hours_per_day: 8,
+  allowances_auto: true,            // السكن والنقل تُحسب تلقائياً من الأساسي بالنسب أدناه
+  housing_percent: 25,
+  transport_percent: 10,
   overtime_monthly_cap_hours: 0,    // 0 = بلا حد (تنبيه فقط عند التجاوز)
   overtime_types: [
     { id: 'ot-workday', name: 'إضافي أيام العمل', percent: 150 },
@@ -19,6 +22,15 @@ export const DEFAULT_SETTINGS = {
     { id: 'as-outside', name: 'انتداب خارج المدينة', percent: 150 },
   ],
 };
+
+/** يطبّق نسب بدل السكن والنقل (من الأساسي) إن كان الاحتساب التلقائي مفعّلاً */
+export function withAllowances(s, st) {
+  if (!st?.allowances_auto) return s;
+  const b = n(s?.basic);
+  return { ...s, housing: round2(b * n(st.housing_percent) / 100), transport: round2(b * n(st.transport_percent) / 100) };
+}
+/** الأساسي المقابل لإجمالي معلوم عند الاحتساب التلقائي */
+export const basicFromGross = (gross, st) => (st?.allowances_auto ? round2(n(gross) / (1 + (n(st.housing_percent) + n(st.transport_percent)) / 100)) : round2(gross));
 
 /** الراتب الإجمالي = الأساسي + البدلات */
 export const grossOf = s => round2(n(s?.basic) + n(s?.housing) + n(s?.transport) + n(s?.other));

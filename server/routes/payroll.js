@@ -10,7 +10,7 @@ import { requireGrant, hasGrant } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
 import { normalizeName } from '../lib/text.js';
 import { unitPaths } from './tracking.js';
-import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows } from '../../public/payroll/calc.js';
+import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows, withAllowances, basicFromGross } from '../../public/payroll/calc.js';
 
 const r = Router();
 const G = action => requireGrant('payroll', action);
@@ -50,7 +50,10 @@ function cleanSettings(b) {
   if (!(days >= 20 && days <= 31)) throw httpError(400, 'أيام الشهر بين 20 و31');
   if (!(hours >= 1 && hours <= 24)) throw httpError(400, 'ساعات اليوم بين 1 و24');
   if (!(cap >= 0 && cap <= 744)) throw httpError(400, 'الحد الأقصى لساعات الإضافي بين 0 و744 (0 = بلا حد)');
-  return { salary_basis: b.salary_basis === 'basic' ? 'basic' : 'gross', days_per_month: days, hours_per_day: hours, overtime_monthly_cap_hours: cap,
+  const hp = Number(b.housing_percent ?? 0), tp = Number(b.transport_percent ?? 0);
+  if (!(hp >= 0 && hp <= 100)) throw httpError(400, 'نسبة بدل السكن بين 0 و100');
+  if (!(tp >= 0 && tp <= 100)) throw httpError(400, 'نسبة بدل النقل بين 0 و100');
+  return { salary_basis: b.salary_basis === 'basic' ? 'basic' : 'gross', allowances_auto: b.allowances_auto !== false && b.allowances_auto !== 'false', housing_percent: hp, transport_percent: tp, days_per_month: days, hours_per_day: hours, overtime_monthly_cap_hours: cap,
     overtime_types: cleanTypes(b.overtime_types, 'الإضافي'), assignment_types: cleanTypes(b.assignment_types, 'الانتداب') };
 }
 
@@ -78,8 +81,8 @@ async function staffRows({ status = 'active', term = '', ids } = {}) {
   const rows = (await q(`SELECT s.id AS employee_id, s.emp_no, s.full_name, s.job_title, s.org_unit_id, s.status,
       p.basic::float8 AS basic, p.housing::float8 AS housing, p.transport::float8 AS transport, p.other::float8 AS other, p.notes, (p.employee_id IS NOT NULL) AS has_salary
     FROM leave_staff s LEFT JOIN payroll_salaries p ON p.employee_id = s.id ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY s.full_name, s.id`, p)).rows;
-  const pathOf = await unitPaths();
-  return rows.map(x => { const u = pathOf(x.org_unit_id); return { ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0, gross: grossOf(x), sector: u.sector, department: u.department, section: u.section }; });
+  const pathOf = await unitPaths(); const st = await loadSettings();
+  return rows.map(x => { const u = pathOf(x.org_unit_id); const y = withAllowances({ ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0 }, st); return { ...x, ...y, gross: grossOf(y), sector: u.sector, department: u.department, section: u.section }; });
 }
 
 r.get('/salaries', G('view'), wrap(async (req, res) => {
@@ -112,9 +115,10 @@ r.put('/salaries/:id', G('edit_salaries'), wrap(async (req, res) => {
 
 r.post('/salaries/pull-from-tracking', G('edit_salaries'), wrap(async (req, res) => {
   const year = +req.body?.year || new Date().getFullYear();
+  const st = await loadSettings(); const div = st.allowances_auto ? 1 + (Number(st.housing_percent) + Number(st.transport_percent)) / 100 : 1;
   const { rowCount } = await q(`INSERT INTO payroll_salaries(employee_id, basic, notes, updated_by)
-    SELECT t.employee_id, t.gross_salary, 'من متابعة الأرصدة ' || $1 || ' (إجمالي)', $2 FROM leave_tracking t JOIN leave_staff s ON s.id = t.employee_id
-    WHERE t.year = $1 AND t.gross_salary IS NOT NULL AND t.gross_salary > 0 AND s.status = 'active' ON CONFLICT (employee_id) DO NOTHING`, [year, req.user.username]);
+    SELECT t.employee_id, round(t.gross_salary / $3::numeric, 2), 'من متابعة الأرصدة ' || $1 || ' (إجمالي)', $2 FROM leave_tracking t JOIN leave_staff s ON s.id = t.employee_id
+    WHERE t.year = $1 AND t.gross_salary IS NOT NULL AND t.gross_salary > 0 AND s.status = 'active' ON CONFLICT (employee_id) DO NOTHING`, [year, req.user.username, div]);
   await audit(req, 'import', 'payroll_salary', `tracking-${year}`, null, { imported: rowCount });
   res.json({ imported: rowCount });
 }));
@@ -179,7 +183,7 @@ r.post('/salaries/import', G('edit_salaries'), upload, wrap(async (req, res) => 
     const sub = staff.filter(s => s.tokens.size >= 2 && toks.size >= 2 && ([...s.tokens].every(t => toks.has(t)) || [...toks].every(t => s.tokens.has(t))));
     return sub.length === 1 ? { s: sub[0] } : sub.length > 1 ? { many: sub.length } : { none: true };
   };
-  const plan = [];
+  const plan = []; const cfg = await loadSettings();
   for (const r0 of rows) {
     const errs = []; const warn = []; const no = String(r0.emp_no || '').trim(); const name = String(r0.full_name || '').trim();
     let s = no ? byNo.get(no) : null; let action = 'تحديث'; let create = false;
@@ -194,7 +198,7 @@ r.post('/salaries/import', G('edit_salaries'), upload, wrap(async (req, res) => 
     if (seen.has(key)) errs.push('مكرر داخل الملف'); seen.add(key);
     if (create) warn.push('سيُنشأ في موظفي المتابعة بلا وحدة (عيّنها من جدول الرواتب)');
     plan.push({ r0, s, create, no, name, vals, errs });
-    results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action, label: `${no || '—'}${name ? ' · ' + name : ''}`, gross: round2((vals.basic || 0) + (vals.housing || 0) + (vals.transport || 0) + (vals.other || 0)) });
+    results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action, label: `${no || '—'}${name ? ' · ' + name : ''}`, gross: grossOf(withAllowances(vals, cfg)) });
   }
   const bad = results.filter(x => !x.ok);
   const out = { mode: commit ? 'commit' : 'preview', total: rows.length, valid: results.length - bad.length, invalid: bad.length, rows: results };

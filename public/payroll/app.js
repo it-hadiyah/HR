@@ -64,7 +64,7 @@ async function salariesView() {
   let data = null, timer;
   const unitOpts = [['', '— بدون وحدة —'], ...S.units.filter(u => u.unit_type !== 'org').map(u => [u.id, `${UNIT_LABEL[u.unit_type] || ''}: ${u.name}`])];
   const num = (e, key) => {
-    if (!edit) return h('span', null, sar(e[key]));
+    if (!edit || (S.settings.allowances_auto && (key === 'housing' || key === 'transport'))) return h('span', { class: 'auto-' + key }, sar(e[key]));
     const el = h('input', { type: 'text', inputmode: 'decimal', value: e[key] ? String(e[key]) : '', class: 'cell-in', autocomplete: 'off', 'aria-label': key });
     el.addEventListener('change', () => save(e, { [key]: normNum(el.value) }, el));
     el.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } });
@@ -75,7 +75,7 @@ async function salariesView() {
     try {
       const out = await api('/salaries/' + e.employee_id, { method: 'PUT', body });
       Object.assign(e, out.row); tr?.classList.remove('saving'); tr?.classList.add('saved'); setTimeout(() => tr?.classList.remove('saved'), 1200);
-      tr.querySelector('.g').textContent = sar(e.gross); recompute();
+      tr.querySelector('.g').textContent = sar(e.gross); for (const k of ['housing', 'transport']) { const c = tr.querySelector('.auto-' + k); if (c) c.textContent = sar(e[k]); } recompute();
     } catch (err) { tr?.classList.remove('saving'); el?.classList.add('bad'); toast(err.message, true); }
   }
   function recompute() {
@@ -93,7 +93,7 @@ async function salariesView() {
   function draw() {
     drawKpis();
     box.replaceChildren(h('div', { class: 'tbl-wrap' }, h('table', { class: 'pay' },
-      h('thead', null, h('tr', null, ['#', 'الموظف', 'الوحدة', 'الأساسي', 'السكن', 'النقل', 'أخرى', 'الإجمالي', 'ملاحظات'].map(t => h('th', { class: ['#', 'الإجمالي'].includes(t) ? 'n' : '' }, t)))),
+      h('thead', null, h('tr', null, ['#', 'الموظف', 'الوحدة', 'الأساسي', S.settings.allowances_auto ? `السكن (${S.settings.housing_percent}%)` : 'السكن', S.settings.allowances_auto ? `النقل (${S.settings.transport_percent}%)` : 'النقل', 'أخرى', 'الإجمالي', 'ملاحظات'].map(t => h('th', { class: ['#', 'الإجمالي'].includes(t) ? 'n' : '' }, t)))),
       h('tbody', null, data.rows.length ? data.rows.map((e, i) => h('tr', null, h('td', { class: 'n' }, String(i + 1)),
         h('td', { class: 'who' }, h('b', null, e.full_name), h('small', null, [e.emp_no ? `رقم ${e.emp_no}` : '', e.job_title].filter(Boolean).join(' · '))),
         h('td', null, edit ? h('select', { class: 'cell-sel', onchange: ev => save(e, { org_unit_id: ev.target.value }, ev.target) }, unitOpts.map(([v, l]) => h('option', { value: v, selected: String(v) === String(e.org_unit_id ?? '') }, l)))
@@ -259,6 +259,7 @@ async function settingsView() {
   const st = JSON.parse(JSON.stringify(S.settings));
   const basis = h('select', null, [['gross', 'الراتب الإجمالي'], ['basic', 'الراتب الأساسي فقط']].map(([v, l]) => h('option', { value: v, selected: st.salary_basis === v }, l)));
   const num = (v, min, max) => h('input', { type: 'text', inputmode: 'decimal', value: String(v) });
+  const auto = h('input', { type: 'checkbox', checked: !!st.allowances_auto }), hp = num(st.housing_percent), tp = num(st.transport_percent);
   const days = num(st.days_per_month), hours = num(st.hours_per_day), cap = num(st.overtime_monthly_cap_hours);
   const calcIn = h('input', { type: 'text', inputmode: 'decimal', value: '8000', style: 'max-width:160px' }), calcOut = h('div', { class: 'formula' });
   const typesBox = key => {
@@ -268,25 +269,30 @@ async function settingsView() {
     h('button', { class: 'btn sm', type: 'button', onclick: () => { st[key].push({ name: '', percent: 100 }); draw(); } }, '+ إضافة نوع'));
     draw(); return box;
   };
-  const collect = () => ({ salary_basis: basis.value, days_per_month: +normNum(days.value), hours_per_day: +normNum(hours.value), overtime_monthly_cap_hours: +normNum(cap.value) || 0,
+  const collect = () => ({ salary_basis: basis.value, allowances_auto: auto.checked, housing_percent: +normNum(hp.value) || 0, transport_percent: +normNum(tp.value) || 0, days_per_month: +normNum(days.value), hours_per_day: +normNum(hours.value), overtime_monthly_cap_hours: +normNum(cap.value) || 0,
     overtime_types: st.overtime_types.map(t => ({ ...t, percent: +normNum(t.percent) })), assignment_types: st.assignment_types.map(t => ({ ...t, percent: +normNum(t.percent) })) });
   function preview() {
     const c = collect(), s = +normNum(calcIn.value) || 0;
     if (!(c.days_per_month > 0 && c.hours_per_day > 0)) { calcOut.textContent = '—'; return; }
-    const day = s / c.days_per_month, hr = day / c.hours_per_day;
-    calcOut.replaceChildren(h('div', null, `بالراتب ${sar(s)} ر.س: الأجر اليومي ${sar(day)} · الأجر الساعي ${sar(hr)}`),
+    const gs = c.allowances_auto ? s * (1 + (c.housing_percent + c.transport_percent) / 100) : s;
+    const base = c.salary_basis === 'basic' ? s : gs, day = base / c.days_per_month, hr = day / c.hours_per_day;
+    calcOut.replaceChildren(c.allowances_auto ? h('div', null, `أساسي ${sar(s)}: سكن ${sar(s * c.housing_percent / 100)} + نقل ${sar(s * c.transport_percent / 100)} = إجمالي ${sar(gs)} ر.س`) : null, h('div', null, `على أساس ${sar(base)} ر.س: الأجر اليومي ${sar(day)} · الأجر الساعي ${sar(hr)}`),
       ...c.overtime_types.map(t => h('div', null, `• ${t.name || '—'}: ساعة إضافي واحدة = ${sar(hr * t.percent / 100)} ر.س`)), ...c.assignment_types.map(t => h('div', null, `• ${t.name || '—'}: يوم انتداب واحد = ${sar(day * t.percent / 100)} ر.س`)));
   }
-  for (const el of [days, hours, cap, calcIn, basis]) el.addEventListener('input', preview);
+  for (const el of [days, hours, cap, calcIn, basis, auto, hp, tp]) el.addEventListener('input', preview);
   const otBox = typesBox('overtime_types'), asBox = typesBox('assignment_types');
   const save = guard(async () => { const out = await api('/settings', { method: 'PUT', body: collect() }); S.settings = out.settings; toast('تم حفظ الإعدادات'); });
   view.replaceChildren(h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'أساس الاحتساب'),
     h('div', { class: 'form-2' }, h('div', null, h('label', { class: 'f' }, 'تُحسب النسب على'), basis), h('div', null, h('label', { class: 'f' }, 'أيام الشهر'), days), h('div', null, h('label', { class: 'f' }, 'ساعات العمل اليومية'), hours),
       h('div', null, h('label', { class: 'f' }, 'تنبيه عند تجاوز ساعات الإضافي الشهرية (0 = بلا تنبيه)'), cap)),
     h('div', { class: 'formula' }, 'الأجر اليومي = أساس الراتب ÷ أيام الشهر · الأجر الساعي = الأجر اليومي ÷ ساعات اليوم')),
+  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'بدل السكن وبدل النقل'),
+    h('label', null, auto, ' احسبهما تلقائياً من الراتب الأساسي بالنسبة أدناه'),
+    h('div', { class: 'form-2' }, h('div', null, h('label', { class: 'f' }, 'بدل السكن (% من الأساسي)'), hp), h('div', null, h('label', { class: 'f' }, 'بدل النقل (% من الأساسي)'), tp)),
+    h('p', { class: 'hint' }, 'عند التفعيل لا تُدخل البدلين يدوياً: يُحسبان من الأساسي لكل موظف، ويظهران في الرواتب والتقارير. غير المفعّل يعيد الإدخال اليدوي.')),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الإضافي (من الأجر الساعي)'), h('p', { class: 'hint' }, 'مبلغ الإضافي = الساعات × الأجر الساعي × النسبة ÷ 100. مثال: 150 تعني ساعة ونصف الأجر الساعي.'), otBox),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الانتداب (من الأجر اليومي)'), h('p', { class: 'hint' }, 'مبلغ الانتداب = الأيام × الأجر اليومي × النسبة ÷ 100.'), asBox),
-  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'حاسبة تجريبية'), h('label', { class: 'f' }, 'راتب تجريبي (ر.س)'), calcIn, calcOut),
+  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'حاسبة تجريبية'), h('label', { class: 'f' }, 'راتب أساسي تجريبي (ر.س)'), calcIn, calcOut),
   S.can.settings ? h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: save }, 'حفظ الإعدادات'), h('span', { class: 'hint' }, 'التغيير يسري على البنود الجديدة؛ البنود المسجّلة سابقاً تحتفظ بنسبتها وراتبها وقت الإدخال حتى تُعدَّل.')) : h('p', { class: 'hint' }, 'لا تملك صلاحية تعديل الإعدادات.'));
   preview();
 }

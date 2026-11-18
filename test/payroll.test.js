@@ -48,8 +48,16 @@ test('الصلاحيات', { skip }, async () => {
 });
 
 test('الرواتب والإضافي والانتداب والتقرير', { skip }, async () => {
-  let r = await fin.put('/api/payroll/salaries/' + empId, { basic: '6000', housing: '1500', transport: '500', other: 0 });
-  assert.equal(r.status, 200); assert.equal(r.json.row.gross, 8000);
+  // الاحتساب التلقائي (الافتراضي): سكن 25% ونقل 10% من الأساسي
+  let r = await fin.put('/api/payroll/salaries/' + empId, { basic: '6000', housing: '1', transport: '1', other: 0 });
+  assert.equal(r.status, 200); assert.equal(r.json.row.housing, 1500); assert.equal(r.json.row.transport, 600); assert.equal(r.json.row.gross, 8100);
+  // يدوي: تُستخدم القيم المخزّنة
+  r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, allowances_auto: false });
+  assert.equal(r.status, 200);
+  r = await fin.put('/api/payroll/salaries/' + empId, { basic: '6000', housing: '1500', transport: '500', other: 0 });
+  assert.equal(r.json.row.gross, 8000);
+  r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, allowances_auto: false, housing_percent: 150 });
+  assert.equal(r.status, 400);
   r = await fin.put('/api/payroll/salaries/' + empId, { basic: '-5' });
   assert.equal(r.status, 400);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-05', pay_month: '2026-11', type_id: 'ot-workday', quantity: '3' });
@@ -69,5 +77,5 @@ test('الإعدادات تتحقق وتؤثر على الحساب', { skip }, a
   r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, overtime_types: [{ id: 'ot-workday', name: 'عادي', percent: 200 }] });
   assert.equal(r.status, 200);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-07', pay_month: '2026-12', type_id: 'ot-workday', quantity: '3' });
-  assert.equal(r.json.row.amount, 200);
+  assert.equal(r.json.row.amount, 202.5);   // الإجمالي 8100 (تلقائي) → 3 × 33.75 × 2
 });
