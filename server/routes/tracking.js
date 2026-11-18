@@ -63,7 +63,7 @@ const SELECT = `SELECT e.id AS employee_id, e.emp_no, e.full_name, e.job_title, 
     t.gross_salary::float8 AS gross_salary, t.notes, t.updated_by, t.updated_at
   FROM leave_staff e LEFT JOIN leave_tracking t ON t.employee_id = e.id AND t.year = $1`;
 
-async function unitPaths() {
+export async function unitPaths() {
   const units = (await q('SELECT id, name, unit_type, parent_id FROM org_units')).rows;
   const by = new Map(units.map(u => [u.id, u]));
   return id => {

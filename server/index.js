@@ -23,6 +23,7 @@ import portalAdminRoutes from './routes/portalAdmin.js';
 import { PORTAL_DIR } from './lib/uploads.js';
 import orgRoutes from './routes/org.js';
 import trackingRoutes from './routes/tracking.js';
+import hrFormsRoutes from './routes/hrForms.js';
 import employeeRoutes from './routes/employees.js';
 import leaveRoutes from './routes/leaves.js';
 import targetRoutes from './routes/targets.js';
@@ -88,6 +89,7 @@ app.use('/api/core', coreRoutes);
 const hr = requireApp('hr');
 app.use('/api/org', hr, orgRoutes);
 app.use('/api/tracking', hr, trackingRoutes);
+app.use('/api/hr-forms', requireApp('hr-forms'), hrFormsRoutes);
 app.use('/api/employees', hr, employeeRoutes);
 app.use('/api/leaves', hr, leaveRoutes);
 app.use('/api/targets', hr, targetRoutes);
@@ -156,6 +158,7 @@ app.use('/card', (req, res, next) => (/^\/(src|tools)(\/|$)/.test(req.path) ? re
 mount('/card', 'card', path.join(MODULES, 'card'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
+app.use('/hr-forms', gate('hr-forms'), withAppBar(path.join(root, 'public/hr-forms')), express.static(path.join(root, 'public/hr-forms')));
 app.use('/admin', gate('admin'), withAppBar(path.join(root, 'public/admin')), express.static(path.join(root, 'public/admin')));
 app.use(express.static(path.join(root, 'public')));
 
