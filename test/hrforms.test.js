@@ -114,3 +114,17 @@ test('الختم: رفع صورة صالحة، رفض غير الصور، منع
   await hr.put('/api/hr-forms/stamp/enabled', { enabled: true });
   assert.equal((await hr.del('/api/hr-forms/stamp')).json.stamp.custom, false);
 });
+
+test('إشعار الخصم: جزاء من يوم إلى 14 يوماً ومبلغ يدوي', { skip }, async () => {
+  const ded = (await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.slug === 'deduction-notice');
+  const opts = ded.fields.find(f => f.key === 'penalty').options.map(o => o.value).filter(Boolean);
+  assert.equal(opts.length, 14); assert.equal(opts[0], 'يوم واحد'); assert.equal(opts[13], 'أربعة عشر يوماً');
+  const emp = { full_name: 'عبدالله الاختبار', emp_no: 'H100' };
+  const run = values => renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06'], deduction_month: '2026-09', ...values } }), fields: ded.fields });
+  assert.match(run({ penalty: 'أربعة عشر يوماً' }), /بالإضافة إلى حسم أجر أربعة عشر يوماً كجزاء، وفقًا/);
+  const both = run({ penalty: 'يومين', penalty_amount: '500' });
+  assert.match(both, /حسم أجر يومين كجزاء، وحسم مبلغ وقدره \(500\) ريال سعودي كجزاء إضافي، وفقًا/);
+  const amtOnly = run({ penalty: '', penalty_amount: '300' });
+  assert.match(amtOnly, /من راتب شهر سبتمبر 2026م، وحسم مبلغ وقدره \(300\) ريال/);
+  assert.ok(!run({ penalty: '' }).includes('ريال سعودي'));
+});
