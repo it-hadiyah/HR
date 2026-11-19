@@ -49,9 +49,9 @@ test('القوالب الثلاثة جاهزة وتُملأ كما في النم
   const out = renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06', '2026-08-14'], deduction_month: '2026-09', penalty: 'يوم واحد' }, issueDate: '2026-11-18' }), fields: ded.fields });
   assert.match(out, /المكرم الأستاذ: عبدالله الاختبار/);
   assert.match(out, /الخميس، 06 أغسطس 2026م\.\nالجمعة، 14 أغسطس 2026م\./);
-  assert.match(out, /سيتم حسم أجر يوم واحد من راتب شهر سبتمبر 2026م، كجزاء إضافي، وفقًا للأنظمة واللوائح المعتمدة\./);
+  assert.match(out, /وعليه، سيتم حسم أجر يوم واحد من راتب شهر سبتمبر 2026م، كجزاء إضافي، وفقًا للأنظمة واللوائح المعتمدة\./);
   const noPen = renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06'], deduction_month: '2026-09', penalty: '' } }), fields: ded.fields });
-  assert.match(noPen, /سيتم حسم الجزاء المقرر من راتب شهر سبتمبر 2026م، كجزاء إضافي/);
+  assert.ok(!noPen.includes('وعليه') && !noPen.includes('سيتم حسم'));   // بلا جزاء: لا تظهر العبارة
   const att = templates.find(x => x.slug === 'attention-notice');
   const a = renderTemplate(att.body, { vars: buildVars({ employee: emp, values: { violation: 'عدم وجود بصمة', violation_date: '22/11/2026', period: 'في عدد من الأيام خلال شهري أكتوبر ونوفمبر 2026م' } }), fields: att.fields });
   assert.match(a, /إشارةً إلى ما لوحظ من عدم تسجيلكم بصمة الحضور والانصراف في عدد من الأيام خلال شهري أكتوبر ونوفمبر 2026م، نلفت عنايتكم إلى أن تسجيل البصمة عند الحضور والانصراف التزام وظيفي/);
@@ -127,4 +127,12 @@ test('إشعار الخصم: جزاء من يوم إلى 14 يوماً ومبل�
   assert.ok(!run({ penalty: 'يوم واحد' }).includes('ريال سعودي'));
   assert.match(run({ penalty: 'يوم واحد' }), /الخميس، 06 أغسطس 2026م\./);   // الأيام باليوم والتاريخ دون حساب
   assert.ok(!/حسم أجر يوم الغياب/.test(run({ penalty: 'يوم واحد' })));
+});
+
+test('إشعار الخصم: الافتراضي بلا جزاء فلا تظهر عبارة الحسم', { skip }, async () => {
+  const ded = (await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.slug === 'deduction-notice');
+  assert.equal(ded.fields.find(f => f.key === 'penalty').default, '');
+  const out = renderTemplate(ded.body, { vars: buildVars({ employee: { full_name: 'س' }, values: { ...defaultValues(ded.fields), absent_dates: ['2026-08-06'] } }), fields: ded.fields });
+  assert.ok(!out.includes('وعليه'));
+  assert.match(out, /الخميس، 06 أغسطس 2026م\./);
 });
