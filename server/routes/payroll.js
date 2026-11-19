@@ -79,16 +79,16 @@ async function staffRows({ status = 'active', term = '', ids } = {}) {
   if (term) { p.push(`%${term}%`); where.push(`(s.full_name ILIKE $${p.length} OR s.emp_no ILIKE $${p.length} OR s.job_title ILIKE $${p.length})`); }
   if (ids) { p.push(ids); where.push(`s.id = ANY($${p.length}::int[])`); }
   const rows = (await q(`SELECT s.id AS employee_id, s.emp_no, s.full_name, s.job_title, s.org_unit_id, s.status,
-      p.basic::float8 AS basic, p.housing::float8 AS housing, p.transport::float8 AS transport, p.other::float8 AS other, p.notes, (p.employee_id IS NOT NULL) AS has_salary
+      p.basic::float8 AS basic, p.housing::float8 AS housing, p.transport::float8 AS transport, p.other::float8 AS other, p.insurance_percent::float8 AS insurance_percent, p.notes, (p.employee_id IS NOT NULL) AS has_salary
     FROM leave_staff s LEFT JOIN payroll_salaries p ON p.employee_id = s.id ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY s.full_name, s.id`, p)).rows;
   const pathOf = await unitPaths(); const st = await loadSettings();
-  return rows.map(x => { const u = pathOf(x.org_unit_id); const y = withAllowances({ ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0 }, st); return { ...x, ...y, gross: grossOf(y), sector: u.sector, department: u.department, section: u.section }; });
+  return rows.map(x => { const u = pathOf(x.org_unit_id); const y = withAllowances({ ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0 }, st); const gross = grossOf(y), ip = x.insurance_percent ?? 0; return { ...x, ...y, insurance_percent: ip, gross, insurance_amount: round2(gross * ip / 100), sector: u.sector, department: u.department, section: u.section }; });
 }
 
 r.get('/salaries', G('view'), wrap(async (req, res) => {
   const rows = await staffRows({ status: req.query.status === 'archived' ? 'archived' : req.query.status === 'all' ? 'all' : 'active', term: String(req.query.q || '').trim().slice(0, 60) });
   const sum = k => round2(rows.reduce((a, x) => a + x[k], 0));
-  res.json({ rows, totals: { employees: rows.length, with_salary: rows.filter(x => x.has_salary).length, basic: sum('basic'), housing: sum('housing'), transport: sum('transport'), other: sum('other'), gross: sum('gross') } });
+  res.json({ rows, totals: { employees: rows.length, with_salary: rows.filter(x => x.has_salary).length, basic: sum('basic'), housing: sum('housing'), transport: sum('transport'), other: sum('other'), gross: sum('gross'), insurance: sum('insurance_amount') } });
 }));
 
 r.put('/salaries/:id', G('edit_salaries'), wrap(async (req, res) => {
@@ -99,10 +99,16 @@ r.put('/salaries/:id', G('edit_salaries'), wrap(async (req, res) => {
   const cur = { basic: before.basic, housing: before.housing, transport: before.transport, other: before.other };
   const next = { ...cur };
   for (const [k, label] of [['basic', 'الراتب الأساسي'], ['housing', 'بدل السكن'], ['transport', 'بدل النقل'], ['other', 'بدلات أخرى']]) if (k in b) next[k] = money(b[k], label);
+  let ins = before.insurance_percent ?? 0;
+  if ('insurance_percent' in b) {
+    const v = Number(String(b.insurance_percent ?? '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.').replace(/[%\s]/g, '') || 0);
+    if (!(v >= 0 && v <= 100)) throw httpError(400, 'نسبة الاستقطاع بين 0 و100');
+    ins = Math.round(v * 100) / 100;
+  }
   const notes = 'notes' in b ? (String(b.notes ?? '').trim().slice(0, 300) || null) : before.notes;
-  await q(`INSERT INTO payroll_salaries(employee_id, basic, housing, transport, other, notes, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7)
-    ON CONFLICT (employee_id) DO UPDATE SET basic = EXCLUDED.basic, housing = EXCLUDED.housing, transport = EXCLUDED.transport, other = EXCLUDED.other, notes = EXCLUDED.notes, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-  [id, next.basic, next.housing, next.transport, next.other, notes, req.user.username]);
+  await q(`INSERT INTO payroll_salaries(employee_id, basic, housing, transport, other, notes, updated_by, insurance_percent) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    ON CONFLICT (employee_id) DO UPDATE SET basic = EXCLUDED.basic, housing = EXCLUDED.housing, transport = EXCLUDED.transport, other = EXCLUDED.other, notes = EXCLUDED.notes, insurance_percent = EXCLUDED.insurance_percent, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+  [id, next.basic, next.housing, next.transport, next.other, notes, req.user.username, ins]);
   if ('org_unit_id' in b) {
     const u = b.org_unit_id === '' || b.org_unit_id === null ? null : +b.org_unit_id;
     if (u !== null && !(await q('SELECT 1 FROM org_units WHERE id = $1', [u])).rows.length) throw httpError(400, 'الوحدة غير موجودة');

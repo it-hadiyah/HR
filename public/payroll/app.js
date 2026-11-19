@@ -75,32 +75,34 @@ async function salariesView() {
     try {
       const out = await api('/salaries/' + e.employee_id, { method: 'PUT', body });
       Object.assign(e, out.row); tr?.classList.remove('saving'); tr?.classList.add('saved'); setTimeout(() => tr?.classList.remove('saved'), 1200);
-      tr.querySelector('.g').textContent = sar(e.gross); for (const k of ['housing', 'transport']) { const c = tr.querySelector('.auto-' + k); if (c) c.textContent = sar(e[k]); } recompute();
+      tr.querySelector('.g').textContent = sar(e.gross); tr.querySelector('.ins').textContent = sar(e.insurance_amount); for (const k of ['housing', 'transport']) { const c = tr.querySelector('.auto-' + k); if (c) c.textContent = sar(e[k]); } recompute();
     } catch (err) { tr?.classList.remove('saving'); el?.classList.add('bad'); toast(err.message, true); }
   }
   function recompute() {
     const rows = data.rows, sum = k => round2(rows.reduce((a, x) => a + x[k], 0));
-    data.totals = { employees: rows.length, with_salary: rows.filter(x => x.gross > 0).length, basic: sum('basic'), housing: sum('housing'), transport: sum('transport'), other: sum('other'), gross: sum('gross') };
+    data.totals = { employees: rows.length, with_salary: rows.filter(x => x.gross > 0).length, basic: sum('basic'), housing: sum('housing'), transport: sum('transport'), other: sum('other'), gross: sum('gross'), insurance: sum('insurance_amount') };
     drawKpis(); const ft = box.querySelector('tfoot'); if (ft) ft.replaceWith(foot());
   }
-  const foot = () => { const t = data.totals; return h('tfoot', null, h('tr', null, h('td'), h('td', null, 'الإجمالي'), h('td'), ...['basic', 'housing', 'transport', 'other', 'gross'].map(k => h('td', { class: 'n' }, sar(t[k]))), h('td'), h('td'))); };
+  const foot = () => { const t = data.totals; return h('tfoot', null, h('tr', null, h('td'), h('td', null, 'الإجمالي'), h('td'), ...['basic', 'housing', 'transport', 'other', 'gross'].map(k => h('td', { class: 'n' }, sar(t[k]))), h('td'), h('td', { class: 'n' }, sar(t.insurance)), h('td'))); };
   function drawKpis() {
     const t = data.totals;
     kpis.replaceChildren(kpi('الموظفون', String(t.employees), 'موظف', { hint: `${t.with_salary} لهم راتب مسجّل`, tone: t.with_salary < t.employees ? 'warn' : 'ok' }), kpi('إجمالي الرواتب الشهرية', sar(t.gross), 'ر.س', { tone: 'ok' }),
       kpi('إجمالي الأساسي', sar(t.basic), 'ر.س'), kpi('إجمالي البدلات', sar(t.housing + t.transport + t.other), 'ر.س', { hint: `سكن ${sar(t.housing)} · نقل ${sar(t.transport)} · أخرى ${sar(t.other)}` }),
-      kpi('متوسط الراتب', sar(t.with_salary ? t.gross / t.with_salary : 0), 'ر.س'));
+      kpi('إجمالي استقطاع التأمينات', sar(t.insurance), 'ر.س'), kpi('متوسط الراتب', sar(t.with_salary ? t.gross / t.with_salary : 0), 'ر.س'));
   }
   function draw() {
     drawKpis();
     box.replaceChildren(h('div', { class: 'tbl-wrap' }, h('table', { class: 'pay' },
-      h('thead', null, h('tr', null, ['#', 'الموظف', 'الوحدة', 'الأساسي', S.settings.allowances_auto ? `السكن (${S.settings.housing_percent}%)` : 'السكن', S.settings.allowances_auto ? `النقل (${S.settings.transport_percent}%)` : 'النقل', 'أخرى', 'الإجمالي', 'ملاحظات'].map(t => h('th', { class: ['#', 'الإجمالي'].includes(t) ? 'n' : '' }, t)))),
+      h('thead', null, h('tr', null, ['#', 'الموظف', 'الوحدة', 'الأساسي', S.settings.allowances_auto ? `السكن (${S.settings.housing_percent}%)` : 'السكن', S.settings.allowances_auto ? `النقل (${S.settings.transport_percent}%)` : 'النقل', 'أخرى', 'الإجمالي', 'نسبة الاستقطاع %', 'استقطاع التأمينات', 'ملاحظات'].map(t => h('th', { class: ['#', 'الإجمالي', 'نسبة الاستقطاع %', 'استقطاع التأمينات'].includes(t) ? 'n' : '' }, t)))),
       h('tbody', null, data.rows.length ? data.rows.map((e, i) => h('tr', null, h('td', { class: 'n' }, String(i + 1)),
         h('td', { class: 'who' }, h('b', null, e.full_name), h('small', null, [e.emp_no ? `رقم ${e.emp_no}` : '', e.job_title].filter(Boolean).join(' · '))),
         h('td', null, edit ? h('select', { class: 'cell-sel', onchange: ev => save(e, { org_unit_id: ev.target.value }, ev.target) }, unitOpts.map(([v, l]) => h('option', { value: v, selected: String(v) === String(e.org_unit_id ?? '') }, l)))
           : h('span', null, [e.sector, e.department, e.section].filter(Boolean).join(' ‹ ') || '—')),
         h('td', { class: 'n' }, num(e, 'basic')), h('td', { class: 'n' }, num(e, 'housing')), h('td', { class: 'n' }, num(e, 'transport')), h('td', { class: 'n' }, num(e, 'other')),
         h('td', { class: 'n' }, h('b', { class: 'g' }, sar(e.gross))),
-        h('td', null, edit ? (() => { const el = h('input', { type: 'text', value: e.notes || '', class: 'cell-in wide', 'aria-label': 'ملاحظات' }); el.addEventListener('change', () => save(e, { notes: el.value }, el)); return el; })() : (e.notes || '')))) : [h('tr', null, h('td', { colspan: 9, class: 'hint' }, 'لا يوجد موظفون. أضف الموظفين من «متابعة الأرصدة» أو استورد ملف الرواتب.'))]),
+        h('td', { class: 'n' }, edit ? (() => { const el = h('input', { type: 'text', inputmode: 'decimal', class: 'cell-in', style: 'max-width:80px', value: e.insurance_percent ? String(e.insurance_percent) : '', placeholder: '0', autocomplete: 'off', 'aria-label': 'نسبة الاستقطاع' }); el.addEventListener('change', () => save(e, { insurance_percent: normNum(el.value) }, el)); el.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } }); return el; })() : h('span', null, e.insurance_percent ? e.insurance_percent + '%' : '—')),
+        h('td', { class: 'n' }, h('b', { class: 'ins' }, sar(e.insurance_amount))),
+        h('td', null, edit ? (() => { const el = h('input', { type: 'text', value: e.notes || '', class: 'cell-in wide', 'aria-label': 'ملاحظات' }); el.addEventListener('change', () => save(e, { notes: el.value }, el)); return el; })() : (e.notes || '')))) : [h('tr', null, h('td', { colspan: 11, class: 'hint' }, 'لا يوجد موظفون. أضف الموظفين من «متابعة الأرصدة» أو استورد ملف الرواتب.'))]),
       foot())));
   }
   const load = guard(async () => { data = await api('/salaries?q=' + encodeURIComponent(search.value.trim())); draw(); });

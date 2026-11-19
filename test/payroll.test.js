@@ -58,6 +58,10 @@ test('الرواتب والإضافي والانتداب والتقرير', { sk
   assert.equal(r.json.row.gross, 8000);
   r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, allowances_auto: false, housing_percent: 150 });
   assert.equal(r.status, 400);
+  r = await fin.put('/api/payroll/salaries/' + empId, { insurance_percent: '9.75' });
+  assert.equal(r.status, 200); assert.equal(r.json.row.insurance_percent, 9.75); assert.equal(r.json.row.insurance_amount, 780);   // 8000 × 9.75% (الوضع اليدوي)
+  assert.equal((await fin.put('/api/payroll/salaries/' + empId, { insurance_percent: '101' })).status, 400);
+  assert.equal((await fin.get('/api/payroll/salaries')).json.totals.insurance, 780);
   r = await fin.put('/api/payroll/salaries/' + empId, { basic: '-5' });
   assert.equal(r.status, 400);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-05', pay_month: '2026-11', type_id: 'ot-workday', quantity: '3' });
