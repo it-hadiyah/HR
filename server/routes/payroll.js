@@ -10,7 +10,7 @@ import { requireGrant, hasGrant } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
 import { normalizeName } from '../lib/text.js';
 import { unitPaths } from './tracking.js';
-import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows, withAllowances, basicFromGross } from '../../public/payroll/calc.js';
+import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows, withAllowances, basicFromGross, findRate, assignmentByRate, normTitle } from '../../public/payroll/calc.js';
 
 const r = Router();
 const G = action => requireGrant('payroll', action);
@@ -29,6 +29,18 @@ const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${
 export async function loadSettings() {
   const row = (await q("SELECT value FROM payroll_settings WHERE key = 'config'")).rows[0];
   return { ...DEFAULT_SETTINGS, ...(row?.value || {}) };
+}
+function cleanRates(list) {
+  if (list === undefined || list === null) return [];
+  if (!Array.isArray(list)) throw httpError(400, 'أجور الانتداب يجب أن تكون قائمة');
+  if (list.length > 200) throw httpError(400, 'الحد الأقصى 200 مسمى وظيفي');
+  const seen = new Set();
+  return list.map(t => {
+    const title = String(t?.title ?? '').trim().slice(0, 100);
+    if (!title) throw httpError(400, 'المسمى الوظيفي مطلوب في أجور الانتداب');
+    const k = normTitle(title); if (seen.has(k)) throw httpError(400, `المسمى «${title}» مكرر`); seen.add(k);
+    return { title, living: money(t.living, `أجر المعيشة (${title})`, { max: 100000 }), assignment: money(t.assignment, `أجر الانتداب (${title})`, { max: 100000 }), transport: money(t.transport, `أجر النقل (${title})`, { max: 100000 }) };
+  });
 }
 function cleanTypes(list, label) {
   if (!Array.isArray(list) || !list.length) throw httpError(400, `أضف نوعاً واحداً على الأقل: ${label}`);
@@ -53,14 +65,16 @@ function cleanSettings(b) {
   const hp = Number(b.housing_percent ?? 0), tp = Number(b.transport_percent ?? 0);
   if (!(hp >= 0 && hp <= 100)) throw httpError(400, 'نسبة بدل السكن بين 0 و100');
   if (!(tp >= 0 && tp <= 100)) throw httpError(400, 'نسبة بدل النقل بين 0 و100');
-  return { salary_basis: b.salary_basis === 'basic' ? 'basic' : 'gross', allowances_auto: b.allowances_auto !== false && b.allowances_auto !== 'false', housing_percent: hp, transport_percent: tp, days_per_month: days, hours_per_day: hours, overtime_monthly_cap_hours: cap,
+  const rates = cleanRates(b.assignment_rates);
+  return { assignment_rates: rates, salary_basis: b.salary_basis === 'basic' ? 'basic' : 'gross', allowances_auto: b.allowances_auto !== false && b.allowances_auto !== 'false', housing_percent: hp, transport_percent: tp, days_per_month: days, hours_per_day: hours, overtime_monthly_cap_hours: cap,
     overtime_types: cleanTypes(b.overtime_types, 'الإضافي'), assignment_types: cleanTypes(b.assignment_types, 'الانتداب') };
 }
 
 r.get('/meta', G('access'), wrap(async (req, res) => {
   const units = (await q('SELECT id, name, unit_type, parent_id FROM org_units WHERE active ORDER BY id')).rows;
   const can = a => hasGrant(req.user, 'payroll', a);
-  res.json({ settings: await loadSettings(), units, can: { view: can('view'), edit_salaries: can('edit_salaries'), entries: can('entries'), settings: can('settings') }, month: currentMonth() });
+  const job_titles = (await q("SELECT DISTINCT job_title FROM leave_staff WHERE job_title IS NOT NULL AND btrim(job_title) <> '' ORDER BY job_title")).rows.map(x => x.job_title);
+  res.json({ job_titles, settings: await loadSettings(), units, can: { view: can('view'), edit_salaries: can('edit_salaries'), entries: can('entries'), settings: can('settings') }, month: currentMonth() });
 }));
 
 r.put('/settings', G('settings'), wrap(async (req, res) => {
@@ -231,11 +245,11 @@ r.post('/salaries/import', G('edit_salaries'), upload, wrap(async (req, res) => 
 // ---------- الإضافي والانتدابات ----------
 const KINDS = { overtime: { list: 'overtime_types', unit: 'ساعة', max: 744 }, assignment: { list: 'assignment_types', unit: 'يوم', max: 366 } };
 
-function entryRow(x) { return { ...x, quantity: Number(x.quantity), percent: Number(x.percent), base_salary: Number(x.base_salary), unit_wage: Number(x.unit_wage), amount: Number(x.amount) }; }
+function entryRow(x) { return { ...x, fixed_amount: Number(x.fixed_amount ?? 0), quantity: Number(x.quantity), percent: Number(x.percent), base_salary: Number(x.base_salary), unit_wage: Number(x.unit_wage), amount: Number(x.amount) }; }
 
 async function computeEntry(kind, b, st) {
   const K = KINDS[kind];
-  const emp = (await q('SELECT id, full_name FROM leave_staff WHERE id = $1', [+b.employee_id])).rows[0];
+  const emp = (await q('SELECT id, full_name, job_title FROM leave_staff WHERE id = $1', [+b.employee_id])).rows[0];
   if (!emp) throw httpError(400, 'الموظف غير موجود');
   if (!isDate(String(b.entry_date))) throw httpError(400, 'التاريخ غير صالح');
   const type = st[K.list].find(t => t.id === b.type_id);
@@ -244,11 +258,16 @@ async function computeEntry(kind, b, st) {
   if (!(qty > 0 && qty <= K.max)) throw httpError(400, `${kind === 'overtime' ? 'عدد الساعات' : 'عدد الأيام'} غير صالح (أكبر من 0 وحتى ${K.max})`);
   const percent = b.percent === undefined || b.percent === null || b.percent === '' ? type.percent : Number(b.percent);
   if (!(percent >= 0 && percent <= 1000)) throw httpError(400, 'النسبة غير صالحة');
+  const common = { emp, entry_date: String(b.entry_date), pay_month: monthOf(b.pay_month, String(b.entry_date).slice(0, 7)), type, quantity: round2(qty), notes: String(b.notes ?? '').trim().slice(0, 300) || null };
+  if (kind === 'assignment') {
+    const rate = findRate(st.assignment_rates, emp.job_title);
+    if (rate) { const a = assignmentByRate(qty, rate); return { ...common, percent: 100, base: a.unit_wage, unit_wage: a.unit_wage, fixed: a.fixed, amount: a.amount, breakdown: { title: rate.title, living: rate.living, assignment: rate.assignment, transport: rate.transport } }; }
+  }
   const sal = (await staffRows({ status: 'all', ids: [emp.id] }))[0];
   const base = baseOf(sal, st);
   if (!(base > 0)) throw httpError(400, `لا يوجد راتب مسجّل لـ «${emp.full_name}» (أدخله من تبويب الرواتب)`);
   const { unit_wage, amount } = entryAmount(kind, qty, percent, base, st);
-  return { emp, entry_date: String(b.entry_date), pay_month: monthOf(b.pay_month, String(b.entry_date).slice(0, 7)), type, quantity: round2(qty), percent: round2(percent), base, unit_wage, amount, notes: String(b.notes ?? '').trim().slice(0, 300) || null };
+  return { emp, entry_date: String(b.entry_date), pay_month: monthOf(b.pay_month, String(b.entry_date).slice(0, 7)), type, quantity: round2(qty), percent: round2(percent), base, unit_wage, fixed: 0, breakdown: null, amount, notes: String(b.notes ?? '').trim().slice(0, 300) || null };
 }
 async function capWarning(kind, employeeId, month, st, excludeId = 0) {
   if (kind !== 'overtime' || !(st.overtime_monthly_cap_hours > 0)) return null;
@@ -272,8 +291,8 @@ r.post('/entries', G('entries'), wrap(async (req, res) => {
   const st = await loadSettings();
   const c = await computeEntry(kind, req.body, st);
   const warn = await capWarning(kind, c.emp.id, c.pay_month, st);
-  const row = (await q(`INSERT INTO payroll_entries(kind, employee_id, entry_date, pay_month, type_id, type_name, quantity, percent, base_salary, unit_wage, amount, notes, created_by)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [kind, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, req.user.username])).rows[0];
+  const row = (await q(`INSERT INTO payroll_entries(kind, employee_id, entry_date, pay_month, type_id, type_name, quantity, percent, base_salary, unit_wage, amount, notes, created_by, fixed_amount, breakdown)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`, [kind, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, req.user.username, c.fixed, c.breakdown ? JSON.stringify(c.breakdown) : null])).rows[0];
   await audit(req, 'create', `payroll_${kind}`, row.id, null, { employee: c.emp.full_name, quantity: c.quantity, percent: c.percent, amount: c.amount, pay_month: c.pay_month });
   const over = warn && warn.hours + c.quantity > warn.cap ? { hours: round2(warn.hours + c.quantity), cap: warn.cap } : null;
   res.status(201).json({ row: entryRow(row), warning: over });
@@ -287,8 +306,8 @@ r.put('/entries/:id', G('entries'), wrap(async (req, res) => {
   if ('entry_date' in (req.body || {}) && !('pay_month' in req.body)) merged.pay_month = String(req.body.entry_date).slice(0, 7);
   const c = await computeEntry(old.kind, merged, st);
   const warn = await capWarning(old.kind, c.emp.id, c.pay_month, st, old.id);
-  const row = (await q(`UPDATE payroll_entries SET employee_id=$2, entry_date=$3, pay_month=$4, type_id=$5, type_name=$6, quantity=$7, percent=$8, base_salary=$9, unit_wage=$10, amount=$11, notes=$12, updated_at=now() WHERE id=$1 RETURNING *`,
-    [old.id, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes])).rows[0];
+  const row = (await q(`UPDATE payroll_entries SET employee_id=$2, entry_date=$3, pay_month=$4, type_id=$5, type_name=$6, quantity=$7, percent=$8, base_salary=$9, unit_wage=$10, amount=$11, notes=$12, fixed_amount=$13, breakdown=$14, updated_at=now() WHERE id=$1 RETURNING *`,
+    [old.id, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, c.fixed, c.breakdown ? JSON.stringify(c.breakdown) : null])).rows[0];
   await audit(req, 'update', `payroll_${old.kind}`, old.id, { quantity: Number(old.quantity), amount: Number(old.amount) }, { quantity: c.quantity, amount: c.amount, pay_month: c.pay_month });
   const over = warn && warn.hours + c.quantity > warn.cap ? { hours: round2(warn.hours + c.quantity), cap: warn.cap } : null;
   res.json({ row: entryRow(row), warning: over });
@@ -434,8 +453,8 @@ r.post('/entries/import', G('entries'), upload, wrap(async (req, res) => {
       await cx.query('BEGIN');
       for (const p of plan.filter(x => !x.errs.length)) {
         const c = p.c;
-        await cx.query(`INSERT INTO payroll_entries(kind, employee_id, entry_date, pay_month, type_id, type_name, quantity, percent, base_salary, unit_wage, amount, notes, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-          [kind, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, req.user.username]);
+        await cx.query(`INSERT INTO payroll_entries(kind, employee_id, entry_date, pay_month, type_id, type_name, quantity, percent, base_salary, unit_wage, amount, notes, created_by, fixed_amount, breakdown) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [kind, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, req.user.username, c.fixed, c.breakdown ? JSON.stringify(c.breakdown) : null]);
       }
       await cx.query('COMMIT');
     } catch (e) { await cx.query('ROLLBACK'); throw e; } finally { cx.release(); }

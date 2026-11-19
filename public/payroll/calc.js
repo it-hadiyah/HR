@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS = {
     { id: 'ot-weekend', name: 'إضافي نهاية الأسبوع', percent: 150 },
     { id: 'ot-holiday', name: 'إضافي العطل والمناسبات', percent: 200 },
   ],
+  assignment_rates: [],             // [{ title, living, assignment, transport }] حسب المسمى الوظيفي
   assignment_types: [
     { id: 'as-inside', name: 'انتداب داخل المدينة', percent: 100 },
     { id: 'as-outside', name: 'انتداب خارج المدينة', percent: 150 },
@@ -75,4 +76,15 @@ export function buildTree(rows) {
   }
   const fin = nd => { fix(nd); nd.children = [...nd.children.values()].map(fin).sort((a, b) => b.total - a.total); return nd; };
   return fin(root);
+}
+
+/** تطبيع المسمى الوظيفي للمطابقة (مسافات وهمزات وتشكيل) */
+export const normTitle = t => String(t ?? '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim().toLowerCase();
+/** سعر الانتداب المطابق للمسمى الوظيفي (أو null) */
+export const findRate = (rates, jobTitle) => { const k = normTitle(jobTitle); return k ? (rates || []).find(r => normTitle(r.title) === k) || null : null; };
+/** الانتداب بالمسمى: الأيام × (المعيشة + الانتداب اليومي) + أجر النقل الثابت (لا يتغير بعدد الأيام) */
+export function assignmentByRate(days, rate) {
+  const unit = round2(n(rate.living) + n(rate.assignment));
+  const fixed = round2(n(rate.transport));
+  return { unit_wage: unit, fixed, amount: round2(n(days) * unit + fixed) };
 }

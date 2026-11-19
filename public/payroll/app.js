@@ -1,5 +1,5 @@
 // الرواتب والإضافي: رواتب الموظفين وتجميعها، وإدخال الإضافي (ساعات) والانتدابات (أيام) بحساب تلقائي من نسب الإعدادات.
-import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree } from '/payroll/calc.js';
+import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree, findRate, assignmentByRate } from '/payroll/calc.js';
 
 // ---------- أدوات ----------
 const h = (tag, attrs, ...kids) => {
@@ -36,7 +36,7 @@ const UNIT_LABEL = { sector: 'قطاع', department: 'إدارة', section: 'ق�
 const kpi = (l, v, u, { hint, tone } = {}) => h('div', { class: 'kpi ' + (tone || '') }, h('div', { class: 'l' }, l), h('div', { class: 'v' }, v, u ? h('span', { class: 'u' }, u) : null), hint ? h('div', { class: 'h' }, hint) : null);
 const download = url => { location.href = url; };
 
-const S = { settings: null, units: [], can: {}, month: '', tab: 'salaries' };
+const S = { jobTitles: [], settings: null, units: [], can: {}, month: '', tab: 'salaries' };
 const view = document.getElementById('view');
 
 // نافذة
@@ -146,6 +146,16 @@ async function entriesView(kind) {
   const typeOf = () => labels.types.find(t => t.id === typeSel.value);
   function drawCalc() {
     if (!emp) { calcBox.replaceChildren(h('p', { class: 'hint' }, 'اختر الموظف ثم أدخل ' + labels.unit + ' ليظهر المبلغ المستحق تلقائياً.')); addBtn.disabled = true; return; }
+    const rate = !isOt ? findRate(S.settings.assignment_rates, emp.job_title) : null, n0 = Number(normNum(qtyIn.value));
+    if (rate) {
+      const a = assignmentByRate(n0 > 0 ? n0 : 0, rate);
+      calcBox.replaceChildren(h('div', { class: 'calc' },
+        h('div', null, h('span', null, 'المسمى الوظيفي'), h('b', null, rate.title)),
+        h('div', null, h('span', null, 'أجر المعيشة / يوم'), h('b', null, sar(rate.living) + ' ر.س')), h('div', null, h('span', null, 'أجر الانتداب / يوم'), h('b', null, sar(rate.assignment) + ' ر.س')),
+        h('div', null, h('span', null, 'الأيام'), h('b', null, n0 > 0 ? qty(n0) : '—')), h('div', null, h('span', null, 'أجر النقل (ثابت)'), h('b', null, sar(rate.transport) + ' ر.س')),
+        h('div', { class: 'amount' }, h('span', null, 'المبلغ المستحق'), h('b', null, n0 > 0 ? sar(a.amount) + ' ر.س' : '—'))));
+      addBtn.disabled = !(n0 > 0); return;
+    }
     const base = baseOf(emp, S.settings), t = typeOf(), n = Number(normNum(qtyIn.value));
     if (!(base > 0)) { calcBox.replaceChildren(h('div', { class: 'missing' }, `لا يوجد راتب مسجّل لـ «${emp.full_name}». أدخله من تبويب الرواتب.`)); addBtn.disabled = true; return; }
     const unit = isOt ? hourlyWage(base, S.settings) : dailyWage(base, S.settings);
@@ -186,12 +196,12 @@ async function entriesView(kind) {
     const t = list.totals;
     listBox.replaceChildren(h('div', { class: 'kpis' }, kpi(`إجمالي ${labels.title} الشهر`, sar(t.amount), 'ر.س', { tone: 'ok', hint: `${t.count} بند` }), kpi(isOt ? 'إجمالي الساعات' : 'إجمالي الأيام', qty(t.quantity), labels.one)),
       h('div', { class: 'tbl-wrap' }, h('table', null,
-        h('thead', null, h('tr', null, ['التاريخ', 'الموظف', 'النوع', labels.unit, 'النسبة', labels.wage, 'المبلغ', 'ملاحظات', ''].map(x => h('th', null, x)))),
+        h('thead', null, h('tr', null, ['التاريخ', 'الموظف', 'النوع', labels.unit, 'النسبة', labels.wage, ...(isOt ? [] : ['أجر النقل']), 'المبلغ', 'ملاحظات', ''].map(x => h('th', null, x)))),
         h('tbody', null, list.rows.length ? list.rows.map(e => h('tr', null, h('td', { class: 'n' }, e.entry_date.slice(0, 10)), h('td', null, h('b', null, e.full_name), e.emp_no ? h('div', { class: 'hint' }, 'رقم ' + e.emp_no) : null), h('td', null, e.type_name),
-          h('td', { class: 'n' }, qty(e.quantity)), h('td', { class: 'n' }, e.percent + '%'), h('td', { class: 'n' }, sar(e.unit_wage)), h('td', { class: 'n' }, h('b', null, sar(e.amount))), h('td', null, e.notes || ''),
+          h('td', { class: 'n' }, qty(e.quantity)), h('td', { class: 'n' }, e.percent + '%'), h('td', { class: 'n' }, sar(e.unit_wage)), ...(isOt ? [] : [h('td', { class: 'n' }, e.fixed_amount ? sar(e.fixed_amount) : '—')]), h('td', { class: 'n' }, h('b', null, sar(e.amount))), h('td', null, e.notes || ''),
           h('td', null, S.can.entries ? h('div', { class: 'row-acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => editEntry(e) }, 'تعديل'),
             h('button', { class: 'btn sm danger', type: 'button', onclick: () => confirmBox(`حذف بند ${e.full_name} (${sar(e.amount)} ر.س)؟`, async () => { await api('/entries/' + e.id, { method: 'DELETE' }); toast('تم الحذف'); await loadList(); }) }, 'حذف')) : null)))
-          : [h('tr', null, h('td', { colspan: 9, class: 'hint' }, 'لا توجد بنود في هذا الشهر.'))]))));
+          : [h('tr', null, h('td', { colspan: 10, class: 'hint' }, 'لا توجد بنود في هذا الشهر.'))]))));
   });
   function editEntry(e) {
     const d = h('input', { type: 'date', value: e.entry_date.slice(0, 10) }), q = h('input', { type: 'text', inputmode: 'decimal', value: String(e.quantity) }), pm = h('input', { type: 'month', value: e.pay_month });
@@ -286,7 +296,7 @@ async function settingsView() {
     h('button', { class: 'btn sm', type: 'button', onclick: () => { st[key].push({ name: '', percent: 100 }); draw(); } }, '+ إضافة نوع'));
     draw(); return box;
   };
-  const collect = () => ({ salary_basis: basis.value, allowances_auto: auto.checked, housing_percent: +normNum(hp.value) || 0, transport_percent: +normNum(tp.value) || 0, days_per_month: +normNum(days.value), hours_per_day: +normNum(hours.value), overtime_monthly_cap_hours: +normNum(cap.value) || 0,
+  const collect = () => ({ assignment_rates: st.assignment_rates.map(r => ({ title: r.title, living: normNum(r.living), assignment: normNum(r.assignment), transport: normNum(r.transport) })), salary_basis: basis.value, allowances_auto: auto.checked, housing_percent: +normNum(hp.value) || 0, transport_percent: +normNum(tp.value) || 0, days_per_month: +normNum(days.value), hours_per_day: +normNum(hours.value), overtime_monthly_cap_hours: +normNum(cap.value) || 0,
     overtime_types: st.overtime_types.map(t => ({ ...t, percent: +normNum(t.percent) })), assignment_types: st.assignment_types.map(t => ({ ...t, percent: +normNum(t.percent) })) });
   function preview() {
     const c = collect(), s = +normNum(calcIn.value) || 0;
@@ -298,6 +308,18 @@ async function settingsView() {
   }
   for (const el of [days, hours, cap, calcIn, basis, auto, hp, tp]) el.addEventListener('input', preview);
   const otBox = typesBox('overtime_types'), asBox = typesBox('assignment_types');
+  st.assignment_rates = st.assignment_rates || [];
+  const dl = h('datalist', { id: 'jt-list' }, S.jobTitles.map(t => h('option', { value: t })));
+  const ratesBox = h('div', { class: 'types' });
+  const drawRates = () => ratesBox.replaceChildren(dl,
+    st.assignment_rates.length ? h('div', { class: 'trow hd' }, h('b', null, 'المسمى الوظيفي'), h('b', null, 'أجر المعيشة / يوم'), h('b', null, 'أجر الانتداب / يوم'), h('b', null, 'أجر النقل (ثابت)'), h('span')) : null,
+    ...st.assignment_rates.map((r, i) => h('div', { class: 'trow rate' },
+      h('input', { type: 'text', list: 'jt-list', value: r.title, placeholder: 'المسمى الوظيفي', oninput: e => { r.title = e.target.value; } }),
+      ...['living', 'assignment', 'transport'].map(k => h('input', { type: 'text', inputmode: 'decimal', value: String(r[k] ?? ''), placeholder: '0', 'aria-label': k, oninput: e => { r[k] = e.target.value; } })),
+      h('button', { class: 'btn sm danger', type: 'button', onclick: () => { st.assignment_rates.splice(i, 1); drawRates(); } }, '×'))),
+    h('div', { class: 'bar' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { st.assignment_rates.push({ title: '', living: '', assignment: '', transport: '' }); drawRates(); } }, '+ إضافة مسمى'),
+      h('button', { class: 'btn sm', type: 'button', onclick: () => { const have = new Set(st.assignment_rates.map(r => r.title.trim())); for (const t of S.jobTitles) if (!have.has(t)) st.assignment_rates.push({ title: t, living: '', assignment: '', transport: '' }); drawRates(); } }, 'إضافة كل المسميات الموجودة')));
+  drawRates();
   const save = guard(async () => { const out = await api('/settings', { method: 'PUT', body: collect() }); S.settings = out.settings; toast('تم حفظ الإعدادات'); });
   view.replaceChildren(h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'أساس الاحتساب'),
     h('div', { class: 'form-2' }, h('div', null, h('label', { class: 'f' }, 'تُحسب النسب على'), basis), h('div', null, h('label', { class: 'f' }, 'أيام الشهر'), days), h('div', null, h('label', { class: 'f' }, 'ساعات العمل اليومية'), hours),
@@ -309,6 +331,8 @@ async function settingsView() {
     h('p', { class: 'hint' }, 'عند التفعيل لا تُدخل البدلين يدوياً: يُحسبان من الأساسي لكل موظف، ويظهران في الرواتب والتقارير. غير المفعّل يعيد الإدخال اليدوي.')),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الإضافي (من الأجر الساعي)'), h('p', { class: 'hint' }, 'مبلغ الإضافي = الساعات × الأجر الساعي × النسبة ÷ 100. مثال: 150 تعني ساعة ونصف الأجر الساعي.'), otBox),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الانتداب (من الأجر اليومي)'), h('p', { class: 'hint' }, 'مبلغ الانتداب = الأيام × الأجر اليومي × النسبة ÷ 100.'), asBox),
+  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'أجور الانتداب حسب المسمى الوظيفي'),
+    h('p', { class: 'hint' }, 'لكل مسمى وظيفي: أجر المعيشة اليومي وأجر الانتداب اليومي، وأجر النقل مبلغ ثابت يُضاف مرة واحدة لكل انتداب ولا يتغير بعدد الأيام. مبلغ الانتداب = الأيام × (المعيشة + الانتداب) + أجر النقل. الموظف الذي مسماه مسجّل هنا يُحسب انتدابه بهذه الأجور، وغيره يُحسب بنسب الانتداب أعلاه من الأجر اليومي.'), ratesBox),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'حاسبة تجريبية'), h('label', { class: 'f' }, 'راتب أساسي تجريبي (ر.س)'), calcIn, calcOut),
   S.can.settings ? h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', onclick: save }, 'حفظ الإعدادات'), h('span', { class: 'hint' }, 'التغيير يسري على البنود الجديدة؛ البنود المسجّلة سابقاً تحتفظ بنسبتها وراتبها وقت الإدخال حتى تُعدَّل.')) : h('p', { class: 'hint' }, 'لا تملك صلاحية تعديل الإعدادات.'));
   preview();
@@ -324,7 +348,7 @@ async function show(tab) {
 }
 try {
   const m = await api('/meta');
-  Object.assign(S, { settings: m.settings, units: m.units, can: m.can, month: m.month });
+  Object.assign(S, { jobTitles: m.job_titles || [], settings: m.settings, units: m.units, can: m.can, month: m.month });
   const want = location.hash.slice(1);
   if (!TABS().length) view.replaceChildren(h('div', { class: 'card' }, 'لا تملك صلاحية عرض الرواتب. تواصل مع مدير النظام.'));
   else await show(TABS().some(t => t[0] === want) ? want : TABS()[0][0]);
