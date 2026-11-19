@@ -1,6 +1,7 @@
 // الرواتب والإضافي: معادلات الاحتساب، الصلاحيات، الرواتب، الإضافي والانتداب، التقرير، الإعدادات
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import ExcelJS from 'exceljs';
 import { bootApp } from './helpers.js';
 import { DEFAULT_SETTINGS, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, buildTree, groupRows } from '../public/payroll/calc.js';
 
@@ -82,4 +83,29 @@ test('الإعدادات تتحقق وتؤثر على الحساب', { skip }, a
   assert.equal(r.status, 200);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-07', pay_month: '2026-12', type_id: 'ot-workday', quantity: '3' });
   assert.equal(r.json.row.amount, 202.5);   // الإجمالي 8100 (تلقائي) → 3 × 33.75 × 2
+});
+
+test('استيراد الإضافي من Excel: معاينة واعتماد وحماية من التكرار', { skip }, async () => {
+  const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('x');
+  ws.addRow(['الرقم الوظيفي', 'الاسم', 'التاريخ', 'النوع', 'الساعات', 'شهر الصرف', 'ملاحظات']);
+  ws.addRow(['P100', 'سارة الاختبار', new Date(Date.UTC(2026, 10, 10)), 'عادي', 2, '', 'أ']);
+  ws.addRow(['P100', '', '2026-11-11', 'نوع خاطئ', 1, '', '']);
+  ws.addRow(['', 'سارة الاختبار', '١٢/١١/٢٠٢٦', 'عادي', '١٫٥', '2026-12', '']);
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const fd = () => { const f = new FormData(); f.append('file', new Blob([buf]), 'o.xlsx'); return f; };
+  assert.equal((await plain.post('/api/payroll/entries/import?kind=overtime&mode=preview', fd())).status, 403);
+  const pv = await fin.post('/api/payroll/entries/import?kind=overtime&mode=preview&month=2026-11', fd());
+  assert.equal(pv.status, 200); assert.equal(pv.json.total, 3); assert.equal(pv.json.valid, 2); assert.equal(pv.json.invalid, 1);
+  assert.equal(pv.json.rows[0].amount, 135);            // 8100/240 × 2 × 200%
+  assert.equal(pv.json.rows[0].pay_month, '2026-11');   // من الشهر المختار
+  assert.equal(pv.json.rows[2].pay_month, '2026-12');
+  assert.match(pv.json.rows[1].errors[0], /غير موجود في الإعدادات/);
+  assert.equal((await fin.post('/api/payroll/entries/import?kind=overtime&mode=commit&month=2026-11', fd())).status, 400);   // فيه خطأ بلا تجاهل
+  const ok = await fin.post('/api/payroll/entries/import?kind=overtime&mode=commit&month=2026-11&skip_invalid=1', fd());
+  assert.equal(ok.status, 200); assert.equal(ok.json.applied, 2);
+  const list = (await fin.get('/api/payroll/entries?kind=overtime&month=2026-11')).json;
+  assert.ok(list.rows.some(x => x.amount === 135 && x.entry_date.startsWith('2026-11-10')));
+  const again = await fin.post('/api/payroll/entries/import?kind=overtime&mode=preview&month=2026-11', fd());
+  assert.equal(again.json.valid, 0);                    // التكرار مرفوض
+  assert.equal((await fin.get('/api/payroll/entries/template?kind=assignment')).status, 200);
 });

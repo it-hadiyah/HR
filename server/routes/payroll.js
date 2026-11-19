@@ -316,6 +316,135 @@ async function monthReport(month) {
   return out;
 }
 
+// ---------- استيراد الإضافي والانتدابات من Excel ----------
+const arDigits = v => String(v ?? '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+const ENTRY_COLS = (kind) => [['emp_no', 'الرقم الوظيفي'], ['full_name', 'الاسم'], ['entry_date', 'التاريخ'], ['type', 'النوع'], ['quantity', kind === 'overtime' ? 'الساعات' : 'الأيام'], ['pay_month', 'شهر الصرف'], ['notes', 'ملاحظات']];
+const ENTRY_ALIASES = { 'الكمية': 'quantity', 'عدد الساعات': 'quantity', 'عدد الأيام': 'quantity', 'الساعات': 'quantity', 'الأيام': 'quantity', 'اليوم': 'entry_date', 'تاريخ': 'entry_date', 'نوع الإضافي': 'type', 'نوع الانتداب': 'type', 'الشهر': 'pay_month' };
+function parseEntryDate(v) {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? '' : v.toISOString().slice(0, 10);
+  const t = arDigits(cellText(v)).replace(/\s+/g, '');
+  let m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/.exec(t);
+  if (!m) { const d = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(t); if (d) m = [0, d[3], d[2], d[1]]; }
+  if (!m) return '';
+  const iso = `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  return isDate(iso) ? iso : '';
+}
+function parsePayMonth(v) {
+  const t = arDigits(cellText(v instanceof Date ? v.toISOString().slice(0, 7) : v)).replace(/\s+/g, '');
+  if (!t) return '';
+  let m = /^(\d{4})[-\/.](\d{1,2})/.exec(t);
+  if (!m) { const d = /^(\d{1,2})[-\/.](\d{4})$/.exec(t); if (d) m = [0, d[2], d[1]]; }
+  if (!m) return null;
+  const mm = `${m[1]}-${String(m[2]).padStart(2, '0')}`;
+  return MONTH_RE.test(mm) ? mm : null;
+}
+async function readEntryRows(file, kind) {
+  const wb = new ExcelJS.Workbook();
+  try { if ((file.originalname || '').toLowerCase().endsWith('.csv')) await wb.csv.read((await import('node:stream')).Readable.from(file.buffer)); else await wb.xlsx.load(file.buffer); }
+  catch { throw httpError(400, 'تعذّرت قراءة الملف؛ استخدم نموذج Excel'); }
+  const ws = wb.worksheets[0];
+  if (!ws) throw httpError(400, 'الملف فارغ');
+  const labels = new Map([...ENTRY_COLS(kind).flatMap(c => [[c[1], c[0]], [c[0], c[0]]]), ...Object.entries(ENTRY_ALIASES)]);
+  const headersOf = row => { const h = []; row.eachCell((c, i) => { h[i] = labels.get(cellText(c.value).replace(/\s+/g, ' ')) || null; }); return h; };
+  let headers = headersOf(ws.getRow(1)), best = headers.filter(Boolean).length, hr = 1;
+  for (let n = 2; n <= Math.min(10, ws.rowCount); n++) { const h = headersOf(ws.getRow(n)); const c = h.filter(Boolean).length; if (c > best) { best = c; headers = h; hr = n; } }
+  if (!headers.includes('quantity') || !headers.includes('entry_date') || !headers.includes('type') || !(headers.includes('emp_no') || headers.includes('full_name'))) throw httpError(400, 'لم تُطابق أعمدة الملف النموذج: يلزم «الرقم الوظيفي» أو «الاسم» مع «التاريخ» و«النوع» و«' + (kind === 'overtime' ? 'الساعات' : 'الأيام') + '». حمّل النموذج من زر «تنزيل النموذج».');
+  const out = [];
+  ws.eachRow((row, n) => {
+    if (n <= hr) return;
+    const o = { _row: n }; let any = false;
+    row.eachCell({ includeEmpty: false }, (c, i) => { const k = headers[i]; if (!k) return; o[k] = k === 'entry_date' || k === 'pay_month' ? c.value : cellText(c.value); if (cellText(c.value) !== '' || c.value instanceof Date) any = true; });
+    if (String(o.emp_no || o.full_name || '').startsWith('↑')) return;
+    if (any) out.push(o);
+  });
+  if (!out.length) throw httpError(400, 'لا توجد صفوف بيانات');
+  if (out.length > 2000) throw httpError(400, 'الحد الأقصى 2000 صف في المرة الواحدة');
+  return out;
+}
+
+r.get('/entries/template', G('entries'), wrap(async (req, res) => {
+  const kind = KINDS[req.query.kind] ? req.query.kind : 'overtime';
+  const st = await loadSettings();
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(kind === 'overtime' ? 'الإضافي' : 'الانتدابات', { views: [{ rightToLeft: true }] });
+  const head = ws.addRow(ENTRY_COLS(kind).map(c => c[1]));
+  head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  head.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } }; c.alignment = { horizontal: 'center' }; });
+  const first = st[KINDS[kind].list][0];
+  ws.addRow(['1001', 'محمد أحمد العتيبي', '2026-11-05', first.name, kind === 'overtime' ? 3.5 : 2, '', 'مثال']).font = { italic: true, color: { argb: 'FF888888' } };
+  ws.addRow(['↑ صف مثال: احذفه قبل الرفع. «النوع» أحد: ' + st[KINDS[kind].list].map(t => t.name).join(' / ') + ' · «شهر الصرف» اختياري (YYYY-MM) وإن تُرك فيُؤخذ الشهر المختار في الصفحة']).font = { color: { argb: 'FFC00000' } };
+  ws.columns.forEach(c => { c.width = 24; });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="payroll-${kind}-template.xlsx"`);
+  await wb.xlsx.write(res); res.end();
+}));
+
+r.post('/entries/import', G('entries'), upload, wrap(async (req, res) => {
+  if (!req.file) throw httpError(400, 'لم يُرفع ملف');
+  const kind = KINDS[req.query.kind] ? req.query.kind : 'overtime';
+  const commit = req.query.mode === 'commit', skipInvalid = req.query.skip_invalid === '1';
+  const defMonth = MONTH_RE.test(String(req.query.month || '')) ? String(req.query.month) : '';
+  const st = await loadSettings();
+  const types = st[KINDS[kind].list];
+  const rows = await readEntryRows(req.file, kind);
+  const staff = (await q('SELECT id, emp_no, full_name FROM leave_staff')).rows.map(x => ({ ...x, norm: normalizeName(x.full_name), tokens: new Set(normalizeName(x.full_name).split(' ').filter(Boolean)) }));
+  const byNo = new Map(staff.filter(x => x.emp_no).map(x => [String(x.emp_no), x]));
+  const matchName = name => {
+    const norm = normalizeName(name); if (!norm) return { none: true };
+    const toks = new Set(norm.split(' ').filter(Boolean));
+    const exact = staff.filter(x => x.norm === norm); if (exact.length === 1) return { s: exact[0] }; if (exact.length > 1) return { many: exact.length };
+    const sub = staff.filter(x => x.tokens.size >= 2 && toks.size >= 2 && ([...x.tokens].every(t => toks.has(t)) || [...toks].every(t => x.tokens.has(t))));
+    return sub.length === 1 ? { s: sub[0] } : sub.length > 1 ? { many: sub.length } : { none: true };
+  };
+  const matchType = text => {
+    const n = normalizeName(text); if (!n) return null;
+    const exact = types.filter(t => normalizeName(t.name) === n || t.id === text.trim()); if (exact.length === 1) return exact[0];
+    const part = types.filter(t => normalizeName(t.name).includes(n) || n.includes(normalizeName(t.name))); return part.length === 1 ? part[0] : null;
+  };
+  const plan = [], results = [], seen = new Set();
+  for (const r0 of rows) {
+    const errs = [], warn = []; const no = String(r0.emp_no || '').trim(), name = String(r0.full_name || '').trim();
+    let s = no ? byNo.get(no) : null, action = 'إضافة';
+    if (!s && name) { const m = matchName(name); if (m.s) { s = m.s; action = `ربط بالاسم بـ «${s.full_name}»`; } else if (m.many) errs.push(`الاسم يطابق ${m.many} موظفين؛ استخدم الرقم الوظيفي`); else errs.push('الموظف غير موجود'); }
+    else if (!s) errs.push(no ? 'الرقم الوظيفي غير موجود' : 'الرقم الوظيفي والاسم فارغان');
+    const date = parseEntryDate(r0.entry_date); if (!date) errs.push('تاريخ غير صالح (استخدم YYYY-MM-DD)');
+    const type = matchType(String(r0.type || '')); if (!type) errs.push(`النوع «${r0.type || ''}» غير موجود في الإعدادات`);
+    let pm = parsePayMonth(r0.pay_month); if (pm === null) { errs.push('شهر الصرف غير صالح (YYYY-MM)'); pm = ''; }
+    pm = pm || defMonth || (date ? date.slice(0, 7) : '');
+    let c = null;
+    if (!errs.length) {
+      try { c = await computeEntry(kind, { employee_id: s.id, entry_date: date, pay_month: pm, type_id: type.id, quantity: arDigits(r0.quantity).replace(/٫/g, '.').replace(/[,٬،\s]/g, ''), notes: r0.notes }, st); }
+      catch (e) { errs.push(e.message); }
+    }
+    if (c) {
+      const key = `${s.id}|${c.entry_date}|${c.type.id}|${c.quantity}|${c.pay_month}`;
+      if (seen.has(key)) errs.push('مكرر داخل الملف'); seen.add(key);
+      const dup = (await q('SELECT 1 FROM payroll_entries WHERE kind = $1 AND employee_id = $2 AND entry_date = $3 AND type_id = $4 AND quantity = $5 AND pay_month = $6 LIMIT 1', [kind, s.id, c.entry_date, c.type.id, c.quantity, c.pay_month])).rows.length;
+      if (dup) errs.push('بند مطابق مسجّل مسبقاً');
+    }
+    plan.push({ c, errs });
+    results.push({ row: r0._row, ok: !errs.length, errors: errs, warnings: warn, action, label: `${no || '—'}${name ? ' · ' + name : ''}`, date, type_name: type?.name || '', quantity: c?.quantity ?? null, amount: c?.amount ?? 0, pay_month: pm });
+  }
+  const bad = results.filter(x => !x.ok);
+  const out = { mode: commit ? 'commit' : 'preview', total: rows.length, valid: results.length - bad.length, invalid: bad.length, amount: round2(results.filter(x => x.ok).reduce((a, x) => a + x.amount, 0)), rows: results };
+  if (commit) {
+    if (bad.length && !skipInvalid) throw httpError(400, `يوجد ${bad.length} صفاً غير صالح؛ صحّحها أو اختر تجاهل الصفوف الخاطئة`);
+    const cx = await pool.connect();
+    try {
+      await cx.query('BEGIN');
+      for (const p of plan.filter(x => !x.errs.length)) {
+        const c = p.c;
+        await cx.query(`INSERT INTO payroll_entries(kind, employee_id, entry_date, pay_month, type_id, type_name, quantity, percent, base_salary, unit_wage, amount, notes, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+          [kind, c.emp.id, c.entry_date, c.pay_month, c.type.id, c.type.name, c.quantity, c.percent, c.base, c.unit_wage, c.amount, c.notes, req.user.username]);
+      }
+      await cx.query('COMMIT');
+    } catch (e) { await cx.query('ROLLBACK'); throw e; } finally { cx.release(); }
+    out.applied = out.valid;
+    await audit(req, 'import', `payroll_${kind}`, 'excel', null, { applied: out.valid, amount: out.amount });
+  }
+  res.json(out);
+}));
+
 r.get('/report', G('view'), wrap(async (req, res) => {
   const month = monthOf(req.query.month, currentMonth());
   const rows = await monthReport(month);

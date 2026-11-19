@@ -202,7 +202,22 @@ async function entriesView(kind) {
   const form = S.can.entries ? h('div', { class: 'card' }, h('h2', { class: 'sec' }, `إضافة ${labels.title}`), empBox,
     h('div', { class: 'entry-form', style: 'margin-top:10px' }, h('div', null, h('label', { class: 'f' }, 'التاريخ'), dateIn), h('div', null, h('label', { class: 'f' }, 'النوع'), typeSel), h('div', null, h('label', { class: 'f' }, labels.unit), qtyIn), h('div', null, h('label', { class: 'f' }, 'ملاحظات'), notes), h('div', null, addBtn)),
     calcBox) : null;
-  view.replaceChildren(h('div', { class: 'bar' }, monthInput, emp ? h('span', { class: 'hint' }, 'مصفّى حسب الموظف المختار') : null), form, listBox);
+  const importDialog = () => {
+    const file = h('input', { type: 'file', accept: '.xlsx,.csv' }); const skip = h('input', { type: 'checkbox' }); const out = h('div');
+    const send = mode => { if (!file.files[0]) throw new Error('اختر ملفاً أولاً'); const fd = new FormData(); fd.append('file', file.files[0]); return api(`/entries/import?kind=${kind}&mode=${mode}&month=${S.month}${skip.checked ? '&skip_invalid=1' : ''}`, { method: 'POST', form: fd }); };
+    const preview = guard(async () => {
+      const d = await send('preview');
+      out.replaceChildren(h('div', { class: 'bar' }, h('span', { class: 'badge' }, `${d.total} صف`), h('span', { class: 'badge ok' }, `${d.valid} صالح · ${sar(d.amount)} ر.س`), d.invalid ? h('span', { class: 'badge off' }, `${d.invalid} به أخطاء`) : null,
+        d.invalid ? h('label', null, skip, ' تجاهل الصفوف الخاطئة') : null,
+        h('button', { class: 'btn primary', type: 'button', disabled: d.valid === 0, onclick: guard(async () => { const r = await send('commit'); closeModal(); toast(`تم اعتماد ${r.applied} بنداً بمبلغ ${sar(r.amount)} ر.س`); await loadList(); }) }, 'اعتماد الاستيراد')),
+      h('div', { class: 'tbl-wrap', style: 'max-height:320px' }, h('table', null, h('thead', null, h('tr', null, ['الصف', 'الموظف', 'التاريخ', 'النوع', labels.unit, 'شهر الصرف', 'المبلغ', 'النتيجة'].map(t => h('th', null, t)))),
+        h('tbody', null, d.rows.map(r => h('tr', null, h('td', null, String(r.row)), h('td', null, r.label), h('td', { class: 'n' }, r.date), h('td', null, r.type_name), h('td', { class: 'n' }, r.quantity === null ? '—' : qty(r.quantity)), h('td', { class: 'n' }, r.pay_month), h('td', { class: 'n' }, sar(r.amount)),
+          h('td', null, r.ok ? h('span', { class: 'badge ok' }, 'صالح') : h('span', { class: 'badge off' }, r.errors.join('؛ ')))))))));
+    });
+    modal(`استيراد ${labels.title} من Excel`, h('div', null, h('p', { class: 'hint' }, `أعمدة الملف: الرقم الوظيفي (أو الاسم)، التاريخ، النوع (كما في الإعدادات)، ${labels.unit}، وشهر الصرف اختياري (إن تُرك يُؤخذ الشهر المختار: ${S.month}). المبلغ يُحسب تلقائياً من الراتب والنسبة. لا يُكتب شيء قبل الاعتماد، والبند المطابق المسجّل مسبقاً يُرفض لمنع التكرار.`),
+      h('div', { class: 'bar' }, h('button', { class: 'btn sm', type: 'button', onclick: () => download(`/api/payroll/entries/template?kind=${kind}`) }, 'تنزيل النموذج'), file, h('button', { class: 'btn primary', type: 'button', onclick: preview }, 'معاينة')), out));
+  };
+  view.replaceChildren(h('div', { class: 'bar' }, monthInput, emp ? h('span', { class: 'hint' }, 'مصفّى حسب الموظف المختار') : null, h('div', { class: 'sp' }), S.can.entries ? h('button', { class: 'btn', type: 'button', onclick: importDialog }, 'استيراد Excel') : null), form, listBox);
   drawEmp(); drawCalc(); await loadList();
 }
 
