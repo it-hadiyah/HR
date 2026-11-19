@@ -111,18 +111,19 @@ test('استيراد الإضافي من Excel: معاينة واعتماد وح
 });
 
 test('الانتداب حسب المسمى الوظيفي: معيشة + انتداب يومي + أجر نقل ثابت', { skip }, async () => {
-  await t.q("UPDATE leave_staff SET job_title = 'محاسب' WHERE id = $1", [empId]);
-  let r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, assignment_rates: [{ title: 'محاسب', living: '150', assignment: '200', transport: '100' }] });
+  let r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, assignment_rates: [{ title: 'مدير إدارة', living: '150', assignment: '200', transport: '100' }] });
   assert.equal(r.status, 200);
-  assert.equal((await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, assignment_rates: [{ title: 'محاسب', living: 1 }, { title: ' محاسب ', living: 2 }] })).status, 400);   // مكرر
-  assert.equal((await fin.get('/api/payroll/meta')).json.job_titles.includes('محاسب'), true);
+  assert.equal((await fin.put('/api/payroll/salaries/' + empId, { assignment_title: 'غير موجود' })).status, 400);
+  r = await fin.put('/api/payroll/salaries/' + empId, { assignment_title: 'مدير إدارة' });   // الإسناد يدوي ومستقل عن المسمى الوظيفي
+  assert.equal(r.json.row.assignment_title, 'مدير إدارة');
+  assert.equal((await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, assignment_rates: [{ title: 'مدير', living: 1 }, { title: ' مدير ', living: 2 }] })).status, 400);   // مكرر
   r = await fin.post('/api/payroll/entries', { kind: 'assignment', employee_id: empId, entry_date: '2026-11-20', pay_month: '2026-11', type_id: 'as-inside', quantity: '3' });
   assert.equal(r.status, 201); assert.equal(r.json.row.amount, 1150);          // 3 × (150+200) + 100
   assert.equal(r.json.row.fixed_amount, 100); assert.equal(r.json.row.breakdown.transport, 100);
   r = await fin.put('/api/payroll/entries/' + r.json.row.id, { quantity: '1' });
   assert.equal(r.json.row.amount, 450);                                         // النقل لا يتغير بعدد الأيام
   // موظف بمسمى غير مسجّل يعود للنسبة من الراتب
-  await t.q("UPDATE leave_staff SET job_title = 'سائق' WHERE id = $1", [empId]);
+  await fin.put('/api/payroll/salaries/' + empId, { assignment_title: '' });
   r = await fin.post('/api/payroll/entries', { kind: 'assignment', employee_id: empId, entry_date: '2026-11-21', pay_month: '2026-11', type_id: 'as-inside', quantity: '2' });
   assert.equal(r.json.row.fixed_amount, 0); assert.equal(r.json.row.amount, 540);   // 2 × 8100/30 × 100%
 });

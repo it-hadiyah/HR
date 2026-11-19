@@ -73,8 +73,7 @@ function cleanSettings(b) {
 r.get('/meta', G('access'), wrap(async (req, res) => {
   const units = (await q('SELECT id, name, unit_type, parent_id FROM org_units WHERE active ORDER BY id')).rows;
   const can = a => hasGrant(req.user, 'payroll', a);
-  const job_titles = (await q("SELECT DISTINCT job_title FROM leave_staff WHERE job_title IS NOT NULL AND btrim(job_title) <> '' ORDER BY job_title")).rows.map(x => x.job_title);
-  res.json({ job_titles, settings: await loadSettings(), units, can: { view: can('view'), edit_salaries: can('edit_salaries'), entries: can('entries'), settings: can('settings') }, month: currentMonth() });
+  res.json({ settings: await loadSettings(), units, can: { view: can('view'), edit_salaries: can('edit_salaries'), entries: can('entries'), settings: can('settings') }, month: currentMonth() });
 }));
 
 r.put('/settings', G('settings'), wrap(async (req, res) => {
@@ -93,10 +92,10 @@ async function staffRows({ status = 'active', term = '', ids } = {}) {
   if (term) { p.push(`%${term}%`); where.push(`(s.full_name ILIKE $${p.length} OR s.emp_no ILIKE $${p.length} OR s.job_title ILIKE $${p.length})`); }
   if (ids) { p.push(ids); where.push(`s.id = ANY($${p.length}::int[])`); }
   const rows = (await q(`SELECT s.id AS employee_id, s.emp_no, s.full_name, s.job_title, s.org_unit_id, s.status,
-      p.basic::float8 AS basic, p.housing::float8 AS housing, p.transport::float8 AS transport, p.other::float8 AS other, p.insurance_percent::float8 AS insurance_percent, p.notes, (p.employee_id IS NOT NULL) AS has_salary
+      p.basic::float8 AS basic, p.housing::float8 AS housing, p.transport::float8 AS transport, p.other::float8 AS other, p.insurance_percent::float8 AS insurance_percent, p.assignment_title, p.notes, (p.employee_id IS NOT NULL) AS has_salary
     FROM leave_staff s LEFT JOIN payroll_salaries p ON p.employee_id = s.id ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY s.full_name, s.id`, p)).rows;
   const pathOf = await unitPaths(); const st = await loadSettings();
-  return rows.map(x => { const u = pathOf(x.org_unit_id); const y = withAllowances({ ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0 }, st); const gross = grossOf(y), ip = x.insurance_percent ?? 0; return { ...x, ...y, insurance_percent: ip, gross, insurance_amount: round2(gross * ip / 100), sector: u.sector, department: u.department, section: u.section }; });
+  return rows.map(x => { const u = pathOf(x.org_unit_id); const y = withAllowances({ ...x, basic: x.basic ?? 0, housing: x.housing ?? 0, transport: x.transport ?? 0, other: x.other ?? 0 }, st); const gross = grossOf(y), ip = x.insurance_percent ?? 0; return { ...x, ...y, has_salary: !!x.has_salary && gross > 0, insurance_percent: ip, gross, insurance_amount: round2(gross * ip / 100), sector: u.sector, department: u.department, section: u.section }; });
 }
 
 r.get('/salaries', G('view'), wrap(async (req, res) => {
@@ -119,10 +118,16 @@ r.put('/salaries/:id', G('edit_salaries'), wrap(async (req, res) => {
     if (!(v >= 0 && v <= 100)) throw httpError(400, 'نسبة الاستقطاع بين 0 و100');
     ins = Math.round(v * 100) / 100;
   }
+  let atitle = before.assignment_title ?? null;
+  if ('assignment_title' in b) {
+    const t = String(b.assignment_title ?? '').trim();
+    if (!t) atitle = null;
+    else { const rate = findRate((await loadSettings()).assignment_rates, t); if (!rate) throw httpError(400, 'مسمى الانتداب غير موجود في الإعدادات'); atitle = rate.title; }
+  }
   const notes = 'notes' in b ? (String(b.notes ?? '').trim().slice(0, 300) || null) : before.notes;
-  await q(`INSERT INTO payroll_salaries(employee_id, basic, housing, transport, other, notes, updated_by, insurance_percent) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-    ON CONFLICT (employee_id) DO UPDATE SET basic = EXCLUDED.basic, housing = EXCLUDED.housing, transport = EXCLUDED.transport, other = EXCLUDED.other, notes = EXCLUDED.notes, insurance_percent = EXCLUDED.insurance_percent, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-  [id, next.basic, next.housing, next.transport, next.other, notes, req.user.username, ins]);
+  await q(`INSERT INTO payroll_salaries(employee_id, basic, housing, transport, other, notes, updated_by, insurance_percent, assignment_title) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    ON CONFLICT (employee_id) DO UPDATE SET basic = EXCLUDED.basic, housing = EXCLUDED.housing, transport = EXCLUDED.transport, other = EXCLUDED.other, notes = EXCLUDED.notes, insurance_percent = EXCLUDED.insurance_percent, assignment_title = EXCLUDED.assignment_title, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+  [id, next.basic, next.housing, next.transport, next.other, notes, req.user.username, ins, atitle]);
   if ('org_unit_id' in b) {
     const u = b.org_unit_id === '' || b.org_unit_id === null ? null : +b.org_unit_id;
     if (u !== null && !(await q('SELECT 1 FROM org_units WHERE id = $1', [u])).rows.length) throw httpError(400, 'الوحدة غير موجودة');
@@ -260,8 +265,10 @@ async function computeEntry(kind, b, st) {
   if (!(percent >= 0 && percent <= 1000)) throw httpError(400, 'النسبة غير صالحة');
   const common = { emp, entry_date: String(b.entry_date), pay_month: monthOf(b.pay_month, String(b.entry_date).slice(0, 7)), type, quantity: round2(qty), notes: String(b.notes ?? '').trim().slice(0, 300) || null };
   if (kind === 'assignment') {
-    const rate = findRate(st.assignment_rates, emp.job_title);
-    if (rate) { const a = assignmentByRate(qty, rate); return { ...common, percent: 100, base: a.unit_wage, unit_wage: a.unit_wage, fixed: a.fixed, amount: a.amount, breakdown: { title: rate.title, living: rate.living, assignment: rate.assignment, transport: rate.transport } }; }
+    const grade = String(b.assignment_title ?? '').trim() || (await q('SELECT assignment_title FROM payroll_salaries WHERE employee_id = $1', [emp.id])).rows[0]?.assignment_title;
+    if (String(b.assignment_title ?? '').trim() && !findRate(st.assignment_rates, grade)) throw httpError(400, 'مسمى الانتداب غير موجود في الإعدادات');
+    const rate = findRate(st.assignment_rates, grade);
+    if (rate) { const a = assignmentByRate(qty, rate); return { ...common, percent: 100, base: a.unit_wage, unit_wage: a.unit_wage, fixed: a.fixed, amount: a.amount, breakdown: { title: rate.title, grade: rate.title, living: rate.living, assignment: rate.assignment, transport: rate.transport } }; }
   }
   const sal = (await staffRows({ status: 'all', ids: [emp.id] }))[0];
   const base = baseOf(sal, st);
@@ -302,7 +309,7 @@ r.put('/entries/:id', G('entries'), wrap(async (req, res) => {
   const old = (await q('SELECT * FROM payroll_entries WHERE id = $1', [+req.params.id])).rows[0];
   if (!old) throw httpError(404, 'البند غير موجود');
   const st = await loadSettings();
-  const merged = { employee_id: old.employee_id, entry_date: old.entry_date instanceof Date ? old.entry_date.toISOString().slice(0, 10) : String(old.entry_date).slice(0, 10), type_id: old.type_id, quantity: old.quantity, pay_month: old.pay_month, notes: old.notes, ...req.body };
+  const merged = { employee_id: old.employee_id, entry_date: old.entry_date instanceof Date ? old.entry_date.toISOString().slice(0, 10) : String(old.entry_date).slice(0, 10), type_id: old.type_id, quantity: old.quantity, pay_month: old.pay_month, notes: old.notes, assignment_title: old.breakdown?.title, ...req.body };
   if ('entry_date' in (req.body || {}) && !('pay_month' in req.body)) merged.pay_month = String(req.body.entry_date).slice(0, 7);
   const c = await computeEntry(old.kind, merged, st);
   const warn = await capWarning(old.kind, c.emp.id, c.pay_month, st, old.id);
@@ -475,7 +482,7 @@ r.get('/report', G('view'), wrap(async (req, res) => {
 // بحث موظفين لإدخال الإضافي والانتدابات (مع مكوّنات الراتب للحساب الفوري)
 r.get('/staff', G('entries'), wrap(async (req, res) => {
   const rows = await staffRows({ status: 'active', term: String(req.query.q || '').trim().slice(0, 60) });
-  res.json({ employees: rows.slice(0, 40).map(x => ({ id: x.employee_id, emp_no: x.emp_no, full_name: x.full_name, job_title: x.job_title, sector: x.sector, department: x.department, section: x.section, basic: x.basic, housing: x.housing, transport: x.transport, other: x.other, has_salary: x.has_salary })) });
+  res.json({ employees: rows.slice(0, 40).map(x => ({ id: x.employee_id, emp_no: x.emp_no, full_name: x.full_name, job_title: x.job_title, assignment_title: x.assignment_title, sector: x.sector, department: x.department, section: x.section, basic: x.basic, housing: x.housing, transport: x.transport, other: x.other, has_salary: x.has_salary })) });
 }));
 
 r.get('/export', G('view'), wrap(async (req, res) => {
