@@ -160,6 +160,7 @@ app.use('/card', (req, res, next) => (/^\/(src|tools)(\/|$)/.test(req.path) ? re
 mount('/card', 'card', path.join(MODULES, 'card'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
+app.use('/sales-reports', gate('sales-reports'), withAppBar(path.join(root, 'public/sales-reports')), express.static(path.join(root, 'public/sales-reports')));
 app.use('/payroll', gate('payroll'), withAppBar(path.join(root, 'public/payroll')), express.static(path.join(root, 'public/payroll')));
 app.use('/hr-forms', gate('hr-forms'), withAppBar(path.join(root, 'public/hr-forms')), express.static(path.join(root, 'public/hr-forms')));
 app.use('/admin', gate('admin'), withAppBar(path.join(root, 'public/admin')), express.static(path.join(root, 'public/admin')));

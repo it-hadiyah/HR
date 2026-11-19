@@ -13,7 +13,7 @@ const nextUrl = () => {
   return n && /^\/(?![\/\\])[^\\\u0000-\u001f]*$/.test(n) ? n : null;
 };
 
-const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/hr-forms/': 'نماذج الموارد البشرية', '/payroll/': 'الرواتب والإضافي', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
+const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/hr-forms/': 'نماذج الموارد البشرية', '/payroll/': 'الرواتب والإضافي', '/sales-reports/': 'تقارير مبيعات', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
 
 function showLogin() {
   $('home').hidden = true; $('login').hidden = false;

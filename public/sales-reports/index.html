@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقارير مبيعات</title>
+<script src="/sales-reports/vendor/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#fafaf9;--panel:#fff;--fg:#1c1b1a;--muted:#6b6862;--line:#e4e1db;--c0:#2f6f73;--c1:#b5562f;--c2:#6c5ba7;--c3:#a8893a;--c4:#4f7f4a;--c5:#a34a6a;--tip:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--fg:#f0eee9;--muted:#a09c93;--line:#34332f;--c0:#5fb3b8;--c1:#e08a62;--c2:#a597dc;--c3:#d4b45f;--c4:#86b880;--c5:#d98aa8;--tip:#2a2a27;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;font-size:15px;line-height:1.6}
+.rp{max-width:1200px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:24px}
+h1{font-size:clamp(26px,5vw,38px);font-weight:600;margin:0;line-height:1.25;text-wrap:balance}
+h2{font-size:17px;margin:0;font-weight:600}
+.sub{color:var(--muted);margin:6px 0 0}
+.lede{font-size:17px;line-height:1.8;margin:12px 0 0;max-width:70ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0}
+.filters{position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:12px}
+.frow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flabel{font-size:12px;color:var(--muted);min-width:64px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+button{font:inherit}
+.chip,.seg button,.preset,.reset{font-size:13px;line-height:1.2;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.chip:hover,.preset:hover,.seg button:hover{border-color:var(--muted)}
+.chip.on,.seg button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip.dim{opacity:.4}
+button:focus-visible,input:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.glabel{flex-basis:100%;font-size:12px;color:var(--muted);margin-top:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;gap:2px}
+.seg button{border:0}
+.search{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:0;width:min(260px,100%)}
+.hint,.fstate{font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.kpi{display:flex;flex-direction:column;gap:6px;min-width:0}
+.k{font-size:12px;color:var(--muted)}
+.v{font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;font-weight:500}
+.kpi.main .v{font-size:38px}
+.n{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media(max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.ptitle{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;margin-bottom:16px}
+.box{position:relative;min-height:120px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:6px}
+svg.ch{direction:ltr;display:block;max-width:100%;overflow:visible}
+svg.ch text{fill:var(--muted);font-size:12px;font-family:inherit}
+svg.ch .val{fill:var(--fg);font-variant-numeric:tabular-nums}
+svg.ch .gl{stroke:var(--line)}
+.tip{position:absolute;pointer-events:none;z-index:4;background:var(--tip);border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.15);border-radius:10px;padding:8px 10px;font-size:12px;min-width:140px}
+.tip .tl{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tip .tl b{color:var(--fg);font-weight:500}
+.tip .th{font-weight:600;margin-bottom:2px}
+.rank{display:flex;flex-direction:column;gap:4px}
+.rrow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 8px;border-radius:8px;cursor:pointer}
+.rrow:hover,.rrow.on{background:color-mix(in srgb,var(--fg) 7%,transparent)}
+.rrow:focus-visible{outline:2px solid var(--fg)}
+.rrow .nm{overflow-wrap:anywhere}
+.rrow .vv{font-variant-numeric:tabular-nums;direction:ltr;text-align:left}
+.rrow .tr{grid-column:1/-1;height:6px;border-radius:3px;background:color-mix(in srgb,var(--fg) 8%,transparent);overflow:hidden;direction:ltr}
+.rrow .fl{height:100%;border-radius:3px}
+.gtiles{display:flex;flex-direction:column;gap:16px}
+.gt{display:flex;flex-direction:column;gap:6px}
+.gt .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.gt .gv{font-size:20px;font-variant-numeric:tabular-nums}
+.gt .gm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gt .bar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--fg) 8%,transparent);overflow:hidden;direction:ltr}
+.gt .bar i{display:block;height:100%}
+.wrap{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;min-width:640px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+td:first-child{white-space:normal;min-width:190px}
+th{font-size:12px;color:var(--muted);font-weight:500;cursor:pointer;user-select:none}
+th[aria-sort]{color:var(--fg)}
+th[aria-sort=descending]::after{content:" ▼";font-size:9px}
+th[aria-sort=ascending]::after{content:" ▲";font-size:9px}
+td.num{direction:ltr}
+.heat{display:grid;gap:3px;min-width:min-content}
+.hc{padding:7px 4px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;border-radius:4px;min-height:30px;display:flex;align-items:center;justify-content:center}
+.hh{color:var(--muted)}
+.hn{justify-content:flex-start;text-align:right;cursor:pointer;padding-inline:4px}
+.hn:hover{text-decoration:underline}
+.empty{color:var(--muted);padding:24px 8px;text-align:center}
+.foot{font-size:12px;color:var(--muted);line-height:1.8}
+[hidden]{display:none!important}
+.rpin{display:flex;flex-direction:column;gap:24px}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:48px 24px;text-align:center;background:var(--panel);display:flex;flex-direction:column;align-items:center;gap:14px;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--fg);background:color-mix(in srgb,var(--fg) 5%,var(--panel))}
+.drop h2{font-size:20px}
+.drop p{margin:0;color:var(--muted);max-width:52ch}
+.btn{font:inherit;font-size:15px;background:var(--fg);color:var(--bg);border:0;border-radius:10px;padding:10px 22px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line);font-size:13px;padding:6px 14px}
+.err{color:#b3261e;font-size:14px;max-width:60ch}
+@media (prefers-color-scheme:dark){.err{color:#ff8a80}}
+.filebar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="rp">
+  <header>
+    <h1>تقارير مبيعات — تحليل نقطة البيع</h1>
+    <p class="sub" id="sub">ارفق ملف الإكسل (تحليل نقطة البيع) ليتحول مباشرة إلى تقرير.</p>
+    <p class="lede" id="lede" hidden>—</p>
+  </header>
+
+  <section class="drop" id="drop">
+    <h2>ارفق ملف الإكسل</h2>
+    <p>اسحب الملف وأفلته هنا أو اختره من جهازك. تُقرأ البيانات داخل المتصفح فقط ولا تُرسل إلى أي مكان.</p>
+    <button type="button" class="btn" id="pick">اختيار ملف</button>
+    <input type="file" id="file" accept=".xlsx,.xls" hidden>
+    <div class="err" id="err" role="alert" hidden></div>
+  </section>
+
+  <div class="rpin" id="report" hidden>
+  <div class="filebar"><span id="fname"></span><button type="button" class="btn ghost" id="again">رفع ملف آخر</button></div>
+
+  <section class="panel filters" aria-label="الفلاتر">
+    <div class="frow"><span class="flabel">الفترة</span>
+      <div class="chips" id="presets">
+        <button type="button" class="preset" data-p="all">كل الفترة</button>
+        <button type="button" class="preset" data-p="last3">آخر 3 أشهر</button>
+        <button type="button" class="preset" data-p="last6">آخر 6 أشهر</button>
+      </div></div>
+    <div class="frow"><span class="flabel">الشهر</span><div class="chips" id="f_months"></div></div>
+    <div class="frow"><span class="flabel">الفئة</span><div class="chips" id="f_groups"></div></div>
+    <div class="frow"><span class="flabel">المنتج</span><div class="chips" id="f_products"></div></div>
+    <div class="frow"><span class="flabel">بحث</span>
+      <input class="search" id="q" type="search" placeholder="ابحث باسم المنتج أو الفئة" aria-label="بحث باسم المنتج أو الفئة" autocomplete="off">
+      <span class="flabel" style="margin-inline-start:8px">القياس</span>
+      <div class="seg" id="metric" role="group" aria-label="مؤشر القياس">
+        <button type="button" data-m="amount">إجمالي السعر</button>
+        <button type="button" data-m="qty">كمية المنتج</button>
+        <button type="button" data-m="orders">عدد الطلبات</button>
+      </div>
+      <button type="button" class="reset" id="reset" hidden>مسح كل الفلاتر</button>
+      <span class="fstate" id="fstate"></span>
+    </div>
+    <div class="fstate">بدون تحديد يعني الكل. النقر على عمود شهر أو على منتج في الرسوم يضيفه للفلتر.</div>
+  </section>
+
+  <section class="panel" aria-label="المؤشرات الرئيسية"><div class="kpis">
+    <div class="kpi main"><span class="k">إجمالي السعر</span><b class="v" id="k_amount">—</b></div>
+    <div class="kpi"><span class="k">عدد الطلبات</span><b class="v" id="k_orders">—</b><span class="n" id="ordnote" hidden>مجموع طلبات المنتجات المحددة، وقد يزيد عن الإجمالي في الملف.</span></div>
+    <div class="kpi"><span class="k">كمية المنتجات</span><b class="v" id="k_qty">—</b></div>
+    <div class="kpi"><span class="k">متوسط سعر الوحدة</span><b class="v" id="k_unit">—</b></div>
+    <div class="kpi"><span class="k">متوسط قيمة الطلب</span><b class="v" id="k_per">—</b></div>
+    <div class="kpi"><span class="k">نسبة من إجمالي كل الفترة</span><b class="v" id="k_share">—</b></div>
+  </div></section>
+
+  <section class="panel" aria-labelledby="h-month">
+    <div class="ptitle"><h2 id="h-month">المبيعات حسب الشهر</h2><span class="hint">الأشهر خارج الفلتر تظهر باهتة</span></div>
+    <div class="box" id="mchart" style="min-height:330px"></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="h-rank">
+      <div class="ptitle"><h2 id="h-rank">ترتيب المنتجات</h2><span class="hint" id="rank_hint"></span></div>
+      <div class="rank" id="rank"></div>
+    </section>
+    <section class="panel" aria-labelledby="h-group">
+      <div class="ptitle"><h2 id="h-group">حسب الفئة</h2><span class="hint">نسبة من إجمالي السعر</span></div>
+      <div class="gtiles" id="groups"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-heat">
+    <div class="ptitle"><h2 id="h-heat">المنتج × الشهر</h2><span class="hint" id="heat_hint"></span></div>
+    <div class="wrap" id="heat"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-table">
+    <div class="ptitle"><h2 id="h-table">تفاصيل المنتجات</h2><span class="hint">انقر على عنوان العمود للترتيب</span></div>
+    <div class="wrap"><table id="ptable"><thead><tr>
+      <th data-s="product">المنتج</th><th data-s="group">الفئة</th><th data-s="orders">الطلبات</th><th data-s="qty">الكمية</th><th data-s="amount" aria-sort="descending">إجمالي السعر</th><th data-s="unit">سعر الوحدة</th><th data-s="share">النسبة %</th>
+    </tr></thead><tbody id="ptbody"></tbody></table></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+  </div>
+</div>
+
+<script src="/sales-reports/app.js" defer></script>
+</body>
+</html>

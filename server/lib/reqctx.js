@@ -14,6 +14,7 @@ export function platformOf(url = '') {
   if (u.startsWith('/card') || u.startsWith('/api/directory') || u.startsWith('/api/card')) return 'card';
   if (u.startsWith('/report-builder')) return 'report-builder';
   if (u.startsWith('/hr-forms') || u.startsWith('/api/hr-forms')) return 'hr-forms';
+  if (u.startsWith('/sales-reports')) return 'sales-reports';
   if (u.startsWith('/payroll') || u.startsWith('/api/payroll')) return 'payroll';
   if (u.startsWith('/hr') || /^\/api\/(org|employees|leaves|targets|dashboard|reports|import|admin)(\/|$)/.test(u)) return 'hr';
   return 'platform';
