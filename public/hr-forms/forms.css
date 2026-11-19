@@ -60,6 +60,9 @@ label.f small{font-weight:400;color:var(--muted)}
 .paper .gap{height:.7em}
 .paper.empty{display:grid;place-items:center;color:var(--muted);text-align:center}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.paper .stamp{position:absolute;left:11%;bottom:13%;width:21%;height:auto;mix-blend-mode:multiply;pointer-events:none}
+.stamp-prev{display:flex;gap:14px;align-items:center;background:repeating-conic-gradient(#f4f6f6 0 25%,#fff 0 50%) 0 0/16px 16px;border:1px solid var(--line);border-radius:12px;padding:14px}
+.stamp-prev img{width:120px;height:auto}
 /* السجل والقوالب */
 .tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
 table{border-collapse:collapse;width:100%;font-size:.9rem}

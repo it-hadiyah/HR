@@ -42,7 +42,7 @@ test('إعداد: مستخدم موارد بشرية وموظف عادي ومو�
 
 test('القوالب الثلاثة جاهزة وتُملأ كما في النماذج الأصلية', { skip }, async () => {
   const { templates, can_manage } = (await hr.get('/api/hr-forms/templates')).json;
-  assert.deepEqual(templates.map(x => x.slug), ['absence-inquiry', 'attention-notice', 'deduction-notice']);
+  assert.deepEqual(templates.map(x => x.slug), ['absence-inquiry', 'attention-notice', 'deduction-notice', 'salary-fixation']);
   assert.equal(can_manage, true);
   const ded = templates.find(x => x.slug === 'deduction-notice');
   const emp = { full_name: 'عبدالله الاختبار', emp_no: 'H100' };
@@ -99,4 +99,18 @@ test('إدارة القوالب: إضافة وتعديل وإيقاف مع تح�
   assert.equal((await hr.put(`/api/hr-forms/templates/${c.json.id}`, { active: false })).json.active, false);
   assert.ok(!(await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.id === c.json.id));          // الموقوف لا يظهر للإصدار
   assert.ok((await hr.get('/api/hr-forms/templates?all=1')).json.templates.find(x => x.id === c.json.id));     // ويظهر لمن يدير
+});
+
+test('الختم: رفع صورة صالحة، رفض غير الصور، منع غير المصرّح، وإعادة الافتراضي', { skip }, async () => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  const fd = (buf, name) => { const f = new FormData(); f.append('file', new Blob([buf]), name); return f; };
+  assert.equal((await plain.post('/api/hr-forms/stamp', fd(png, 's.png'))).status, 403);
+  assert.equal((await hr.post('/api/hr-forms/stamp', fd(Buffer.from('<svg onload=alert(1)>'), 's.svg'))).status, 400);
+  const ok = await hr.post('/api/hr-forms/stamp', fd(png, 's.png'));
+  assert.equal(ok.status, 200); assert.equal(ok.json.stamp.custom, true);
+  const got = await hr.get('/api/hr-forms/stamp'); assert.equal(got.status, 200);
+  assert.equal((await hr.put('/api/hr-forms/stamp/enabled', { enabled: false })).json.stamp.enabled, false);
+  assert.equal((await hr.get('/api/hr-forms/templates')).json.stamp.enabled, false);
+  await hr.put('/api/hr-forms/stamp/enabled', { enabled: true });
+  assert.equal((await hr.del('/api/hr-forms/stamp')).json.stamp.custom, false);
 });

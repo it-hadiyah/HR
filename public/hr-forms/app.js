@@ -47,9 +47,11 @@ async function copyRich(html, text, node) {
 // يبني الورقة بعُقد DOM نصية فقط (بلا innerHTML)
 function fillPaper(el, text) {
   el.replaceChildren(...text.split('\n').map(line => (line.startsWith('# ') ? h('h2', null, line.slice(2)) : line.trim() ? h('p', null, line) : h('div', { class: 'gap' }))));
+  if (state.stamp?.enabled) el.append(h('img', { class: 'stamp', src: stampUrl(), alt: 'الختم الرسمي' }));   // ثابت في كل النماذج
 }
+const stampUrl = () => '/api/hr-forms/stamp?v=' + (state.stamp?.version || 0);
 
-const state = { templates: [], canManage: false, canUse: false, tab: 'create' };
+const state = { templates: [], canManage: false, canUse: false, tab: 'create', stamp: { enabled: true, custom: false, version: 0 } };
 const view = document.getElementById('view');
 
 // ---------- صفحة الإنشاء ----------
@@ -212,6 +214,32 @@ async function templatesView() {
   await load();
 }
 
+// ---------- الإعدادات: الختم الرسمي ----------
+async function settingsView() {
+  const prev = h('div', { class: 'stamp-prev' });
+  const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp' });
+  const enabled = h('input', { type: 'checkbox', checked: state.stamp.enabled });
+  const draw = () => {
+    prev.replaceChildren(h('img', { src: stampUrl(), alt: 'الختم الحالي' }), h('div', { class: 'hint' }, state.stamp.custom ? 'ختم مخصص مرفوع' : 'الختم الافتراضي'));
+    enabled.checked = state.stamp.enabled;
+  };
+  const upload = guard(async () => {
+    if (!file.files[0]) throw new Error('اختر صورة الختم أولاً');
+    const fd = new FormData(); fd.append('file', file.files[0]);
+    const res = await fetch('/api/hr-forms/stamp', { method: 'POST', credentials: 'same-origin', body: fd });
+    const data = await res.json().catch(() => ({})); if (!res.ok) throw new Error(data.error || 'تعذّر الرفع');
+    state.stamp = data.stamp; file.value = ''; draw(); toast('تم تغيير الختم، وسيظهر في كل النماذج');
+  });
+  enabled.addEventListener('change', guard(async () => { state.stamp = (await api('/stamp/enabled', { method: 'PUT', body: { enabled: enabled.checked } })).stamp; draw(); toast(state.stamp.enabled ? 'الختم مفعّل في النماذج' : 'تم إخفاء الختم من النماذج'); }));
+  view.replaceChildren(h('div', { class: 'card', style: 'max-width:640px' }, h('h2', { class: 'sec' }, 'الختم الرسمي'),
+    h('p', { class: 'hint' }, 'يظهر الختم في موضع ثابت أسفل كل نموذج (على الشاشة والطباعة). عند تجديد الختم ارفع الصورة الجديدة وستُستخدم في كل النماذج فوراً. يُفضّل PNG بخلفية شفافة وبحجم لا يتجاوز 1 ميجابايت.'),
+    prev,
+    h('div', { class: 'bar', style: 'margin-top:12px' }, file, h('button', { class: 'btn primary', type: 'button', onclick: upload }, 'رفع الختم الجديد'),
+      state.stamp.custom ? h('button', { class: 'btn danger', type: 'button', onclick: guard(async () => { state.stamp = (await api('/stamp', { method: 'DELETE' })).stamp; draw(); toast('أُعيد الختم الافتراضي'); }) }, 'العودة للختم الافتراضي') : null),
+    h('label', null, enabled, ' إظهار الختم في النماذج')));
+  draw();
+}
+
 function editTemplate(t, onSaved) {
   const T = t ? JSON.parse(JSON.stringify(t)) : { title: '', category: 'إنذارات', description: '', body: '', fields: [], sort_order: 10, active: true };
   const inp = (v, extra = {}) => h('input', { type: 'text', value: v ?? '', ...extra });
@@ -264,16 +292,16 @@ const footBtnsWith = btns => [...btns, h('button', { class: 'btn', type: 'button
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 // ---------- التشغيل ----------
-const TABS = () => [['create', 'إنشاء نموذج', state.canUse], ['history', 'سجل الصادر', state.canUse], ['templates', 'إدارة القوالب', state.canManage]].filter(t => t[2]);
+const TABS = () => [['create', 'إنشاء نموذج', state.canUse], ['history', 'سجل الصادر', state.canUse], ['templates', 'إدارة القوالب', state.canManage], ['settings', 'الإعدادات', state.canManage]].filter(t => t[2]);
 async function show(tab) {
   state.tab = tab; history.replaceState(null, '', '#' + tab);
   document.getElementById('tabs').replaceChildren(...TABS().map(([k, l]) => h('button', { class: 'tab' + (k === tab ? ' on' : ''), type: 'button', onclick: () => show(k) }, l)));
   view.replaceChildren(h('div', { class: 'loading' }, 'جارٍ التحميل…'));
-  try { await ({ create: createView, history: historyView, templates: templatesView }[tab])(); } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
+  try { await ({ create: createView, history: historyView, templates: templatesView, settings: settingsView }[tab])(); } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
 }
 try {
   const d = await api('/templates');
-  Object.assign(state, { templates: d.templates, canManage: d.can_manage, canUse: d.can_use });
+  Object.assign(state, { templates: d.templates, canManage: d.can_manage, canUse: d.can_use, stamp: d.stamp || state.stamp });
   const want = location.hash.slice(1);
   await show(TABS().some(t => t[0] === want) ? want : (TABS()[0]?.[0] || 'create'));
   if (!state.canUse && !state.canManage) view.replaceChildren(h('div', { class: 'card' }, 'لا تملك صلاحية إصدار النماذج. تواصل مع مدير النظام.'));

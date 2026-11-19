@@ -6,6 +6,7 @@ import { q } from '../db/pool.js';
 import { audit, wrap } from '../lib/auth.js';
 import { requireGrant, hasGrant } from '../lib/rbac.js';
 import { httpError } from '../lib/util.js';
+import multer from 'multer';
 import { unitPaths } from './tracking.js';
 
 const r = Router();
@@ -54,11 +55,50 @@ function cleanTemplate(b) {
     sort_order: Number.isFinite(+b.sort_order) ? Math.trunc(+b.sort_order) : 0, active: b.active !== false };
 }
 
+// ---- الختم الرسمي: صورة ثابتة تظهر في كل النماذج، تُستبدل من الإعدادات ----
+const stampUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024, files: 1 } }).single('file');
+function sniffImage(buf) {   // PNG/JPEG/WebP فقط (لا SVG لمنع السكربتات)
+  if (buf.length > 12 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length > 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  return null;
+}
+async function stampInfo() {
+  const en = (await q("SELECT value FROM hr_form_settings WHERE key = 'stamp_enabled'")).rows[0];
+  const a = (await q("SELECT updated_at FROM hr_form_assets WHERE key = 'stamp'")).rows[0];
+  return { enabled: en ? en.value !== false : true, custom: !!a, version: a ? new Date(a.updated_at).getTime() : 0 };
+}
+r.get('/stamp', wrap(async (req, res) => {
+  const a = (await q("SELECT mime, data FROM hr_form_assets WHERE key = 'stamp'")).rows[0];
+  if (!a) return res.redirect(302, '/hr-forms/img/stamp.png');
+  res.set({ 'Content-Type': a.mime, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+  res.send(a.data);
+}));
+r.post('/stamp', manage, (req, res, next) => stampUpload(req, res, e => (e ? next(httpError(400, e.code === 'LIMIT_FILE_SIZE' ? 'حجم الصورة أكبر من 1 ميجابايت' : 'تعذّر رفع الصورة')) : next())), wrap(async (req, res) => {
+  if (!req.file) throw httpError(400, 'اختر صورة الختم');
+  const mime = sniffImage(req.file.buffer);
+  if (!mime) throw httpError(400, 'الصيغة غير مدعومة: استخدم PNG أو JPG أو WebP (يُفضّل PNG بخلفية شفافة)');
+  await q("INSERT INTO hr_form_assets(key, mime, data, updated_by) VALUES ('stamp', $1, $2, $3) ON CONFLICT (key) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = now()", [mime, req.file.buffer, req.user.username]);
+  await audit(req, 'update', 'hr_form_stamp', 'stamp', null, { mime, bytes: req.file.buffer.length });
+  res.json({ stamp: await stampInfo() });
+}));
+r.delete('/stamp', manage, wrap(async (req, res) => {
+  await q("DELETE FROM hr_form_assets WHERE key = 'stamp'");
+  await audit(req, 'delete', 'hr_form_stamp', 'stamp', { custom: true }, { custom: false });
+  res.json({ stamp: await stampInfo() });
+}));
+r.put('/stamp/enabled', manage, wrap(async (req, res) => {
+  const on = req.body?.enabled !== false;
+  await q("INSERT INTO hr_form_settings(key, value, updated_by) VALUES ('stamp_enabled', $1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()", [JSON.stringify(on), req.user.username]);
+  await audit(req, 'update', 'hr_form_stamp', 'enabled', null, { enabled: on });
+  res.json({ stamp: await stampInfo() });
+}));
+
 // ---- القوالب ----
 r.get('/templates', wrap(async (req, res) => {
   const all = req.query.all === '1' && hasGrant(req.user, 'hr-forms', 'manage');
   const { rows } = await q(`SELECT id, slug, title, category, description, body, fields, sort_order, active, version, updated_by, updated_at FROM hr_form_templates ${all ? '' : 'WHERE active'} ORDER BY sort_order, id`);
-  res.json({ templates: rows, can_manage: hasGrant(req.user, 'hr-forms', 'manage'), can_use: hasGrant(req.user, 'hr-forms', 'use') });
+  res.json({ templates: rows, can_manage: hasGrant(req.user, 'hr-forms', 'manage'), can_use: hasGrant(req.user, 'hr-forms', 'use'), stamp: await stampInfo() });
 }));
 
 r.post('/templates', manage, wrap(async (req, res) => {
