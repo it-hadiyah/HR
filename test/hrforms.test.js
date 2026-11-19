@@ -49,9 +49,9 @@ test('القوالب الثلاثة جاهزة وتُملأ كما في النم
   const out = renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06', '2026-08-14'], deduction_month: '2026-09', penalty: 'يوم واحد' }, issueDate: '2026-11-18' }), fields: ded.fields });
   assert.match(out, /المكرم الأستاذ: عبدالله الاختبار/);
   assert.match(out, /الخميس، 06 أغسطس 2026م\.\nالجمعة، 14 أغسطس 2026م\./);
-  assert.match(out, /سيتم حسم أجر يومي الغياب من راتب شهر سبتمبر 2026م، بالإضافة إلى حسم أجر يوم واحد كجزاء، وفقًا للأنظمة واللوائح المعتمدة\./);
+  assert.match(out, /سيتم حسم أجر يوم واحد من راتب شهر سبتمبر 2026م، كجزاء إضافي، وفقًا للأنظمة واللوائح المعتمدة\./);
   const noPen = renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06'], deduction_month: '2026-09', penalty: '' } }), fields: ded.fields });
-  assert.match(noPen, /حسم أجر يوم الغياب من راتب شهر سبتمبر 2026م، وفقًا/);
+  assert.match(noPen, /سيتم حسم الجزاء المقرر من راتب شهر سبتمبر 2026م، كجزاء إضافي/);
   const att = templates.find(x => x.slug === 'attention-notice');
   const a = renderTemplate(att.body, { vars: buildVars({ employee: emp, values: { violation: 'عدم وجود بصمة', violation_date: '22/11/2026', period: 'في عدد من الأيام خلال شهري أكتوبر ونوفمبر 2026م' } }), fields: att.fields });
   assert.match(a, /إشارةً إلى ما لوحظ من عدم تسجيلكم بصمة الحضور والانصراف في عدد من الأيام خلال شهري أكتوبر ونوفمبر 2026م، نلفت عنايتكم إلى أن تسجيل البصمة عند الحضور والانصراف التزام وظيفي/);
@@ -121,10 +121,10 @@ test('إشعار الخصم: جزاء من يوم إلى 14 يوماً ومبل�
   assert.equal(opts.length, 14); assert.equal(opts[0], 'يوم واحد'); assert.equal(opts[13], 'أربعة عشر يوماً');
   const emp = { full_name: 'عبدالله الاختبار', emp_no: 'H100' };
   const run = values => renderTemplate(ded.body, { vars: buildVars({ employee: emp, values: { absent_dates: ['2026-08-06'], deduction_month: '2026-09', ...values } }), fields: ded.fields });
-  assert.match(run({ penalty: 'أربعة عشر يوماً' }), /بالإضافة إلى حسم أجر أربعة عشر يوماً كجزاء، وفقًا/);
-  const both = run({ penalty: 'يومين', penalty_amount: '500' });
-  assert.match(both, /حسم أجر يومين كجزاء، وحسم مبلغ وقدره \(500\) ريال سعودي كجزاء إضافي، وفقًا/);
-  const amtOnly = run({ penalty: '', penalty_amount: '300' });
-  assert.match(amtOnly, /من راتب شهر سبتمبر 2026م، وحسم مبلغ وقدره \(300\) ريال/);
-  assert.ok(!run({ penalty: '' }).includes('ريال سعودي'));
+  assert.match(run({ penalty: 'أربعة عشر يوماً' }), /وعليه، سيتم حسم أجر أربعة عشر يوماً من راتب شهر سبتمبر 2026م، كجزاء إضافي، وفقًا للأنظمة واللوائح المعتمدة\./);
+  assert.match(run({ penalty: 'يومين', penalty_amount: '500' }), /سيتم حسم أجر يومين ومبلغ وقدره \(500\) ريال سعودي من راتب شهر سبتمبر 2026م، كجزاء إضافي/);
+  assert.match(run({ penalty: '', penalty_amount: '300' }), /سيتم حسم مبلغ وقدره \(300\) ريال سعودي من راتب شهر سبتمبر 2026م، كجزاء إضافي/);
+  assert.ok(!run({ penalty: 'يوم واحد' }).includes('ريال سعودي'));
+  assert.match(run({ penalty: 'يوم واحد' }), /الخميس، 06 أغسطس 2026م\./);   // الأيام باليوم والتاريخ دون حساب
+  assert.ok(!/حسم أجر يوم الغياب/.test(run({ penalty: 'يوم واحد' })));
 });
