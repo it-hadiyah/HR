@@ -57,7 +57,7 @@ const looseCsp = helmet({
   },
   crossOriginEmbedderPolicy: false,
 });
-app.use((req, res, next) => (/^\/(portal|card|report)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
+app.use((req, res, next) => (/^\/(portal|card|report|pos-analysis)(\/|$)/.test(req.path) ? looseCsp : strictCsp)(req, res, next));
 app.use(cookieParser());
 
 // ── واجهات API ──
@@ -133,6 +133,7 @@ app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
 mount('/portal', 'portal', PORTAL_DIR);
 mount('/card', 'card', path.join(MODULES, 'card'));
 mount('/report', 'report', path.join(MODULES, 'report'));
+mount('/pos-analysis', 'pos-analysis', path.join(MODULES, 'pos-analysis'));
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', express.static(path.join(root, 'public/hr')));
 app.use(express.static(path.join(root, 'public')));

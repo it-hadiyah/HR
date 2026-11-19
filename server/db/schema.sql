@@ -260,6 +260,8 @@ INSERT INTO apps(slug, title, description, icon, path, roles, sort_order) VALUES
    ARRAY['admin','hr','executive','content_admin','employee'], 3),
  ('report', 'تقرير مراكز التوزيع', 'تقرير تقييم مراكز التوزيع الخيري', '📊', '/report/',
    ARRAY['admin','executive','finance','sector_manager','department_manager'], 4),
+ ('pos-analysis', 'تحليل نقطة البيع', 'ارفع ملف إكسل تحليل نقطة البيع ليتحول إلى تقرير تفاعلي بفلاتر', '🧾', '/pos-analysis/',
+   ARRAY['admin','executive','finance'], 5),
  ('portal-admin', 'لوحة تحكم البوابة', 'تعديل الموظفين والروابط والسياسات والمواقع', '⚙️', '/portal/admin/',
-   ARRAY['admin','content_admin'], 5)
+   ARRAY['admin','content_admin'], 6)
 ON CONFLICT (slug) DO NOTHING;
