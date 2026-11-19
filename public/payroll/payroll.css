@@ -115,4 +115,4 @@ tr.saving td{opacity:.6} tr.saved td{background:#e9f6f1;transition:background .6
 .types{display:grid;gap:6px;margin-bottom:8px} .types .trow{display:grid;grid-template-columns:1fr 130px 40px;gap:8px;align-items:center}
 .formula{font-size:.84rem;color:var(--muted);background:var(--soft);border-radius:10px;padding:8px 12px;margin:8px 0}
 .form-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-.types .trow.rate{grid-template-columns:1.6fr 1fr 1fr 1fr 40px} .types .trow.hd{font-size:.82rem;color:var(--muted)}
+.types .trow.rate,.types .trow.hd{grid-template-columns:1.6fr 1fr 1fr 1fr 40px} .types .trow.hd{font-size:.82rem;color:var(--deep);padding-inline:2px}

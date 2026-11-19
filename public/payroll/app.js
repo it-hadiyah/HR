@@ -315,7 +315,7 @@ async function settingsView() {
     st.assignment_rates.length ? h('div', { class: 'trow hd' }, h('b', null, 'المسمى الوظيفي'), h('b', null, 'أجر المعيشة / يوم'), h('b', null, 'أجر الانتداب / يوم'), h('b', null, 'أجر النقل (ثابت)'), h('span')) : null,
     ...st.assignment_rates.map((r, i) => h('div', { class: 'trow rate' },
       h('input', { type: 'text', list: 'jt-list', value: r.title, placeholder: 'المسمى الوظيفي', oninput: e => { r.title = e.target.value; } }),
-      ...['living', 'assignment', 'transport'].map(k => h('input', { type: 'text', inputmode: 'decimal', value: String(r[k] ?? ''), placeholder: '0', 'aria-label': k, oninput: e => { r[k] = e.target.value; } })),
+      ...[['living', 'أجر المعيشة / يوم'], ['assignment', 'أجر الانتداب / يوم'], ['transport', 'أجر النقل (ثابت)']].map(([k, lb]) => h('input', { type: 'text', inputmode: 'decimal', value: String(r[k] ?? ''), placeholder: lb, title: lb, 'aria-label': lb, oninput: e => { r[k] = e.target.value; } })),
       h('button', { class: 'btn sm danger', type: 'button', onclick: () => { st.assignment_rates.splice(i, 1); drawRates(); } }, '×'))),
     h('div', { class: 'bar' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { st.assignment_rates.push({ title: '', living: '', assignment: '', transport: '' }); drawRates(); } }, '+ إضافة مسمى'),
       h('button', { class: 'btn sm', type: 'button', onclick: () => { const have = new Set(st.assignment_rates.map(r => r.title.trim())); for (const t of S.jobTitles) if (!have.has(t)) st.assignment_rates.push({ title: t, living: '', assignment: '', transport: '' }); drawRates(); } }, 'إضافة كل المسميات الموجودة')));
