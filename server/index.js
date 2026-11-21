@@ -24,6 +24,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import reportRoutes from './routes/reports.js';
 import importRoutes from './routes/importer.js';
 import adminRoutes from './routes/admin.js';
+import members from '../modules/members/src/index.js';   // نظام أعضاء الجمعية العمومية (CommonJS)
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -133,6 +134,7 @@ app.get('/portal/data/:file', gate('portal'), async (req, res, next) => {
 mount('/portal', 'portal', PORTAL_DIR);
 mount('/card', 'card', path.join(MODULES, 'card'));
 mount('/report', 'report', path.join(MODULES, 'report'));
+app.use('/members', gate('members'), withAppBar(members.PUBLIC), members.router);   // واجهته وAPI الخاص به /members/api
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', express.static(path.join(root, 'public/hr')));
 app.use(express.static(path.join(root, 'public')));
@@ -148,6 +150,7 @@ app.use((err, req, res, _next) => {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await initSchema();
+  await members.init();
   const port = process.env.PORT || 3000;
   app.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`المنصة تعمل على http://localhost:${port}`));
 }
