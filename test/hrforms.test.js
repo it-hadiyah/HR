@@ -42,7 +42,7 @@ test('إعداد: مستخدم موارد بشرية وموظف عادي ومو�
 
 test('القوالب الثلاثة جاهزة وتُملأ كما في النماذج الأصلية', { skip }, async () => {
   const { templates, can_manage } = (await hr.get('/api/hr-forms/templates')).json;
-  assert.deepEqual(templates.map(x => x.slug), ['absence-inquiry', 'attention-notice', 'deduction-notice', 'salary-fixation']);
+  assert.deepEqual(templates.map(x => x.slug), ['absence-inquiry', 'attention-notice', 'deduction-notice', 'salary-fixation', 'salary-certificate']);
   assert.equal(can_manage, true);
   const ded = templates.find(x => x.slug === 'deduction-notice');
   const emp = { full_name: 'عبدالله الاختبار', emp_no: 'H100' };
@@ -135,4 +135,19 @@ test('إشعار الخصم: الافتراضي بلا جزاء فلا تظهر 
   const out = renderTemplate(ded.body, { vars: buildVars({ employee: { full_name: 'س' }, values: { ...defaultValues(ded.fields), absent_dates: ['2026-08-06'] } }), fields: ded.fields });
   assert.ok(!out.includes('وعليه'));
   assert.match(out, /الخميس، 06 أغسطس 2026م\./);
+});
+
+test('خطاب تعريف بالراتب: الإجمالي وتفقيطه والتاريخ الهجري تلقائيان', { skip }, async () => {
+  const { tafqeet, FILTERS } = await import('../public/hr-forms/engine.js');
+  assert.equal(tafqeet(6858.85), 'ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير.');
+  assert.equal(tafqeet(11000), 'أحد عشر ألف ريال فقط لا غير.');
+  assert.equal(tafqeet(2), 'ريالان فقط لا غير.');
+  assert.match(FILTERS.hijri('2026-11-05'), /^\u2066?1448-05-\d\d\u2069?$/);
+  const tpl = (await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.slug === 'salary-certificate');
+  const values = { ...defaultValues(tpl.fields), hire_date: '2017-03-11', national_id: '1000000000', basic: '5000', housing: '1250.5', transport: '608.35', net: '6000' };
+  const out = renderTemplate(tpl.body, { vars: buildVars({ employee: { full_name: 'عبدالله الاختبار', emp_no: 'H100', job_title: 'محاسب' }, values, issueDate: '2026-11-05' }), fields: tpl.fields });
+  assert.match(out, /الأساسي: 5,000\.00 ريال/); assert.match(out, /بدل سكن: 1,250\.50 ريال/); assert.match(out, /القرض الحسن: 0\.00 ريال/);
+  assert.match(out, /الإجمالي: 6,858\.85 ريال/);
+  assert.match(out, /الإجمالي كتابةً: ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير\./);
+  assert.match(out, /الموافق: 05\/11\/2026م/); assert.match(out, /تاريخ التعيين: 11\/03\/2017/); assert.match(out, /\nقسم المساعدات\n/);
 });
