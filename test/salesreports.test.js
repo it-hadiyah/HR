@@ -25,11 +25,12 @@ test('بوابة الموارد البشرية: تظهر لمن يملك أحد 
   const l = (await hr.get('/api/launcher')).json.apps.map(a => a.slug);
   assert.ok(l.includes('hr-portal')); assert.ok(!l.includes('hr') && !l.includes('hr-forms') && !l.includes('payroll'));
   const sec = (await hr.get('/api/hr-portal/sections')).json.sections.map(s => s.slug);
-  assert.deepEqual(sec, ['hr-employees', 'hr', 'hr-forms', 'payroll']);
+  assert.deepEqual(sec, ['hr-employees', 'hr-requests', 'hr', 'hr-forms', 'payroll']);
   assert.equal((await hr.get('/hr-portal/')).status, 200);
   assert.equal((await hr.get('/hr-forms/')).status, 200);                       // الرابط المباشر يعمل
+  // الموظف العادي يملك الدخول لطلباته فقط: تظهر له البوابة بقسم واحد ولا يرى بقية الأنظمة
   const e = (await emp.get('/api/launcher')).json.apps.map(a => a.slug);
-  assert.ok(!e.includes('hr-portal'));
-  assert.equal((await emp.get('/hr-portal/')).status, 403);
-  assert.deepEqual((await emp.get('/api/hr-portal/sections')).json.sections, []);
+  assert.ok(e.includes('hr-portal') && !e.includes('hr-requests'));
+  assert.deepEqual((await emp.get('/api/hr-portal/sections')).json.sections.map(x => x.slug), ['hr-requests']);
+  assert.equal((await emp.get('/hr-forms/')).status, 403);
 });

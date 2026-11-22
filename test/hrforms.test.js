@@ -142,7 +142,7 @@ test('خطاب تعريف بالراتب: الإجمالي وتفقيطه وال
   assert.equal(tafqeet(6858.85), 'ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير.');
   assert.equal(tafqeet(11000), 'أحد عشر ألف ريال فقط لا غير.');
   assert.equal(tafqeet(2), 'ريالان فقط لا غير.');
-  assert.match(FILTERS.hijri('2026-11-05'), /^\u2066?1448-05-\d\d\u2069?$/);
+  assert.match(FILTERS.hijri('2026-11-05'), /^\d\d\/05\/1448$/);
   const tpl = (await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.slug === 'salary-certificate');
   const values = { ...defaultValues(tpl.fields), hire_date: '2017-03-11', national_id: '1000000000', basic: '5000', housing: '1250.5', transport: '608.35', net: '6000' };
   const out = renderTemplate(tpl.body, { vars: buildVars({ employee: { full_name: 'عبدالله الاختبار', emp_no: 'H100', job_title: 'محاسب' }, values, issueDate: '2026-11-05' }), fields: tpl.fields });

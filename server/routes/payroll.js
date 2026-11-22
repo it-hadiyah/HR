@@ -85,7 +85,7 @@ r.put('/settings', G('settings'), wrap(async (req, res) => {
 }));
 
 // ---------- الرواتب ----------
-async function staffRows({ status = 'active', term = '', ids } = {}) {
+export async function staffRows({ status = 'active', term = '', ids } = {}) {
   const p = [];
   const where = [];
   if (status !== 'all') { p.push(status); where.push(`s.status = $${p.length}`); }

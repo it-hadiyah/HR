@@ -16,6 +16,7 @@ export function platformOf(url = '') {
   if (u.startsWith('/hr-forms') || u.startsWith('/api/hr-forms')) return 'hr-forms';
   if (u.startsWith('/sales-reports')) return 'sales-reports';
   if (u.startsWith('/members')) return 'members';
+  if (u.startsWith('/hr-requests') || u.startsWith('/api/hr-requests')) return 'hr-requests';
   if (u.startsWith('/hr-employees') || u.startsWith('/api/hr-employees')) return 'hr-employees';
   if (u.startsWith('/hr-portal') || u.startsWith('/api/hr-portal')) return 'hr-portal';
   if (u.startsWith('/payroll') || u.startsWith('/api/payroll')) return 'payroll';

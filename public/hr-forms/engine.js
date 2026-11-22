@@ -50,7 +50,7 @@ const hijriFmt = typeof Intl !== 'undefined' ? new Intl.DateTimeFormat('en-u-ca-
 function hijri(v) {
   const d = parseISO(v); if (!d || !hijriFmt) return String(v ?? '');
   const p = Object.fromEntries(hijriFmt.formatToParts(d).map(x => [x.type, x.value]));
-  return `\u2066${p.year}-${p.month}-${p.day}\u2069`;   // معزول اتجاهياً كي لا ينعكس ترتيب الأرقام داخل الفقرة العربية
+  return `${p.day}/${p.month}/${p.year}`;   // يوم/شهر/سنة كالتاريخ الميلادي فيظهر بترتيب صحيح في الفقرة العربية
 }
 const money = v => { const x = toNum(v); return Number.isFinite(x) ? x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; };
 

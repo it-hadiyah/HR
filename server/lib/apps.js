@@ -11,7 +11,7 @@ export async function listApps() {
 export const resetAppsCache = () => { cache.at = 0; };
 
 /** بوابات مجمّعة: تضم أنظمة موجودة وتظهر لمن يملك الدخول لأي نظام منها (بلا صلاحية خاصة بها) */
-export const APP_GROUPS = { 'hr-portal': ['hr-employees', 'hr', 'hr-forms', 'payroll'] };
+export const APP_GROUPS = { 'hr-portal': ['hr-employees', 'hr-requests', 'hr', 'hr-forms', 'payroll'] };
 const CHILD_OF = Object.fromEntries(Object.entries(APP_GROUPS).flatMap(([g, kids]) => kids.map(k => [k, g])));
 export const groupOf = slug => CHILD_OF[slug] || null;
 
