@@ -127,3 +127,17 @@ test('الانتداب حسب المسمى الوظيفي: معيشة + انتد
   r = await fin.post('/api/payroll/entries', { kind: 'assignment', employee_id: empId, entry_date: '2026-11-21', pay_month: '2026-11', type_id: 'as-inside', quantity: '2' });
   assert.equal(r.json.row.fixed_amount, 0); assert.equal(r.json.row.amount, 540);   // 2 × 8100/30 × 100%
 });
+
+test('لوحة المؤشرات: بيانات الفترة والفترة السابقة والصلاحية', { skip }, async () => {
+  assert.equal((await plain.get('/api/payroll/dashboard?from=2026-11&to=2026-11')).status, 403);
+  assert.equal((await fin.get('/api/payroll/dashboard?from=2026-12&to=2026-11')).status, 400);
+  assert.equal((await fin.get('/api/payroll/dashboard?from=2020-01&to=2026-11')).status, 400);   // أكثر من 36 شهراً
+  const d = (await fin.get('/api/payroll/dashboard?from=2026-11&to=2026-12')).json;
+  assert.deepEqual(d.months, ['2026-11', '2026-12']); assert.deepEqual(d.prev_months, ['2026-09', '2026-10']);
+  const e = d.employees.find(x => x.id === empId);
+  assert.ok(e && Array.isArray(e.t) && e.m['2026-11']);
+  const cell = e.m['2026-11'];   // [ساعات إضافي، مبلغ إضافي، أيام انتداب، مبلغ انتداب]
+  assert.equal(cell.length, 4); assert.ok(cell[1] > 0 && cell[3] > 0);
+  assert.ok(e.t.every(row => row.length === 5));
+  assert.equal(typeof d.cap, 'number'); assert.ok(Array.isArray(d.assignment_titles));
+});

@@ -471,6 +471,31 @@ r.post('/entries/import', G('entries'), upload, wrap(async (req, res) => {
   res.json(out);
 }));
 
+// ---------- لوحة المؤشرات: بيانات الموظفين بالأشهر ليُرشَّح ويُجمَّع في المتصفح فوراً ----------
+const monthsBetween = (from, to) => { const out = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number); while (y < ty || (y === ty && m <= tm)) { out.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } } return out; };
+const shiftMonth = (mo, d) => { const [y, m] = mo.split('-').map(Number); const t = y * 12 + (m - 1) + d; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`; };
+
+r.get('/dashboard', G('view'), wrap(async (req, res) => {
+  const from = monthOf(req.query.from, currentMonth()), to = monthOf(req.query.to, from);
+  if (from > to) throw httpError(400, 'بداية الفترة بعد نهايتها');
+  const months = monthsBetween(from, to);
+  if (months.length > 36) throw httpError(400, 'الحد الأقصى 36 شهراً');
+  const prev = monthsBetween(shiftMonth(from, -months.length), shiftMonth(from, -1));   // فترة سابقة بالطول نفسه للمقارنة
+  const st = await loadSettings();
+  const staff = await staffRows({ status: 'active' });
+  const ent = (await q(`SELECT employee_id, pay_month, kind, type_name, sum(quantity)::float8 AS qty, sum(amount)::float8 AS amount
+    FROM payroll_entries WHERE pay_month = ANY($1) GROUP BY 1,2,3,4`, [[...prev, ...months]])).rows;
+  const by = new Map(staff.map(x => [x.employee_id, { id: x.employee_id, emp_no: x.emp_no, full_name: x.full_name, job_title: x.job_title, assignment_title: x.assignment_title,
+    sector: x.sector, department: x.department, section: x.section, gross: x.gross, insurance: x.insurance_amount, has_salary: x.has_salary, m: {}, t: [] }]));
+  for (const e of ent) {
+    const x = by.get(e.employee_id); if (!x) continue;
+    const cell = x.m[e.pay_month] ||= [0, 0, 0, 0];   // [ساعات إضافي، مبلغ إضافي، أيام انتداب، مبلغ انتداب]
+    if (e.kind === 'overtime') { cell[0] = round2(cell[0] + e.qty); cell[1] = round2(cell[1] + e.amount); } else { cell[2] = round2(cell[2] + e.qty); cell[3] = round2(cell[3] + e.amount); }
+    x.t.push([e.pay_month, e.kind, e.type_name, round2(e.qty), round2(e.amount)]);
+  }
+  res.json({ from, to, months, prev_months: prev, cap: st.overtime_monthly_cap_hours || 0, assignment_titles: (st.assignment_rates || []).map(x => x.title), employees: [...by.values()] });
+}));
+
 r.get('/report', G('view'), wrap(async (req, res) => {
   const month = monthOf(req.query.month, currentMonth());
   const rows = await monthReport(month);

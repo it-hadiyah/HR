@@ -1,4 +1,5 @@
 // الرواتب والإضافي: رواتب الموظفين وتجميعها، وإدخال الإضافي (ساعات) والانتدابات (أيام) بحساب تلقائي من نسب الإعدادات.
+import { dashboardView, parseShared } from '/payroll/dashboard.js';
 import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree, findRate, assignmentByRate } from '/payroll/calc.js';
 if (window.top !== window.self) document.documentElement.classList.add('embedded');   // داخل بوابة الموارد البشرية: يُخفى الشعار والعنوان المكرران
 
@@ -342,17 +343,19 @@ async function settingsView() {
 }
 
 // ---------- التشغيل ----------
-const TABS = () => [['salaries', 'الرواتب', S.can.view], ['overtime', 'الإضافي', S.can.view || S.can.entries], ['assignment', 'الانتدابات', S.can.view || S.can.entries], ['report', 'التقارير', S.can.view], ['settings', 'الإعدادات', S.can.settings || S.can.view]].filter(t => t[2]);
-async function show(tab) {
+const TABS = () => [['dashboard', 'لوحة المؤشرات', S.can.view], ['salaries', 'الرواتب', S.can.view], ['overtime', 'الإضافي', S.can.view || S.can.entries], ['assignment', 'الانتدابات', S.can.view || S.can.entries], ['report', 'التقارير', S.can.view], ['settings', 'الإعدادات', S.can.settings || S.can.view]].filter(t => t[2]);
+let cleanup = null;
+async function show(tab, shared) {
+  if (cleanup) { try { cleanup(); } catch { /* لا شيء */ } cleanup = null; }
   S.tab = tab; history.replaceState(null, '', '#' + tab);
   document.getElementById('tabs').replaceChildren(...TABS().map(([k, l]) => h('button', { class: 'tab' + (k === tab ? ' on' : ''), type: 'button', onclick: () => show(k) }, l)));
   view.replaceChildren(h('div', { class: 'loading' }, 'جارٍ التحميل…'));
-  try { await ({ salaries: salariesView, overtime: () => entriesView('overtime'), assignment: () => entriesView('assignment'), report: reportView, settings: settingsView }[tab])(); } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
+  try { const r = await ({ dashboard: () => dashboardView({ h, api, toast, sar, qty, view }, shared), salaries: salariesView, overtime: () => entriesView('overtime'), assignment: () => entriesView('assignment'), report: reportView, settings: settingsView }[tab])(); if (typeof r === 'function') cleanup = r; } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
 }
 try {
   const m = await api('/meta');
   Object.assign(S, { settings: m.settings, units: m.units, can: m.can, month: m.month });
-  const want = location.hash.slice(1);
+  const [want, sharedCode] = location.hash.slice(1).split('~');
   if (!TABS().length) view.replaceChildren(h('div', { class: 'card' }, 'لا تملك صلاحية عرض الرواتب. تواصل مع مدير النظام.'));
-  else await show(TABS().some(t => t[0] === want) ? want : TABS()[0][0]);
+  else await show(TABS().some(t => t[0] === want) ? want : TABS()[0][0], want === 'dashboard' && sharedCode ? parseShared(sharedCode) : undefined);
 } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
