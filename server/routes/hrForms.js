@@ -129,10 +129,11 @@ r.get('/employees', use, wrap(async (req, res) => {
   const term = str(req.query.q, 60);
   const p = [];
   const where = ["status = 'active'"];
-  if (term) { p.push(`%${term}%`); where.push('(full_name ILIKE $1 OR emp_no ILIKE $1 OR job_title ILIKE $1)'); }
-  const rows = (await q(`SELECT id, emp_no, full_name, job_title, org_unit_id FROM leave_staff WHERE ${where.join(' AND ')} ORDER BY full_name LIMIT 40`, p)).rows;
-  const pathOf = await unitPaths();
-  res.json({ employees: rows.map(e => { const u = pathOf(e.org_unit_id); return { id: e.id, emp_no: e.emp_no, full_name: e.full_name, job_title: e.job_title, sector: u.sector, department: u.department, section: u.section }; }) });
+  if (/^\d+$/.test(String(req.query.id ?? ''))) { p.push(+req.query.id); where.push(`id = $${p.length}`); }
+  else if (term) { p.push(`%${term}%`); where.push('(full_name ILIKE $1 OR emp_no ILIKE $1 OR job_title ILIKE $1)'); }
+  const rows = (await q(`SELECT id, emp_no, full_name, job_title, org_unit_id, hire_date, nationality, national_id, iban FROM leave_staff WHERE ${where.join(' AND ')} ORDER BY full_name LIMIT 40`, p)).rows;
+  const pathOf = await unitPaths(); const sens = hasGrant(req.user, 'hr-employees', 'sensitive');
+  res.json({ employees: rows.map(e => { const u = pathOf(e.org_unit_id); return { id: e.id, emp_no: e.emp_no, full_name: e.full_name, job_title: e.job_title, hire_date: e.hire_date ? new Date(e.hire_date).toISOString().slice(0, 10) : null, nationality: e.nationality, ...(sens ? { national_id: e.national_id, iban: e.iban } : {}), sector: u.sector, department: u.department, section: u.section }; }) });
 }));
 
 // ---- سجل الصادر ----

@@ -107,8 +107,14 @@ async function createView() {
       h('div', { class: 'tpls' }, state.templates.filter(t => S.cat === 'الكل' || t.category === S.cat).map(t => h('button', { class: 'tpl' + (S.tpl?.id === t.id ? ' on' : ''), type: 'button', onclick: () => pickTemplate(t) },
         h('b', null, t.title, h('span', { class: 'tag' }, t.category)), t.description ? h('span', null, t.description) : null))));
   }
+  // يعبّئ حقول النموذج المطابقة لبيانات الموظف المسجلة في «إدارة الموظفين» (التعيين والجنسية والهوية والآيبان) ما لم يعدّلها المستخدم
+  const PREFILL = ['hire_date', 'nationality', 'national_id', 'iban'];
+  function prefillFromEmployee() {
+    const e = employeeObj(); if (!e || !S.tpl) return;
+    for (const f of S.tpl.fields) if (PREFILL.includes(f.key) && !S.touched.has(f.key) && e[f.key] && !String(e[f.key]).startsWith('••')) S.values[f.key] = e[f.key];
+  }
   function pickTemplate(t) {
-    S.tpl = t; S.values = defaultValues(t.fields); S.touched = new Set(); applySuggestions();
+    S.tpl = t; S.values = defaultValues(t.fields); S.touched = new Set(); prefillFromEmployee(); applySuggestions();
     drawTemplates(); drawFields(); refresh();
   }
 
@@ -119,7 +125,7 @@ async function createView() {
     const input = h('input', { type: 'search', placeholder: 'ابحث بالاسم أو الرقم الوظيفي…', 'aria-label': 'بحث عن موظف', autocomplete: 'off' });
     const search = guard(async () => {
       const { employees } = await api('/employees?q=' + encodeURIComponent(input.value.trim()));
-      list.replaceChildren(...(employees.length ? employees.map(e => h('button', { class: 'emp-opt', type: 'button', onclick: () => { S.emp = e; list.hidden = true; loadSummary(); drawEmployee(); refresh(); } },
+      list.replaceChildren(...(employees.length ? employees.map(e => h('button', { class: 'emp-opt', type: 'button', onclick: () => { S.emp = e; list.hidden = true; prefillFromEmployee(); drawFields(); loadSummary(); drawEmployee(); refresh(); } },
         h('b', null, e.full_name), h('small', null, [e.emp_no ? `رقم ${e.emp_no}` : '', e.job_title, e.department || e.section || e.sector].filter(Boolean).join(' · '))))
         : [h('div', { class: 'emp-opt' }, 'لا نتائج')]));
       list.hidden = false;
@@ -174,6 +180,12 @@ async function createView() {
     h('div', { class: 'paper-wrap' }, actions, paper, h('p', { class: 'hint no-print' }, 'يُسجَّل كل نموذج تنسخه أو تطبعه في «السجل». للنسخ إلى واتساب استخدم «نسخ النص».'))));
   drawTemplates(); drawEmployee(); drawFields(); refresh();
   if (state.templates.length === 1) pickTemplate(state.templates[0]);
+  // رابط مباشر من «إدارة الموظفين»: ?emp=ID يختار الموظف مسبقاً
+  const pre = new URLSearchParams(location.search).get('emp');
+  if (pre && /^\d+$/.test(pre)) {
+    const { employees } = await api('/employees?id=' + pre);
+    if (employees[0]) { S.emp = employees[0]; prefillFromEmployee(); drawFields(); loadSummary(); drawEmployee(); refresh(); }
+  }
 }
 
 // ---------- السجل ----------

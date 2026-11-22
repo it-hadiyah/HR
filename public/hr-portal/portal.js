@@ -3,13 +3,15 @@ const $ = id => document.getElementById(id);
 const frame = $('frame'), msg = $('msg'), tabs = $('tabs');
 let sections = [];
 
-function show(slug) {
+function show(hash) {
+  const [slug, qs] = String(hash || '').split('?');   // #hr-forms?emp=12 يفتح النظام مع وسيط (اختيار موظف مسبقاً)
   const s = sections.find(x => x.slug === slug) || sections[0];
   if (!s) return;
-  history.replaceState(null, '', '#' + s.slug);
+  const key = s.slug + (qs ? '?' + qs : '');
+  history.replaceState(null, '', '#' + key);
   document.title = `${s.title} | بوابة الموارد البشرية`;
   for (const b of tabs.children) b.classList.toggle('on', b.dataset.slug === s.slug);
-  if (frame.dataset.slug !== s.slug) { frame.dataset.slug = s.slug; frame.src = s.path; }
+  if (frame.dataset.key !== key) { frame.dataset.key = key; frame.src = s.path + (qs && /^[\w=&.-]+$/.test(qs) ? '?' + qs : ''); }
   frame.hidden = false; msg.hidden = true;
 }
 
@@ -24,7 +26,7 @@ try {
         const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tab', textContent: s.title });
         b.dataset.slug = s.slug; b.addEventListener('click', () => show(s.slug)); tabs.append(b);
       }
-      addEventListener('hashchange', () => show(location.hash.slice(1)));
+      addEventListener('hashchange', () => { const hh = location.hash.slice(1); if (hh !== (frame.dataset.key || '')) show(hh); });
       show(location.hash.slice(1));
     }
   }

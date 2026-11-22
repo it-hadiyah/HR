@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { q } from '../db/pool.js';
 import { getCtx } from './reqctx.js';
 
-const SENSITIVE = /pass(word)?|secret|token|hash|cookie|authorization|jwt|api[_-]?key|otp|salary/i;
+const SENSITIVE = /pass(word)?|secret|token|hash|cookie|authorization|jwt|api[_-]?key|otp|salary|national[_-]?id|iban/i;
 const MAX_JSON = 20000;
 
 /** ينسخ القيمة مع إخفاء الحقول الحساسة (كلمات المرور والرموز والأسرار) ويحدّ من الحجم */
