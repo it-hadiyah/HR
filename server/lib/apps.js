@@ -10,10 +10,24 @@ export async function listApps() {
 }
 export const resetAppsCache = () => { cache.at = 0; };
 
-/** يستطيع الدخول للمنصة: المنصة مفعّلة ولديه عملية access */
+/** بوابات مجمّعة: تضم أنظمة موجودة وتظهر لمن يملك الدخول لأي نظام منها (بلا صلاحية خاصة بها) */
+export const APP_GROUPS = { 'hr-portal': ['hr', 'hr-forms', 'payroll'] };
+const CHILD_OF = Object.fromEntries(Object.entries(APP_GROUPS).flatMap(([g, kids]) => kids.map(k => [k, g])));
+export const groupOf = slug => CHILD_OF[slug] || null;
+
+/** أنظمة المجموعة التي يستطيع المستخدم دخولها (بترتيب المجموعة) */
+export async function groupChildren(user, group) {
+  const apps = await listApps(), out = [];
+  for (const slug of APP_GROUPS[group] || []) { const a = apps.find(x => x.slug === slug); if (a && a.active && hasGrant(user, slug, 'access')) out.push(a); }
+  return out;
+}
+
+/** يستطيع الدخول للمنصة: المنصة مفعّلة ولديه عملية access (أو، للبوابة المجمّعة، دخول لأحد أنظمتها) */
 export async function canUseApp(user, slug) {
   const app = (await listApps()).find(a => a.slug === slug);
-  return !!app && app.active && hasGrant(user, slug, 'access');
+  if (!app || !app.active) return false;
+  if (APP_GROUPS[slug]) return (await groupChildren(user, slug)).length > 0;
+  return hasGrant(user, slug, 'access');
 }
 
 export const requireApp = slug => async (req, res, next) => {

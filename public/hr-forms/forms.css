@@ -93,3 +93,6 @@ td{padding:8px 12px;border-top:1px solid var(--line);vertical-align:top}
   .paper-wrap{position:static} .actions{display:none}
   .paper{width:210mm;height:297mm;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none;overflow:hidden;padding:48mm 20mm 36mm;font-size:12.5pt;print-color-adjust:exact;-webkit-print-color-adjust:exact}
 }
+html.embedded .top::before,html.embedded .top .logo,html.embedded .top h1{display:none}
+html.embedded .top-in{padding-top:6px;padding-bottom:6px} html.embedded .tabs{margin-inline-start:0}
+html.embedded main{padding-top:12px}

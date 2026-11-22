@@ -1,5 +1,6 @@
 // نماذج الموارد البشرية: اختر القالب والموظف، يُملأ النموذج تلقائياً، ثم انسخه أو اطبعه. وسجل بما صدر وإدارة القوالب.
 import { renderTemplate, buildVars, defaultValues, suggestValue, missingRequired, textToHtml, plainText, todayISO } from '/hr-forms/engine.js';
+if (window.top !== window.self) document.documentElement.classList.add('embedded');   // داخل بوابة الموارد البشرية: يُخفى الشعار والعنوان المكرران
 
 // ---------- أدوات ----------
 const h = (tag, attrs, ...kids) => {

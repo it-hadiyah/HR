@@ -1,5 +1,6 @@
 // الرواتب والإضافي: رواتب الموظفين وتجميعها، وإدخال الإضافي (ساعات) والانتدابات (أيام) بحساب تلقائي من نسب الإعدادات.
 import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree, findRate, assignmentByRate } from '/payroll/calc.js';
+if (window.top !== window.self) document.documentElement.classList.add('embedded');   // داخل بوابة الموارد البشرية: يُخفى الشعار والعنوان المكرران
 
 // ---------- أدوات ----------
 const h = (tag, attrs, ...kids) => {
