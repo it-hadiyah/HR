@@ -139,15 +139,16 @@ test('إشعار الخصم: الافتراضي بلا جزاء فلا تظهر 
 
 test('خطاب تعريف بالراتب: الإجمالي وتفقيطه والتاريخ الهجري تلقائيان', { skip }, async () => {
   const { tafqeet, FILTERS } = await import('../public/hr-forms/engine.js');
-  assert.equal(tafqeet(6858.85), 'ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير.');
-  assert.equal(tafqeet(11000), 'أحد عشر ألف ريال فقط لا غير.');
-  assert.equal(tafqeet(2), 'ريالان فقط لا غير.');
+  assert.equal(tafqeet(6858.85), 'ستة آلاف وثمانمائة وثمانية وخمسون ريالاً سعودياً وخمس وثمانون هللة لا غير');
+  assert.equal(tafqeet(11000), 'أحد عشر ألف ريال سعودي لا غير');
+  assert.equal(tafqeet(8813.97), 'ثمانية آلاف وثمانمائة وثلاثة عشر ريالاً سعودياً وسبع وتسعون هللة لا غير');   // مثال النموذج المعتمد
+  assert.equal(tafqeet(2), 'ريالان سعوديان لا غير');
   assert.match(FILTERS.hijri('2026-11-05'), /^\d\d\/05\/1448$/);
   const tpl = (await hr.get('/api/hr-forms/templates')).json.templates.find(x => x.slug === 'salary-certificate');
-  const values = { ...defaultValues(tpl.fields), hire_date: '2017-03-11', national_id: '1000000000', basic: '5000', housing: '1250.5', transport: '608.35', net: '6000' };
+  const values = { ...defaultValues(tpl.fields), hire_date: '2017-03-11', national_id: '1000000000', basic: '5000', housing: '1250.5', transport: '608.35' };
   const out = renderTemplate(tpl.body, { vars: buildVars({ employee: { full_name: 'عبدالله الاختبار', emp_no: 'H100', job_title: 'محاسب' }, values, issueDate: '2026-11-05' }), fields: tpl.fields });
-  assert.match(out, /الأساسي: 5,000\.00 ريال/); assert.match(out, /بدل سكن: 1,250\.50 ريال/); assert.match(out, /القرض الحسن: 0\.00 ريال/);
-  assert.match(out, /الإجمالي: 6,858\.85 ريال/);
-  assert.match(out, /الإجمالي كتابةً: ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير\./);
+  assert.match(out, /الأساسي: 5,000\.00 ريال/); assert.match(out, /بدل سكن: 1,250\.50 ريال/); assert.match(out, /بدلات أخرى: 0\.00 ريال/);
+  assert.match(out, /أساسي مع البدلات النظامية: 6,858\.85 ريال/);
+  assert.match(out, /الإجمالي كتابةً: ستة آلاف وثمانمائة وثمانية وخمسون ريالاً سعودياً وخمس وثمانون هللة لا غير/);
   assert.match(out, /الموافق: 05\/11\/2026م/); assert.match(out, /تاريخ التعيين: 11\/03\/2017/); assert.match(out, /\nقسم المساعدات\n/);
 });

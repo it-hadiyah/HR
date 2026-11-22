@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const LABELS = ['الاسم', 'الرقم الوظيفي', 'الوظيفة', 'الجنسية', 'تاريخ التعيين', 'رقم الهوية', 'الأساسي', 'بدل سكن', 'بدل مواصلات', 'أخرى', 'القرض الحسن', 'صافي الراتب بعد خصم التأمينات الاجتماعية', 'الإجمالي', 'الإجمالي كتابةً'];
+const LABELS = ['الاسم', 'الرقم الوظيفي', 'الوظيفة', 'الجنسية', 'تاريخ التعيين', 'رقم الهوية', 'الأساسي', 'بدل سكن', 'بدل مواصلات', 'بدلات أخرى', 'أخرى', 'القرض الحسن', 'صافي الراتب بعد خصم التأمينات الاجتماعية', 'أساسي مع البدلات النظامية', 'الإجمالي', 'الإجمالي كتابةً'];
+const TOTAL_KEYS = ['أساسي مع البدلات النظامية', 'الإجمالي'];
 
 /** يستخرج حقول خطاب التعريف من نصه المجمّد؛ يعيد null إن لم يكن بالشكل المعروف */
 export function parseCertificate(text) {
@@ -18,7 +19,7 @@ export function parseCertificate(text) {
     const k = l.slice(0, i).trim();
     if (LABELS.includes(k) && !(k in f)) f[k] = l.slice(i + 1).trim().replace(/\s*ريال$/, '');
   }
-  if (!f['الاسم'] || !f['الأساسي'] || !f['الإجمالي']) return null;
+  if (!f['الاسم'] || !f['الأساسي'] || !TOTAL_KEYS.some(k => f[k])) return null;
   const head = lines.find(l => l.startsWith('التاريخ:')) || '';
   const m = /التاريخ:\s*(.+?)هـ\s+الموافق:\s*(.+?)م\s*$/.exec(head);
   const iPara = lines.findIndex(l => l.startsWith('تشهد '));
@@ -45,7 +46,7 @@ td.l{background:#f4faf8;font-weight:700;color:#054d45;width:19%;text-align:right
 .sec{font-weight:800;color:#054d45;margin:0 0 1.8mm;font-size:11pt}
 .num{font-size:10.5pt;font-weight:700;direction:ltr;unicode-bidi:isolate}
 .cur{font-size:8.5pt;color:#555;font-weight:400}
-.tot td{background:#fff9ec}
+.tot td{background:#fff9ec} th.hi{background:#fff1cf} td.hi{background:#fff9ec}
 .words{text-align:right;font-weight:700}
 .para{text-align:justify;margin:0 0 4mm;line-height:1.9}
 .to{border:1.4px solid #054d45;border-radius:2.5mm;text-align:center;padding:1.8mm;font-weight:800;font-size:11.5pt;color:#054d45;margin:0 0 4mm;background:#f4faf8}
@@ -63,6 +64,15 @@ const bg = (imgDir, name) => `data:image/png;base64,${fs.readFileSync(path.join(
 function certificateBody(c) {
   const f = c.f, num = v => `<span class="num">${esc(v)}</span> <span class="cur">ريال</span>`;
   const cell = (l, v) => `<td class="l">${l}</td><td class="v">${esc(v)}</td>`;
+  const totalKey = TOTAL_KEYS.find(k => f[k]);
+  const other = f['بدلات أخرى'] ?? f['أخرى'] ?? '0.00';
+  // أعمدة الراتب: البنود الموجودة في النص بالترتيب، ثم الإجمالي المميّز (القالب القديم يضيف القرض والصافي)
+  const cols = [['الأساسي', f['الأساسي']], ['بدل سكن', f['بدل سكن'] ?? '0.00'], ['بدل مواصلات', f['بدل مواصلات'] ?? '0.00'], ['بدلات أخرى', other]];
+  if (f['القرض الحسن'] !== undefined) cols.push(['القرض الحسن', f['القرض الحسن']]);
+  if (f['صافي الراتب بعد خصم التأمينات الاجتماعية'] !== undefined) cols.push(['الصافي بعد خصم التأمينات الاجتماعية', f['صافي الراتب بعد خصم التأمينات الاجتماعية']]);
+  const totalLabel = totalKey === 'الإجمالي' ? 'الإجمالي' : 'أساسي مع البدلات النظامية';
+  cols.push([totalLabel, f[totalKey], true]);
+  const w = (100 / cols.length).toFixed(2);
   return `
   <div class="row"><span>التاريخ: <b>${esc(c.hijri)}</b> هـ</span><span>الموافق: <b>${esc(c.greg)}</b> م</span></div>
   <div class="title"><b>جمعية هدية الحاج والمعتمر الخيرية</b><span>( خطاب تعريف )</span></div>
@@ -73,10 +83,10 @@ function certificateBody(c) {
   </tbody></table>
   <div class="sec">اعتماد بيانات الراتب</div>
   <table>
-    <thead><tr><th>الأساسي</th><th>بدل سكن</th><th>بدل مواصلات</th><th>أخرى</th><th>القرض الحسن</th><th>الصافي بعد خصم التأمينات الاجتماعية</th></tr></thead>
+    <thead><tr>${cols.map(([l, , hi]) => `<th style="width:${w}%"${hi ? ' class="hi"' : ''}>${l}</th>`).join('')}</tr></thead>
     <tbody>
-      <tr><td>${num(f['الأساسي'])}</td><td>${num(f['بدل سكن'])}</td><td>${num(f['بدل مواصلات'])}</td><td>${num(f['أخرى'])}</td><td>${num(f['القرض الحسن'])}</td><td>${num(f['صافي الراتب بعد خصم التأمينات الاجتماعية'])}</td></tr>
-      <tr class="tot"><td colspan="2" style="text-align:right"><b>الإجمالي</b> &nbsp; ${num(f['الإجمالي'])}</td><td colspan="4" class="words"><span style="color:#054d45">الإجمالي كتابةً:</span> ${esc(f['الإجمالي كتابةً'] || '')}</td></tr>
+      <tr>${cols.map(([, v, hi]) => `<td${hi ? ' class="hi"' : ''}>${num(v)}</td>`).join('')}</tr>
+      <tr class="tot"><td colspan="${cols.length}" class="words"><span style="color:#054d45">الإجمالي كتابةً:</span> ${esc(f['الإجمالي كتابةً'] || '')}</td></tr>
     </tbody>
   </table>
   <p class="para">${esc(c.para)}</p>

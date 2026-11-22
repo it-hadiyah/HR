@@ -62,22 +62,22 @@ test('المراجعة: اقتراحات من الرواتب والسجل ثم �
   assert.equal((await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: { ...d.review.values, national_id: '', hire_date: '' } })).status, 400);
   const bad = await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '123' } });
   assert.equal(bad.status, 400);
-  const pv = await hr.post(`/api/hr-requests/${reqCert.id}/preview`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '1023456789', net: '5000' } });
+  const pv = await hr.post(`/api/hr-requests/${reqCert.id}/preview`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '1023456789' } });
   assert.match(pv.json.text, /الاسم: عبدالله الأول/);
-  const ok = await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '1023456789', net: '5415.00' }, note: 'تم' });
+  const ok = await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '1023456789' }, note: 'تم' });
   assert.equal(ok.status, 200); assert.equal(ok.json.request.status, 'approved');
   assert.equal((await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: d.review.values })).status, 409);   // لا اعتماد مزدوج
   // المستند يصل للموظف صاحب الطلب فقط
   const doc = await e1.get(`/api/hr-requests/${reqCert.id}/document`);
   assert.equal(doc.status, 200); assert.equal(doc.json.ref_no, reqCert.ref_no); assert.equal(doc.json.stamp, true); assert.match(doc.json.code, /^[0-9A-F]{10}$/);
   assert.match(doc.json.text, /الاسم: عبدالله الأول/); assert.match(doc.json.text, /الأساسي: 6,000\.00 ريال/); assert.match(doc.json.text, /رقم الهوية: 1023456789/);
-  assert.match(doc.json.text, /الإجمالي كتابةً: ثمانية آلاف ومائة ريال فقط لا غير\./);
+  assert.match(doc.json.text, /أساسي مع البدلات النظامية: 8,100\.00 ريال/); assert.match(doc.json.text, /الإجمالي كتابةً: ثمانية آلاف ومائة ريال سعودي لا غير/);
   assert.equal((await e2.get(`/api/hr-requests/${reqCert.id}/document`)).status, 404);
   assert.equal((await e1.get('/api/hr-requests/stamp')).status, 200);
   const page = await e1.get(`/api/hr-requests/${reqCert.id}/view`);                // المستند المنسّق: جداول وختم ورقم مرجع
   assert.equal(page.status, 200); assert.match(page.headers.get('content-type'), /html/);
   assert.match(page.text, /<table/); assert.match(page.text, /class="stamp"/); assert.ok(page.text.includes(reqCert.ref_no)); assert.match(page.text, /خطاب تعريف/);
-  assert.match(page.text, /ثمانية آلاف ومائة ريال فقط لا غير/);
+  assert.match(page.text, /ثمانية آلاف ومائة ريال سعودي لا غير/); assert.match(page.text, /أساسي مع البدلات النظامية/); assert.ok(!page.text.includes('القرض الحسن'));
   assert.equal((await e2.get(`/api/hr-requests/${reqCert.id}/view`)).status, 404);
   // بيانات الموظف الناقصة تُكمَّل من المعتمد (التعيين والجنسية)، والهوية بصلاحية sensitive (للموارد البشرية افتراضياً)
   const s = (await t.q('SELECT hire_date, nationality, national_id FROM leave_staff WHERE id = $1', [staff1])).rows[0];

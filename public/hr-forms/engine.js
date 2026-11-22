@@ -37,14 +37,14 @@ function integerWords(n, fem = false) {
   return parts.join(' و');
 }
 const toNum = v => { const x = Number(String(v ?? '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٫]/g, '.').replace(/[,٬،\s]/g, '')); return Number.isFinite(x) ? x : NaN; };
-/** مبلغ بالريال والهللة كتابةً: «ستة آلاف وثمانمائة وثمانية وخمسون ريالًا وخمس وثمانون هللة فقط لا غير.» */
+/** مبلغ بالريال والهللة كتابةً: «ثمانية آلاف وثمانمائة وثلاثة عشر ريالاً سعودياً وسبع وتسعون هللة لا غير» */
 export function tafqeet(v) {
   const x = toNum(v); if (!Number.isFinite(x) || x < 0 || x >= 1e9) return '';
   const total = Math.round(x * 100), r = Math.floor(total / 100), h = total % 100;
-  const riyal = r === 0 ? '' : r === 1 ? 'ريال واحد' : r === 2 ? 'ريالان' : `${integerWords(r)} ${r % 100 >= 3 && r % 100 <= 10 ? 'ريالات' : r % 100 === 0 ? 'ريال' : 'ريالًا'}`;
+  const riyal = r === 0 ? '' : r === 1 ? 'ريال سعودي واحد' : r === 2 ? 'ريالان سعوديان' : `${integerWords(r)} ${r % 100 >= 3 && r % 100 <= 10 ? 'ريالات سعودية' : r % 100 === 0 ? 'ريال سعودي' : 'ريالاً سعودياً'}`;
   const hal = h === 0 ? '' : h === 1 ? 'هللة واحدة' : h === 2 ? 'هللتان' : `${integerWords(h, true)} ${h <= 10 ? 'هللات' : 'هللة'}`;
   const out = [riyal, hal].filter(Boolean).join(' و');
-  return `${out || 'صفر ريال'} فقط لا غير.`;
+  return `${out || 'صفر ريال سعودي'} لا غير`;
 }
 const hijriFmt = typeof Intl !== 'undefined' ? new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }) : null;
 function hijri(v) {

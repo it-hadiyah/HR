@@ -120,7 +120,7 @@ async function suggestions(row) {
   if (row.type === 'certificate') {
     Object.assign(sug, { hire_date: dateOnly(s.hire_date) || '', national_id: s.national_id || '', to: row.params.to || 'قسم المساعدات' });
     const sal = (await staffRows({ status: 'all', ids: [s.id] }))[0];
-    if (sal?.has_salary) Object.assign(sug, { basic: String(sal.basic), housing: String(sal.housing), transport: String(sal.transport), other: String(sal.other), loan: '0', net: String(round2(sal.gross - sal.insurance_amount)) });
+    if (sal?.has_salary) Object.assign(sug, { basic: String(sal.basic), housing: String(sal.housing), transport: String(sal.transport), other: String(sal.other) });
   } else Object.assign(sug, { bank: row.params.bank, iban: row.params.iban });
   return { staff: { id: s.id, full_name: s.full_name, emp_no: s.emp_no, job_title: s.job_title, hire_date: dateOnly(s.hire_date) }, fields: t.fields, values: sug };
 }
