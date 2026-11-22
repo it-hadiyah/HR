@@ -20,4 +20,5 @@ services:
     volumes:
       - portal-policies:/app/modules/portal/policies
       - portal-images:/app/modules/portal/images
-volumes: { pgdata: {}, portal-policies: {}, portal-images: {} }
+      - members-uploads:/app/uploads/members
+volumes: { pgdata: {}, portal-policies: {}, portal-images: {}, members-uploads: {} }

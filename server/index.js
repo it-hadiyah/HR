@@ -32,6 +32,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import reportRoutes from './routes/reports.js';
 import importRoutes from './routes/importer.js';
 import adminRoutes from './routes/admin.js';
+import members from '../modules/members/src/index.js';   // نظام أعضاء الجمعية العمومية (CommonJS)
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -158,6 +159,7 @@ app.get('/', (req, res) => res.redirect('/portal/'));   // الرابط الرئ
 mount('/portal', 'portal', PORTAL_DIR);
 app.use('/card', (req, res, next) => (/^\/(src|tools)(\/|$)/.test(req.path) ? res.status(404).end() : next()));   // لا تُخدَّم ملفات البناء
 mount('/card', 'card', path.join(MODULES, 'card'));
+app.use('/members', gate('members'), withAppBar(members.PUBLIC), members.router);   // واجهته وAPI الخاص به /members/api
 app.use('/vendor/chart.js', express.static(path.join(root, 'node_modules/chart.js/dist/chart.umd.js')));
 app.use('/hr', gate('hr'), express.static(path.join(root, 'public/hr')));
 app.use('/sales-reports', gate('sales-reports'), withAppBar(path.join(root, 'public/sales-reports')), express.static(path.join(root, 'public/sales-reports')));
@@ -177,6 +179,7 @@ app.use((err, req, res, _next) => {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await initSchema();
+  await members.init();
   const port = process.env.PORT || 3000;
   app.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`المنصة تعمل على http://localhost:${port}`));
 }
