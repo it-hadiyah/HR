@@ -74,6 +74,11 @@ test('المراجعة: اقتراحات من الرواتب والسجل ثم �
   assert.match(doc.json.text, /الإجمالي كتابةً: ثمانية آلاف ومائة ريال فقط لا غير\./);
   assert.equal((await e2.get(`/api/hr-requests/${reqCert.id}/document`)).status, 404);
   assert.equal((await e1.get('/api/hr-requests/stamp')).status, 200);
+  const page = await e1.get(`/api/hr-requests/${reqCert.id}/view`);                // المستند المنسّق: جداول وختم ورقم مرجع
+  assert.equal(page.status, 200); assert.match(page.headers.get('content-type'), /html/);
+  assert.match(page.text, /<table/); assert.match(page.text, /class="stamp"/); assert.ok(page.text.includes(reqCert.ref_no)); assert.match(page.text, /خطاب تعريف/);
+  assert.match(page.text, /ثمانية آلاف ومائة ريال فقط لا غير/);
+  assert.equal((await e2.get(`/api/hr-requests/${reqCert.id}/view`)).status, 404);
   // بيانات الموظف الناقصة تُكمَّل من المعتمد (التعيين والجنسية)، والهوية بصلاحية sensitive (للموارد البشرية افتراضياً)
   const s = (await t.q('SELECT hire_date, nationality, national_id FROM leave_staff WHERE id = $1', [staff1])).rows[0];
   assert.equal(new Date(s.hire_date).toISOString().slice(0, 10), '2020-01-15'); assert.equal(s.nationality, 'سعودي');

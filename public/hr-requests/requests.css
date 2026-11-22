@@ -139,15 +139,8 @@ td{vertical-align:middle} td:nth-child(4){white-space:nowrap}
 .prev{background:#fafcfc;border:1px solid var(--line);border-radius:12px;padding:14px;white-space:pre-wrap;line-height:1.9;font-size:.88rem;max-height:62vh;overflow:auto}
 .modal{max-width:1100px}
 .note{background:#fbf7ee;border:1px solid #efe2c4;border-radius:12px;padding:8px 14px;font-size:.88rem;color:#5c4a14;margin-bottom:12px}
-/* صفحة المستند */
-.docbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:14px auto;max-width:210mm}
-.paper{position:relative;width:210mm;height:297mm;margin:0 auto 30px;overflow:hidden;background:#fff url(/hr-requests/img/letterhead.png) center/100% 100% no-repeat;border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.1);padding:48mm 20mm 36mm;font-size:12.5pt;line-height:1.9;direction:rtl}
-.paper p{margin:0;white-space:pre-wrap;word-break:break-word} .paper h2{margin:.2em 0 .6em;font-size:1.2em;text-align:center;color:#000} .paper .gap{height:.7em}
-.paper .stamp{position:absolute;left:11%;bottom:13%;width:21%;mix-blend-mode:multiply}
-.paper .ref{position:absolute;right:20mm;bottom:27mm;font-size:8pt;color:#555}
-@media (max-width:820px){.paper{transform-origin:top center;zoom:.4}}
-@page{size:A4;margin:0}
-@media print{
-  body{background:#fff} .docbar,.top,.toasts,#hd-appbar,#appbar-host{display:none !important}
-  .paper{margin:0;border:0;box-shadow:none;zoom:1;transform:none;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-}
+/* صفحة المستند: الورقة تُبنى في الخادم وتُعرض في إطار بحجم A4 */
+.docbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;margin:14px auto;max-width:210mm}
+.docframe{display:block;width:210mm;height:297mm;border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.1);margin:0 auto 30px;background:#fff}
+@media (max-width:820px){.docframe{zoom:.42}}
+@media print{body{background:#fff} .docbar,.top,.toasts,#hd-appbar,#appbar-host{display:none !important} .docframe{box-shadow:none;border:0;margin:0}}

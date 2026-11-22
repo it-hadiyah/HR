@@ -11,8 +11,9 @@ import { q } from '../db/pool.js';
 import { audit, wrap } from '../lib/auth.js';
 import { hasGrant } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
-import { renderTemplate, buildVars, defaultValues, missingRequired, textToHtml } from '../../public/hr-forms/engine.js';
+import { renderTemplate, buildVars, defaultValues, missingRequired } from '../../public/hr-forms/engine.js';
 import { staffRows } from './payroll.js';
+import { renderDocumentHtml } from '../lib/hrDocument.js';
 
 const r = Router();
 r.param('id', (req, res, next, v) => (/^\d+$/.test(v) ? next() : next('route')));   // Express 5: بلا تعبير نمطي داخل المسار
@@ -169,7 +170,7 @@ r.post('/:id/approve', wrap(async (req, res) => {
   const { text, values } = buildDocument(row, staff, tpl, req.body?.data || {}, issueDate);
   const hash = crypto.createHash('sha256').update(`${row.ref_no}\n${text}`).digest('hex');
   const upd = (await q(`UPDATE hr_requests SET status = 'approved', decided_by = $2, decided_at = now(), decision_note = $3, document_text = $4, document_data = $5, document_hash = $6, updated_at = now()
-    WHERE id = $1 AND status = 'pending' RETURNING id`, [id, req.user.username, str(req.body?.note, 300) || null, text, JSON.stringify({ issue_date: issueDate, values: { ...values, national_id: undefined, iban: undefined } }), hash])).rows[0];
+    WHERE id = $1 AND status = 'pending' RETURNING id`, [id, req.user.username, str(req.body?.note, 300) || null, text, JSON.stringify({ issue_date: issueDate, values }), hash])).rows[0];
   if (!upd) throw httpError(409, 'تم البت في الطلب من مراجع آخر');
   // تحديث بيانات الموظف الناقصة من البيانات المعتمدة (الحساسة بصلاحية hr-employees/sensitive)
   const sets = []; const vals = [staff.id];
@@ -211,22 +212,20 @@ r.get('/:id/document', wrap(async (req, res) => {
   res.json({ ref_no: row.ref_no, type_title: TYPES[row.type].title, text: row.document_text, issue_date: row.document_data?.issue_date, approved_by: row.decided_by, code: verifyCode(row), stamp: st.enabled, stamp_version: st.version, employee_name: row.employee_name });
 }));
 
-function documentHtml(row, stamp) {
-  const img = f => `data:image/png;base64,${fs.readFileSync(path.join(IMG, f)).toString('base64')}`;
-  const stampImg = stamp.enabled ? `<img class="stamp" src="data:${stamp.mime};base64,${Buffer.from(stamp.data).toString('base64')}" alt="">` : '';
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>
-    @page{size:A4;margin:0} *{box-sizing:border-box} body{margin:0;font-family:Tahoma,"Segoe UI","Noto Naskh Arabic",sans-serif}
-    .paper{position:relative;width:210mm;height:297mm;overflow:hidden;background:url(${img('letterhead.png')}) center/100% 100% no-repeat;padding:48mm 20mm 36mm;font-size:12.5pt;line-height:1.9;direction:rtl}
-    p{margin:0;white-space:pre-wrap;word-break:break-word} h2{margin:.2em 0 .6em;font-size:1.2em;text-align:center} .gap{height:.7em}
-    .stamp{position:absolute;left:11%;bottom:13%;width:21%;mix-blend-mode:multiply} .ref{position:absolute;right:20mm;bottom:27mm;font-size:8pt;color:#555;direction:rtl}
-  </style></head><body><div class="paper">${textToHtml(row.document_text)}${stampImg}<div class="ref">رقم المستند: ${row.ref_no} · رمز التحقق: ${verifyCode(row)}</div></div></body></html>`;
-}
+async function documentPage(row) { return renderDocumentHtml({ row, code: verifyCode(row), stamp: await stampState(), imgDir: IMG }); }
+// صفحة المستند نفسها (تُعرض في إطار داخل صفحة المستند وتُستخدم لتوليد PDF)
+r.get('/:id/view', wrap(async (req, res) => {
+  const row = await loadRequest(req, +req.params.id);
+  if (row.status !== 'approved' || !row.document_text) throw httpError(409, 'المستند غير متاح: الطلب لم يُعتمد');
+  res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.send(await documentPage(row));
+}));
 r.get('/:id/pdf', wrap(async (req, res) => {
   const row = await loadRequest(req, +req.params.id);
   if (row.status !== 'approved' || !row.document_text) throw httpError(409, 'المستند غير متاح: الطلب لم يُعتمد');
   if (!chromeAvailable()) throw httpError(501, 'توليد PDF من الخادم غير متاح؛ استخدم «طباعة / حفظ PDF» من صفحة المستند');
   const { htmlToPdf } = require('../../modules/members/src/services/exporter');
-  const buf = await htmlToPdf(documentHtml(row, await stampState()), { landscape: false });
+  const buf = await htmlToPdf(await documentPage(row), { landscape: false });
   await audit(req, 'export', 'hr_request', row.id, null, { ref_no: row.ref_no, format: 'pdf' });
   res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${row.ref_no}.pdf"`, 'Cache-Control': 'no-store' });
   res.send(buf);
