@@ -473,6 +473,66 @@
     commit(v, row) { raw[FILES.home][row.field] = v.value.trim(); },
   };
 
+  // ---------- الهيكل الوظيفي (حيّ: يُحفظ مباشرة في قاعدة البيانات عبر /api/hr-employees، لا ينتظر «حفظ التغييرات») ----------
+  const HRAPI = "/api/hr-employees";
+  const struct = { list: [], units: [], can: {}, error: "" };
+  async function hrApi(path, method = "GET", body) {
+    const override = method === "PUT" || method === "DELETE";
+    const res = await fetch(HRAPI + path, { method: override ? "POST" : method, credentials: "same-origin",
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(override ? { "X-HTTP-Method-Override": method } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "فشلت العملية.");
+    return data;
+  }
+  const unitLabels = () => {
+    const kids = new Map(); struct.units.forEach(u => (kids.get(u.parent_id) || kids.set(u.parent_id, []).get(u.parent_id)).push(u));
+    const ids = new Set(struct.units.map(u => u.id)), out = [];
+    const walk = (pid, d) => (kids.get(pid) || []).forEach(u => { out.push({ v: String(u.id), l: `${"— ".repeat(d)}${u.name}` }); walk(u.id, d + 1); });
+    struct.units.forEach(u => { if (!ids.has(u.parent_id)) { out.push({ v: String(u.id), l: u.name }); walk(u.id, 1); } });
+    return out;
+  };
+
+  sections.positions = {
+    title: "الهيكل الوظيفي", icon: "fa-sitemap", files: [],
+    hint: "وظائف ومقاعد مستقلة عن الموظفين؛ تُنشأ هنا ثم يُسكَن الموظف فيها من إدارة الموظفين. تُحفظ التغييرات مباشرة.",
+    columns: ["الوظيفة", "الوحدة", "ترفع إلى", "المقاعد", "الشاغلون"],
+    async load() {
+      try {
+        const [m, d] = await Promise.all([hrApi("/meta"), hrApi("/positions")]);
+        struct.units = m.units || []; struct.can = m.can || {}; struct.list = d.positions || []; struct.error = "";
+      } catch (err) { struct.list = []; struct.error = err.message; }
+      $("#btnAdd").hidden = !struct.can.structure;
+    },
+    rows() {
+      return struct.list.map(x => ({
+        key: x.id, x,
+        text: `${x.title} ${x.code || ""} ${x.unit_path || ""} ${x.occupants.map(o => o.full_name).join(" ")}`,
+        cells: [`${esc(x.title)}${x.code ? ` <span class="tag">${esc(x.code)}</span>` : ""}${x.active ? "" : ' <span class="tag tag--warn">موقوفة</span>'}`, esc(x.unit_path || ""), esc(x.parent_title || "—"),
+          `<span class="tag">${x.occupied}/${x.headcount}</span>`, x.occupants.length ? x.occupants.map(o => esc(o.full_name)).join("، ") : '<span class="muted">شاغرة</span>'],
+      }));
+    },
+    form(row) {
+      const x = row ? row.x : {};
+      return [
+        { name: "title", label: "المسمى الوظيفي", value: x.title || "", required: true, wide: true },
+        { name: "code", label: "الرمز", value: x.code || "" },
+        { name: "grade", label: "الدرجة", value: x.grade || "" },
+        { name: "org_unit_id", label: "الوحدة التنظيمية", value: x.org_unit_id ? String(x.org_unit_id) : "", required: true, wide: true, options: [{ v: "", l: "— اختر —" }, ...unitLabels()] },
+        { name: "parent_id", label: "ترفع إلى", value: x.parent_id ? String(x.parent_id) : "", wide: true, options: [{ v: "", l: "— لا أحد —" }, ...struct.list.filter(z => !row || z.id !== x.id).map(z => ({ v: String(z.id), l: `${z.title} — ${z.unit_path}` }))] },
+        { name: "headcount", label: "عدد المقاعد", type: "number", value: x.headcount || 1 },
+        { name: "active", label: "الحالة", value: x.active === false ? "0" : "1", options: [{ v: "1", l: "فعّالة" }, { v: "0", l: "موقوفة" }] },
+        { name: "notes", label: "ملاحظات", value: x.notes || "", area: true, wide: true },
+      ];
+    },
+    async commit(v, row) {
+      const body = { title: v.title, code: v.code, grade: v.grade, org_unit_id: v.org_unit_id, parent_id: v.parent_id, headcount: v.headcount, active: v.active === "1", notes: v.notes, ...(row ? { version: row.x.version } : {}) };
+      if (row) await hrApi("/positions/" + row.x.id, "PUT", body); else await hrApi("/positions", "POST", body);
+      await this.load();
+    },
+    async remove(row) { await hrApi("/positions/" + row.x.id, "DELETE"); await this.load(); },
+    confirmText: row => `حذف الوظيفة «${row.x.title}»؟`,
+  };
+
   function swap(list, a, b) {
     if (b < 0 || b >= list.length) return;
     [list[a], list[b]] = [list[b], list[a]];
@@ -496,7 +556,9 @@
     const rows = term ? all.filter(r => r.text.toLowerCase().includes(term)) : all;
     const canMove = s.movable && !term;
     $("#count").textContent = term ? `${rows.length} من ${all.length}` : `${all.length} عنصر`;
-    $("#btnAdd").hidden = !!s.noAdd;
+    $("#btnHistory").hidden = s.files.length === 0;
+    $("#btnAdd").hidden = !!s.noAdd || (current === "positions" && !struct.can.structure);
+    if (current === "positions" && struct.error) $("#secHint").textContent = "تعذر تحميل الهيكل الوظيفي: " + struct.error;
     $("#empty").hidden = rows.length > 0;
     $("#table").hidden = rows.length === 0;
     const bulk = !!s.bulk;
@@ -675,13 +737,13 @@
     s.afterRender?.($("#editorForm"));
     $("#editorDelete").hidden = !row || !!s.noDelete;
     const form = $("#editorForm");
-    form.onsubmit = e => {
+    form.onsubmit = async e => {
       e.preventDefault();
       if (!form.reportValidity()) return;
       const values = {};
       fields.forEach(f => { values[f.name] = form.elements[f.name].value; });
       try {
-        s.commit(values, row);
+        await s.commit(values, row);
         dlg.close();
         render();
       } catch (err) {
@@ -689,9 +751,9 @@
         $("#editorError").hidden = false;
       }
     };
-    $("#editorDelete").onclick = () => {
+    $("#editorDelete").onclick = async () => {
       if (!confirm(s.confirmText(row))) return;
-      s.remove(row);
+      try { await s.remove(row); } catch (err) { $("#editorError").textContent = err.message; $("#editorError").hidden = false; return; }
       selected.clear();
       dlg.close();
       render();
@@ -835,6 +897,7 @@
       query = "";
       $("#q").value = "";
       render();
+      if (sections[current].load) sections[current].load().then(() => { if (sections[current].load) render(); });
     });
     $("#q").addEventListener("input", e => { query = e.target.value; render(); });
     $("#btnAdd").addEventListener("click", () => openEditor(null));
@@ -904,6 +967,7 @@
     bind();
     $("#app").hidden = false;
     render();
+    sections.positions.load().then(renderSide);
   }
 
   document.addEventListener("DOMContentLoaded", init);
