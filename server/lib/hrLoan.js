@@ -42,7 +42,7 @@ body{font-family:Tahoma,"Segoe UI","Noto Naskh Arabic","Noto Sans Arabic",sans-s
 .ack u{font-weight:700;text-decoration:none;border-bottom:1px solid #444;padding:0 2mm}
 .sg{display:flex;gap:4mm;margin-top:1.2mm}
 .sg div{flex:1;border-bottom:1px dotted #7d9a95;min-height:5mm;font-size:8pt;color:#555} .sg b{color:#0a2a26;font-weight:700}
-.sgn{position:relative;min-height:9mm} .sigimg{position:absolute;inset-inline-start:11mm;bottom:-1mm;max-height:10mm;max-width:34mm;mix-blend-mode:multiply}
+.sgn{position:relative;min-height:12mm} .sigimg{position:absolute;inset-inline-start:10mm;bottom:0;max-height:12mm;max-width:40mm;mix-blend-mode:multiply}
 .chk{display:inline-block;width:3.2mm;height:3.2mm;border:1px solid #222;margin:0 1mm;vertical-align:-.5mm;text-align:center;line-height:3mm;font-size:8pt} .chk.on::after{content:"✔"}
 table{width:100%;border-collapse:collapse;margin:1mm 0} td,th{border:1px solid #8aa6a1;padding:.8mm 2mm;font-size:8.3pt} th{background:#eaf5f2;width:60%;text-align:right} td.v{text-align:center;font-weight:700}
 .ft{margin-top:auto;font-size:7.2pt;color:#444;display:flex;justify-content:space-between;gap:3mm;border-top:1px solid #9fb8b3;padding-top:1.2mm}

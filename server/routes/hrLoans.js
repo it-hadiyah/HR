@@ -170,7 +170,7 @@ r.get('/review/:id', requireReviewer, wrap(async (req, res) => {
     defaults: { amount: Number(row.amount), months: row.months, gratuity_employee: 0, gratuity_guarantor: 0, previous_balance: 0 } });
 }));
 
-function buildDocument(row, ctx, b, reviewer, hrSignature) {
+function buildDocument(row, ctx, b, reviewer, hrSignature, sigs = {}) {
   const amount = round2(num(b.amount ?? row.amount)), months = Math.trunc(num(b.months ?? row.months));
   if (!(amount > 0 && amount <= 1_000_000)) throw httpError(400, 'المبلغ المعتمد غير صالح');
   if (!(months >= 1 && months <= 60)) throw httpError(400, 'عدد الأقساط بين 1 و60 شهراً');
@@ -181,8 +181,8 @@ function buildDocument(row, ctx, b, reviewer, hrSignature) {
   const issue = dmy(now);
   const d = {
     ref_no: row.ref_no, issue_date: issue,
-    employee: { signature: row.requester_signature || null, name: ctx.es.full_name, emp_no: ctx.es.emp_no, job_title: ctx.es.job_title, department: ctx.eu.department, section: ctx.eu.section, hire_date: dateOnly(ctx.es.hire_date), basic: ctx.emp?.basic ?? 0, gross: ctx.emp?.gross ?? 0 },
-    guarantor: { signature: g.signature || null, name: ctx.gs.full_name, emp_no: ctx.gs.emp_no, job_title: ctx.gs.job_title, department: ctx.gu.department, section: ctx.gu.section, hire_date: g.hire_date, national_id: g.national_id, phone: g.phone, salary: g.salary },
+    employee: { signature: row.requester_signature || sigs.requester || null, name: ctx.es.full_name, emp_no: ctx.es.emp_no, job_title: ctx.es.job_title, department: ctx.eu.department, section: ctx.eu.section, hire_date: dateOnly(ctx.es.hire_date), basic: ctx.emp?.basic ?? 0, gross: ctx.emp?.gross ?? 0 },
+    guarantor: { signature: g.signature || sigs.guarantor || null, name: ctx.gs.full_name, emp_no: ctx.gs.emp_no, job_title: ctx.gs.job_title, department: ctx.gu.department, section: ctx.gu.section, hire_date: g.hire_date, national_id: g.national_id, phone: g.phone, salary: g.salary },
     loan: { requested_amount: Number(row.amount), amount, months, installment: round2(amount / months), reason: row.reason },
     hr: { gratuity_employee, gratuity_guarantor, previous_balance, first_installment: first, covers_employee: gratuity_employee >= amount, covers_both: gratuity_employee + gratuity_guarantor >= amount, note: str(b.note, 300), name: reviewer.full_name, signature: hrSignature || null },
     timeline: { requested: dmy(row.created_at), guarantor: dmy(row.guarantor_decided_at), hr: issue, hr_by: reviewer.full_name },
@@ -195,7 +195,7 @@ r.post('/review/:id/approve', requireReviewer, wrap(async (req, res) => {
   if (!row) throw httpError(404, 'الطلب غير موجود');
   if (row.status !== 'pending_hr') throw httpError(409, 'الطلب ليس بانتظار قرار الموارد البشرية');
   const ctx = await reviewContext(row);
-  const { d, amount, months } = buildDocument(row, ctx, req.body || {}, req.user, await signatureDataUrl(req.user.id));
+  const { d, amount, months } = buildDocument(row, ctx, req.body || {}, req.user, await signatureDataUrl(req.user.id), { requester: row.requester_signature ? null : await signatureDataUrl(row.requester_user_id), guarantor: row.guarantor_data?.signature ? null : await signatureDataUrl(row.guarantor_user_id) });
   const text = loanText(d);
   const hash = crypto.createHash('sha256').update(`${row.ref_no}\n${text}`).digest('hex');
   const upd = (await q(`UPDATE hr_loans SET status = 'approved', hr_decided_by = $2, hr_decided_at = now(), hr_note = $3, approved_amount = $4, approved_months = $5, document_text = $6, document_data = $7, document_hash = $8, updated_at = now()
@@ -223,21 +223,26 @@ async function approvedDoc(req) {
   return row;
 }
 const code = row => String(row.document_hash || '').slice(0, 10).toUpperCase();
-const page = row => renderLoanHtml({ row, d: row.document_data, code: code(row), imgDir: IMG });
+async function pageHtml(row) {
+  const d = structuredClone(row.document_data);
+  if (!d.employee.signature) d.employee.signature = await signatureDataUrl(row.requester_user_id);
+  if (!d.guarantor.signature) d.guarantor.signature = await signatureDataUrl(row.guarantor_user_id);
+  return renderLoanHtml({ row, d, code: code(row), imgDir: IMG });
+}
 r.get('/review/:id/document', requireReviewer, wrap(async (req, res) => {
   const row = await approvedDoc(req);
   res.json({ ref_no: row.ref_no, text: row.document_text, code: code(row) });
 }));
 r.get('/review/:id/view', requireReviewer, wrap(async (req, res) => {
   const row = await approvedDoc(req);
-  res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).send(page(row));
+  res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).send(await pageHtml(row));
 }));
 r.get('/review/:id/pdf', requireReviewer, wrap(async (req, res) => {
   const row = await approvedDoc(req);
   let chrome = false; try { chrome = !!require('../../modules/members/src/config').chromePath; } catch { /* لا Chromium */ }
   if (!chrome) throw httpError(501, 'توليد PDF من الخادم غير متاح؛ استخدم «طباعة / حفظ PDF» من صفحة النموذج');
   const { htmlToPdf } = require('../../modules/members/src/services/exporter');
-  const buf = await htmlToPdf(page(row), { landscape: false });
+  const buf = await htmlToPdf(await pageHtml(row), { landscape: false });
   await audit(req, 'export', 'hr_loan', row.id, null, { ref_no: row.ref_no, format: 'pdf' });
   res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${row.ref_no}.pdf"`, 'Cache-Control': 'no-store' }).send(buf);
 }));

@@ -106,3 +106,15 @@ test('خطاب التعريف يحمل توقيع المراجع المعتمِ�
   const page = (await a.get(`/api/hr-requests/${id}/view`)).text;
   assert.match(page, /class="sigimg"/); assert.match(page, /data:image\/png;base64/);
 });
+
+test('توقيع الموظف والكفيل يُضاف تلقائياً في خانتي التوقيع، ويُكمَّل من المحفوظ لطلب سابق بلا لقطة', { skip }, async () => {
+  const ra = await a.post('/api/hr-requests/loans', { amount: '1500', months: 3, guarantor_staff_id: staffB });
+  assert.equal(ra.status, 201); const id = ra.json.loan.id;
+  await t.q('UPDATE hr_loans SET requester_signature = NULL WHERE id = $1', [id]);   // كأنه طلب رُفع قبل ميزة التوقيع
+  assert.equal((await b.post(`/api/hr-requests/loans/guarantee/${id}/approve`, { national_id: '1098765432', hire_date: '2020-01-01', phone: '0551234567', salary: '9000', acknowledge: true })).status, 200);
+  assert.equal((await hr.post(`/api/hr-requests/loans/review/${id}/approve`, { first_installment: '2027-01' })).status, 200);
+  const d = (await t.q('SELECT document_data FROM hr_loans WHERE id = $1', [id])).rows[0].document_data;
+  assert.match(d.employee.signature, /^data:image\/png;base64,/); assert.match(d.guarantor.signature, /^data:image\/png;base64,/);   // أُخذ توقيع الموظف المحفوظ تلقائياً
+  const html = (await hr.get(`/api/hr-requests/loans/review/${id}/view`)).text;
+  assert.equal((html.match(/class="sigimg"/g) || []).length, 3);   // الموظف والكفيل والموارد
+});
