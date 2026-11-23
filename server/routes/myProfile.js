@@ -31,13 +31,15 @@ export async function hasSignature(userId) {
 /** حالة الملف: هل يحتاج الموظف لتأكيد بياناته أو إضافة توقيعه */
 export async function profileStatus(user) {
   const staff = await myStaff(user);
-  const p = (await q('SELECT (signature IS NOT NULL) AS has_sig, signature_updated_at, confirmed_at FROM user_profiles WHERE user_id = $1', [user.id])).rows[0] || {};
-  const needsConfirm = !!staff && !p.confirmed_at, needsSignature = !p.has_sig;
-  return { staff, has_signature: !!p.has_sig, signature_updated_at: p.signature_updated_at || null, confirmed_at: p.confirmed_at || null, needs_attention: needsConfirm || needsSignature, needs_confirm: needsConfirm, needs_signature: needsSignature };
+  const p = (await q('SELECT (signature IS NOT NULL) AS has_sig, signature_updated_at, confirmed_at, viewed_at FROM user_profiles WHERE user_id = $1', [user.id])).rows[0] || {};
+  // يلزم الانتباه: لم يضف توقيعه، أو لم يطّلع على بياناته المعبّأة بعد (مرة واحدة). تأكيد البيانات اختياري ولا يُبقي التنبيه.
+  const needsSignature = !p.has_sig, needsView = !!staff && !p.viewed_at;
+  return { staff, has_signature: !!p.has_sig, signature_updated_at: p.signature_updated_at || null, confirmed_at: p.confirmed_at || null, needs_attention: needsSignature || needsView, needs_view: needsView, needs_confirm: !!staff && !p.confirmed_at, needs_signature: needsSignature };
 }
 
 r.get('/', wrap(async (req, res) => {
   const st = await profileStatus(req.user);
+  if (st.staff && st.needs_view) await q('INSERT INTO user_profiles(user_id, viewed_at) VALUES ($1, now()) ON CONFLICT (user_id) DO UPDATE SET viewed_at = COALESCE(user_profiles.viewed_at, now())', [req.user.id]);   // اطّلع على بياناته
   let employee = null;
   if (st.staff) {
     const s = st.staff, u = (await unitPaths())(s.org_unit_id);
@@ -45,12 +47,12 @@ r.get('/', wrap(async (req, res) => {
     employee = { full_name: s.full_name, emp_no: s.emp_no, job_title: s.job_title, sector: u.sector, department: u.department, section: u.section, hire_date: dateOnly(s.hire_date), nationality: s.nationality, national_id: s.national_id, iban: s.iban, phone: s.phone, lacking };
   }
   res.json({ account: { username: req.user.username, full_name: req.user.full_name }, linked: !!st.staff, employee,
-    signature: { has: st.has_signature, updated_at: st.signature_updated_at }, confirmed_at: st.confirmed_at, needs_attention: st.needs_attention, needs_confirm: st.needs_confirm, needs_signature: st.needs_signature });
+    signature: { has: st.has_signature, updated_at: st.signature_updated_at }, confirmed_at: st.confirmed_at, needs_attention: st.needs_attention && (st.needs_signature || false), needs_confirm: st.needs_confirm, needs_signature: st.needs_signature });
 }));
 
 r.get('/status', wrap(async (req, res) => {
   const st = await profileStatus(req.user);
-  res.json({ linked: !!st.staff, needs_attention: st.needs_attention, needs_confirm: st.needs_confirm, needs_signature: st.needs_signature });
+  res.json({ linked: !!st.staff, needs_attention: st.needs_attention, needs_view: st.needs_view, needs_confirm: st.needs_confirm, needs_signature: st.needs_signature });
 }));
 
 r.post('/confirm', wrap(async (req, res) => {

@@ -21,7 +21,7 @@ async function api(path, { method = 'GET', body } = {}) {
   if (!res.ok) throw new Error(data.error || 'حدث خطأ');
   return data;
 }
-const toast = (msg, bad) => { const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), bad ? 6000 : 3500); };
+const toast = (msg, bad) => { if (!bad) document.dispatchEvent(new Event('hd:refresh-notifications')); const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), bad ? 6000 : 3500); };
 const guard = fn => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
 import { createLoans } from '/hr-requests/loans.js';
 const view = document.getElementById('view');

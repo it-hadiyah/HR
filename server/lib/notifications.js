@@ -28,9 +28,8 @@ async function hrRequestsProvider(user) {
 async function profileProvider(user) {
   const { profileStatus } = await import('../routes/myProfile.js');
   const s = await profileStatus(user);
-  if (!s.needs_attention) return [];
-  const todo = [s.needs_confirm && 'تأكيد بياناتك', s.needs_signature && 'إضافة توقيعك'].filter(Boolean).join(' و');
-  return [{ key: 'profile', sig: `profile:${s.needs_confirm}:${s.needs_signature}`, icon: 'user', title: 'أكمل ملفك الشخصي', text: `يلزم ${todo} للتوقيع على الطلبات داخل المنصة`, url: '/my-profile/', at: new Date().toISOString() }];
+  if (!s.needs_signature) return [];   // يزول فور حفظ التوقيع
+  return [{ key: 'profile', sig: 'profile:signature', icon: 'user', title: 'أضف توقيعك الخاص', text: 'لتوقّع طلباتك وخطاباتك داخل المنصة (من ملفي الشخصي)', url: '/my-profile/', at: new Date().toISOString() }];
 }
 
 const PROVIDERS = [hrRequestsProvider, profileProvider];

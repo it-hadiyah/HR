@@ -21,7 +21,7 @@ async function api(path, { method = 'GET', body } = {}) {
   if (!res.ok) throw new Error(data.error || 'حدث خطأ');
   return data;
 }
-const toast = (msg, bad) => { const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), bad ? 6000 : 3500); };
+const toast = (msg, bad) => { if (!bad) document.dispatchEvent(new Event('hd:refresh-notifications')); const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), bad ? 6000 : 3500); };
 const guard = fn => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
 const view = document.getElementById('view');
 const fmt = s => (s ? new Date(s).toLocaleString('ar-SA-u-ca-gregory-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
@@ -35,7 +35,7 @@ function trimAndExport(src, { removeWhite = false } = {}) {
   let x0 = w, y0 = ht, x1 = -1, y1 = -1;
   for (let y = 0; y < ht; y++) for (let x = 0; x < w; x++) {
     const i = (y * w + x) * 4;
-    if (removeWhite) { const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; const a = lum > 235 ? 0 : lum > 190 ? Math.round((235 - lum) / 45 * 255) : 255; d[i + 3] = Math.min(d[i + 3], a); if (a) { d[i] = d[i + 1] = d[i + 2] = Math.min(lum, 40); } }
+    if (removeWhite) { const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; const a = lum > 235 ? 0 : lum > 190 ? Math.round((235 - lum) / 45 * 255) : 255; d[i + 3] = Math.min(d[i + 3], a); }
     if (d[i + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
   if (x1 < 0) return null;
@@ -67,10 +67,20 @@ function uploadBox(onSave) {
   let result = null;
   file.addEventListener('change', () => {
     const f = file.files[0]; if (!f) return;
-    const img = new Image();
-    img.onload = () => { const url = trimAndExport(img, { removeWhite: true }); URL.revokeObjectURL(img.src); if (!url) { prev.textContent = 'لم نجد توقيعاً في الصورة'; result = null; return; } result = url; prev.replaceChildren(h('div', { class: 'sigprev' }, h('img', { src: url, alt: 'معاينة التوقيع' }))); };
-    img.onerror = () => { prev.textContent = 'تعذّرت قراءة الصورة'; };
-    img.src = URL.createObjectURL(f);
+    if (f.size > 12 * 1024 * 1024) { prev.textContent = 'حجم الصورة كبير (الحد 12 ميجابايت)'; return; }
+    const reader = new FileReader();   // data: URL (سياسة الأمان لا تسمح بـ blob: للصور)
+    reader.onerror = () => { prev.textContent = 'تعذّرت قراءة الملف'; };
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let url = null; try { url = trimAndExport(img, { removeWhite: true }); } catch { url = null; }
+        if (!url) { prev.textContent = 'لم نجد توقيعاً في الصورة'; result = null; return; }
+        result = url; prev.replaceChildren(h('div', { class: 'sigprev' }, h('img', { src: url, alt: 'معاينة التوقيع' })));
+      };
+      img.onerror = () => { prev.textContent = 'تعذّرت قراءة الصورة؛ استخدم PNG أو JPG'; };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
   });
   return h('div', null, file, h('div', { style: 'margin:10px 0' }, prev), h('button', { class: 'btn primary', type: 'button', onclick: () => (result ? onSave(result) : toast('اختر صورة أولاً', true)) }, 'حفظ التوقيع'));
 }

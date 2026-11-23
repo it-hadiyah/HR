@@ -66,7 +66,7 @@ test('التوقيع: التحقق من الصور وحفظه وقراءته و�
 
 test('التنبيه بإكمال الملف يظهر ويزول', { skip }, async () => {
   const n = (await b.get('/api/notifications')).json.items.find(i => i.key === 'profile');
-  assert.ok(n); assert.equal(n.url, '/my-profile/'); assert.match(n.text, /تأكيد بياناتك و/);
+  assert.ok(n); assert.equal(n.url, '/my-profile/'); assert.match(n.title, /توقيعك/);
   assert.ok(!(await a.get('/api/notifications')).json.items.some(i => i.key === 'profile'));
   const log = JSON.stringify((await t.q("SELECT before, after FROM audit_logs WHERE entity IN ('user_signature','user_profile')")).rows);
   assert.ok(!log.includes('iVBOR'));                                                                              // السجل لا يخزن صورة التوقيع
@@ -84,6 +84,7 @@ test('التوقيع في الطلبات: يُشترط للسلفة والكفا
   const ap = await b.post(`/api/hr-requests/loans/guarantee/${id}/approve`, body);
   assert.equal(ap.status, 400); assert.equal(ap.json.code, 'signature_required');                                   // الكفيل بلا توقيع
   assert.equal((await b.post('/api/my-profile/signature', { image: pngDataUrl(110, 44) })).status, 200);
+  assert.ok(!(await b.get('/api/notifications')).json.items.some(i => i.key === 'profile'), 'يزول التنبيه بمجرد حفظ التوقيع دون الحاجة لتأكيد البيانات');
   assert.equal((await b.post(`/api/hr-requests/loans/guarantee/${id}/approve`, body)).status, 200);
   // صور التواقيع لا تُرسل في قوائم الموارد ولا للأطراف
   const lst = await hr.get('/api/hr-requests/loans/review?status=pending_hr');

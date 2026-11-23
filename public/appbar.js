@@ -155,6 +155,7 @@
     };
     const apply = (n, first) => {
       current = n || { count: 0, items: [] }; paint();
+      if (!current.count) toast.classList.remove('show');   // زال سبب التنبيه فنُخفي المنبثق المعروض
       const s = seen(), fresh = current.items.filter(i => !s.has(i.sig));
       if (fresh.length) { popup(fresh); remember(fresh.map(i => i.sig)); }
     };
@@ -166,6 +167,8 @@
     document.addEventListener('pointerdown', e => { if (panel.classList.contains('open') && !e.composedPath().includes(host)) { panel.classList.remove('open'); bell.setAttribute('aria-expanded', 'false'); } });
     root.addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) { panel.classList.remove('open'); bell.setAttribute('aria-expanded', 'false'); bell.focus(); } });
     btn.addEventListener('click', () => { panel.classList.remove('open'); bell.setAttribute('aria-expanded', 'false'); toast.classList.remove('show'); });
+    const refresh = async () => { try { const r = await fetch('/api/notifications', { credentials: 'same-origin' }); if (r.ok) apply(await r.json()); } catch { /* لا اتصال */ } };
+    document.addEventListener('hd:refresh-notifications', () => setTimeout(refresh, 300));   // تحديث فوري بعد أي إجراء في الصفحة
     apply(notif, true);
     // تحديث دوري هادئ (كل دقيقة والصفحة ظاهرة) كي يصل التنبيه دون إعادة تحميل
     setInterval(async () => {
