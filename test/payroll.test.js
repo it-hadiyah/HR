@@ -66,13 +66,14 @@ test('الرواتب والإضافي والانتداب والتقرير', { sk
   r = await fin.put('/api/payroll/salaries/' + empId, { basic: '-5' });
   assert.equal(r.status, 400);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-05', pay_month: '2026-11', type_id: 'ot-workday', quantity: '3' });
-  assert.equal(r.status, 201); assert.equal(r.json.row.amount, 150);
+  assert.equal(r.status, 201); assert.equal(r.json.row.amount, 137.5);   // ساعة من الإجمالي + نصف ساعة من الأساسي: 3 × (8000/240 + 0.5 × 6000/240)
+  assert.equal(r.json.row.breakdown.method, 'split'); assert.equal(r.json.row.unit_wage, 45.83);
   r = await fin.post('/api/payroll/entries', { kind: 'assignment', employee_id: empId, entry_date: '2026-11-06', pay_month: '2026-11', type_id: 'as-outside', quantity: '2' });
   assert.equal(r.status, 201); assert.equal(r.json.row.amount, 800);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-05', pay_month: '2026-11', type_id: 'nope', quantity: '1' });
   assert.equal(r.status, 400);
   const rep = (await fin.get('/api/payroll/report?month=2026-11')).json;
-  assert.equal(rep.totals.overtime_amount, 150); assert.equal(rep.totals.assignment_amount, 800); assert.equal(rep.totals.salaries, 8000); assert.equal(rep.totals.total, 8950);
+  assert.equal(rep.totals.overtime_amount, 137.5); assert.equal(rep.totals.assignment_amount, 800); assert.equal(rep.totals.salaries, 8000); assert.equal(rep.totals.total, 8937.5);
   const x = await fin.get('/api/payroll/export?month=2026-11'); assert.equal(x.status, 200);
 });
 
@@ -82,7 +83,18 @@ test('الإعدادات تتحقق وتؤثر على الحساب', { skip }, a
   r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, overtime_types: [{ id: 'ot-workday', name: 'عادي', percent: 200 }] });
   assert.equal(r.status, 200);
   r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-07', pay_month: '2026-12', type_id: 'ot-workday', quantity: '3' });
-  assert.equal(r.json.row.amount, 202.5);   // الإجمالي 8100 (تلقائي) → 3 × 33.75 × 2
+  assert.equal(r.json.row.amount, 138.75);   // مركّب: الإجمالي 8100 (تلقائي) → 3 × (33.75 + 0.5 × 25)
+  // الطريقة القديمة (نسبة واحدة من الأساس) ما زالت متاحة
+  r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, overtime_method: 'single', overtime_types: [{ id: 'ot-workday', name: 'عادي', percent: 200 }] });
+  assert.equal(r.status, 200); assert.equal(r.json.settings.overtime_method, 'single');
+  r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-07', pay_month: '2026-12', type_id: 'ot-workday', quantity: '3' });
+  assert.equal(r.json.row.amount, 202.5); assert.equal(r.json.row.breakdown, null);   // 3 × 33.75 × 200%
+  // نسب مخصصة لكل نوع في الطريقة المركّبة
+  r = await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, overtime_method: 'split', overtime_types: [{ id: 'ot-workday', name: 'عادي', percent: 150, gross_percent: 100, basic_percent: 100 }] });
+  assert.equal(r.status, 200);
+  r = await fin.post('/api/payroll/entries', { kind: 'overtime', employee_id: empId, entry_date: '2026-11-08', pay_month: '2026-12', type_id: 'ot-workday', quantity: '2' });
+  assert.equal(r.json.row.amount, 117.5);   // 2 × (33.75 + 25)
+  assert.equal((await fin.put('/api/payroll/settings', { ...DEFAULT_SETTINGS, overtime_types: [{ id: 'a1', name: 'س', percent: 100, gross_percent: 5000, basic_percent: 50 }] })).status, 400);
 });
 
 test('استيراد الإضافي من Excel: معاينة واعتماد وحماية من التكرار', { skip }, async () => {
@@ -96,7 +108,7 @@ test('استيراد الإضافي من Excel: معاينة واعتماد وح
   assert.equal((await plain.post('/api/payroll/entries/import?kind=overtime&mode=preview', fd())).status, 403);
   const pv = await fin.post('/api/payroll/entries/import?kind=overtime&mode=preview&month=2026-11', fd());
   assert.equal(pv.status, 200); assert.equal(pv.json.total, 3); assert.equal(pv.json.valid, 2); assert.equal(pv.json.invalid, 1);
-  assert.equal(pv.json.rows[0].amount, 135);            // 8100/240 × 2 × 200%
+  assert.equal(pv.json.rows[0].amount, 117.5);          // مركّب بنسب النوع المخصصة في الاختبار السابق: 2 × (33.75 + 25)
   assert.equal(pv.json.rows[0].pay_month, '2026-11');   // من الشهر المختار
   assert.equal(pv.json.rows[2].pay_month, '2026-12');
   assert.match(pv.json.rows[1].errors[0], /غير موجود في الإعدادات/);
@@ -104,7 +116,7 @@ test('استيراد الإضافي من Excel: معاينة واعتماد وح
   const ok = await fin.post('/api/payroll/entries/import?kind=overtime&mode=commit&month=2026-11&skip_invalid=1', fd());
   assert.equal(ok.status, 200); assert.equal(ok.json.applied, 2);
   const list = (await fin.get('/api/payroll/entries?kind=overtime&month=2026-11')).json;
-  assert.ok(list.rows.some(x => x.amount === 135 && x.entry_date.startsWith('2026-11-10')));
+  assert.ok(list.rows.some(x => x.amount === 117.5 && x.entry_date.startsWith('2026-11-10')));
   const again = await fin.post('/api/payroll/entries/import?kind=overtime&mode=preview&month=2026-11', fd());
   assert.equal(again.json.valid, 0);                    // التكرار مرفوض
   assert.equal((await fin.get('/api/payroll/entries/template?kind=assignment')).status, 200);

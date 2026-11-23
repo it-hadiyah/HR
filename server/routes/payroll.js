@@ -10,7 +10,7 @@ import { requireGrant, hasGrant } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
 import { normalizeName } from '../lib/text.js';
 import { unitPaths } from './tracking.js';
-import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows, withAllowances, basicFromGross, findRate, assignmentByRate, normTitle } from '../../public/payroll/calc.js';
+import { DEFAULT_SETTINGS, round2, grossOf, baseOf, entryAmount, groupRows, withAllowances, basicFromGross, findRate, assignmentByRate, normTitle, overtimeIsSplit, overtimeAmount } from '../../public/payroll/calc.js';
 
 const r = Router();
 const G = action => requireGrant('payroll', action);
@@ -42,7 +42,7 @@ function cleanRates(list) {
     return { title, living: money(t.living, `أجر المعيشة (${title})`, { max: 100000 }), assignment: money(t.assignment, `أجر الانتداب (${title})`, { max: 100000 }), transport: money(t.transport, `أجر النقل (${title})`, { max: 100000 }) };
   });
 }
-function cleanTypes(list, label) {
+function cleanTypes(list, label, { split = false } = {}) {
   if (!Array.isArray(list) || !list.length) throw httpError(400, `أضف نوعاً واحداً على الأقل: ${label}`);
   if (list.length > 20) throw httpError(400, `الحد الأقصى 20 نوعاً: ${label}`);
   const seen = new Set();
@@ -54,7 +54,13 @@ function cleanTypes(list, label) {
     let id = /^[a-z0-9-]{3,40}$/.test(String(t?.id || '')) ? t.id : 'tp-' + crypto.randomBytes(4).toString('hex');
     if (seen.has(id)) id = 'tp-' + crypto.randomBytes(4).toString('hex');
     seen.add(id);
-    return { id, name, percent: round2(percent) };
+    const out = { id, name, percent: round2(percent) };
+    if (split || t?.gross_percent !== undefined || t?.basic_percent !== undefined) {   // إضافي مركّب: نسبة من الإجمالي + نسبة من الأساسي
+      const gp = t?.gross_percent === undefined || t?.gross_percent === '' ? 100 : Number(t.gross_percent), bp = t?.basic_percent === undefined || t?.basic_percent === '' ? 50 : Number(t.basic_percent);
+      if (![gp, bp].every(v => Number.isFinite(v) && v >= 0 && v <= 1000)) throw httpError(400, `نسب الإضافي المركّب غير صالحة للنوع «${name}» (0 إلى 1000)`);
+      out.gross_percent = round2(gp); out.basic_percent = round2(bp);
+    }
+    return out;
   });
 }
 function cleanSettings(b) {
@@ -67,7 +73,7 @@ function cleanSettings(b) {
   if (!(tp >= 0 && tp <= 100)) throw httpError(400, 'نسبة بدل النقل بين 0 و100');
   const rates = cleanRates(b.assignment_rates);
   return { assignment_rates: rates, salary_basis: b.salary_basis === 'basic' ? 'basic' : 'gross', allowances_auto: b.allowances_auto !== false && b.allowances_auto !== 'false', housing_percent: hp, transport_percent: tp, days_per_month: days, hours_per_day: hours, overtime_monthly_cap_hours: cap,
-    overtime_types: cleanTypes(b.overtime_types, 'الإضافي'), assignment_types: cleanTypes(b.assignment_types, 'الانتداب') };
+    overtime_method: b.overtime_method === 'single' ? 'single' : 'split', overtime_types: cleanTypes(b.overtime_types, 'الإضافي', { split: b.overtime_method !== 'single' }), assignment_types: cleanTypes(b.assignment_types, 'الانتداب') };
 }
 
 r.get('/meta', G('access'), wrap(async (req, res) => {
@@ -271,6 +277,13 @@ async function computeEntry(kind, b, st) {
     if (rate) { const a = assignmentByRate(qty, rate); return { ...common, percent: 100, base: a.unit_wage, unit_wage: a.unit_wage, fixed: a.fixed, amount: a.amount, breakdown: { title: rate.title, grade: rate.title, living: rate.living, assignment: rate.assignment, transport: rate.transport } }; }
   }
   const sal = (await staffRows({ status: 'all', ids: [emp.id] }))[0];
+  if (kind === 'overtime' && overtimeIsSplit(st, type)) {   // ساعة من الإجمالي + نصف ساعة من الأساسي (حسب إعدادات النوع)
+    const gross = grossOf(sal);
+    if (!(gross > 0)) throw httpError(400, `لا يوجد راتب مسجّل لـ «${emp.full_name}» (أدخله من تبويب الرواتب)`);
+    const o = overtimeAmount(qty, sal, type, st);
+    return { ...common, percent: o.gross_percent, base: gross, unit_wage: o.unit_wage, fixed: 0, amount: o.amount,
+      breakdown: { method: 'split', gross_percent: o.gross_percent, basic_percent: o.basic_percent, gross_hourly: o.gross_hourly, basic_hourly: o.basic_hourly } };
+  }
   const base = baseOf(sal, st);
   if (!(base > 0)) throw httpError(400, `لا يوجد راتب مسجّل لـ «${emp.full_name}» (أدخله من تبويب الرواتب)`);
   const { unit_wage, amount } = entryAmount(kind, qty, percent, base, st);

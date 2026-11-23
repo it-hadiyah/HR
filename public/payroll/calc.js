@@ -11,11 +11,12 @@ export const DEFAULT_SETTINGS = {
   allowances_auto: true,            // السكن والنقل تُحسب تلقائياً من الأساسي بالنسب أدناه
   housing_percent: 25,
   transport_percent: 10,
+  overtime_method: 'split',          // split: ساعة من الإجمالي + نصف ساعة من الأساسي (قابلة للتعديل) | single: نسبة واحدة من أساس الراتب
   overtime_monthly_cap_hours: 0,    // 0 = بلا حد (تنبيه فقط عند التجاوز)
   overtime_types: [
-    { id: 'ot-workday', name: 'إضافي أيام العمل', percent: 150 },
-    { id: 'ot-weekend', name: 'إضافي نهاية الأسبوع', percent: 150 },
-    { id: 'ot-holiday', name: 'إضافي العطل والمناسبات', percent: 200 },
+    { id: 'ot-workday', name: 'إضافي أيام العمل', percent: 150, gross_percent: 100, basic_percent: 50 },
+    { id: 'ot-weekend', name: 'إضافي نهاية الأسبوع', percent: 150, gross_percent: 100, basic_percent: 50 },
+    { id: 'ot-holiday', name: 'إضافي العطل والمناسبات', percent: 200, gross_percent: 100, basic_percent: 50 },
   ],
   assignment_rates: [],             // [{ title, living, assignment, transport }] حسب المسمى الوظيفي
   assignment_types: [
@@ -88,3 +89,12 @@ export function assignmentByRate(days, rate) {
   const fixed = round2(n(rate.transport));
   return { unit_wage: unit, fixed, amount: round2(n(days) * unit + fixed) };
 }
+
+/** الإضافي المركّب: لكل ساعة = (نسبة × الأجر الساعي من الإجمالي) + (نسبة × الأجر الساعي من الأساسي). الافتراضي: ساعة من الإجمالي + نصف ساعة من الأساسي */
+export const overtimeIsSplit = (st, t) => st?.overtime_method === 'split' && t && t.gross_percent !== undefined && t.basic_percent !== undefined;
+export function overtimeRate(emp, t, st) {
+  const gh = hourlyWage(grossOf(emp), st), bh = hourlyWage(n(emp?.basic), st);
+  return { gross_hourly: round2(gh), basic_hourly: round2(bh), gross_percent: n(t.gross_percent), basic_percent: n(t.basic_percent), unit_wage: round2(gh * n(t.gross_percent) / 100 + bh * n(t.basic_percent) / 100),
+    raw: gh * n(t.gross_percent) / 100 + bh * n(t.basic_percent) / 100 };
+}
+export const overtimeAmount = (hours, emp, t, st) => { const r = overtimeRate(emp, t, st); return { ...r, amount: round2(n(hours) * r.raw) }; };

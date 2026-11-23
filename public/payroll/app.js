@@ -1,6 +1,6 @@
 // الرواتب والإضافي: رواتب الموظفين وتجميعها، وإدخال الإضافي (ساعات) والانتدابات (أيام) بحساب تلقائي من نسب الإعدادات.
 import { dashboardView, parseShared } from '/payroll/dashboard.js';
-import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree, findRate, assignmentByRate } from '/payroll/calc.js';
+import { round2, grossOf, baseOf, dailyWage, hourlyWage, entryAmount, groupRows, buildTree, findRate, assignmentByRate, overtimeIsSplit, overtimeAmount } from '/payroll/calc.js';
 if (window.top !== window.self) document.documentElement.classList.add('embedded');   // داخل بوابة الموارد البشرية: يُخفى الشعار والعنوان المكرران
 
 // ---------- أدوات ----------
@@ -162,6 +162,17 @@ async function entriesView(kind) {
         h('div', { class: 'amount' }, h('span', null, 'المبلغ المستحق'), h('b', null, n0 > 0 ? sar(a.amount) + ' ر.س' : '—'))));
       addBtn.disabled = !(n0 > 0); return;
     }
+    const t0 = typeOf();
+    if (isOt && overtimeIsSplit(S.settings, t0)) {   // ساعة من الإجمالي + نصف ساعة من الأساسي
+      if (!(grossOf(emp) > 0)) { calcBox.replaceChildren(h('div', { class: 'missing' }, `لا يوجد راتب مسجّل لـ «${emp.full_name}». أدخله من تبويب الرواتب.`)); addBtn.disabled = true; return; }
+      const o = overtimeAmount(n0 > 0 ? n0 : 0, emp, t0, S.settings);
+      calcBox.replaceChildren(h('div', { class: 'calc' },
+        h('div', null, h('span', null, 'الأجر الساعي من الإجمالي'), h('b', null, sar(o.gross_hourly) + ' ر.س')), h('div', null, h('span', null, 'الأجر الساعي من الأساسي'), h('b', null, sar(o.basic_hourly) + ' ر.س')),
+        h('div', null, h('span', null, 'طريقة الاحتساب'), h('b', null, `${qty(o.gross_percent)}% إجمالي + ${qty(o.basic_percent)}% أساسي`)),
+        h('div', null, h('span', null, 'أجر ساعة الإضافي'), h('b', null, sar(o.unit_wage) + ' ر.س')), h('div', null, h('span', null, 'الساعات'), h('b', null, n0 > 0 ? qty(n0) : '—')),
+        h('div', { class: 'amount' }, h('span', null, 'المبلغ المستحق'), h('b', null, n0 > 0 ? sar(o.amount) + ' ر.س' : '—'))));
+      addBtn.disabled = !(n0 > 0); return;
+    }
     const base = baseOf(emp, S.settings), t = typeOf(), n = Number(normNum(qtyIn.value));
     if (!(base > 0)) { calcBox.replaceChildren(h('div', { class: 'missing' }, `لا يوجد راتب مسجّل لـ «${emp.full_name}». أدخله من تبويب الرواتب.`)); addBtn.disabled = true; return; }
     const unit = isOt ? hourlyWage(base, S.settings) : dailyWage(base, S.settings);
@@ -204,7 +215,7 @@ async function entriesView(kind) {
       h('div', { class: 'tbl-wrap' }, h('table', null,
         h('thead', null, h('tr', null, ['التاريخ', 'الموظف', 'النوع', labels.unit, 'النسبة', labels.wage, ...(isOt ? [] : ['أجر النقل']), 'المبلغ', 'ملاحظات', ''].map(x => h('th', null, x)))),
         h('tbody', null, list.rows.length ? list.rows.map(e => h('tr', null, h('td', { class: 'n' }, e.entry_date.slice(0, 10)), h('td', null, h('b', null, e.full_name), e.emp_no ? h('div', { class: 'hint' }, 'رقم ' + e.emp_no) : null), h('td', null, e.type_name),
-          h('td', { class: 'n' }, qty(e.quantity)), h('td', { class: 'n' }, e.percent + '%'), h('td', { class: 'n' }, sar(e.unit_wage)), ...(isOt ? [] : [h('td', { class: 'n' }, e.fixed_amount ? sar(e.fixed_amount) : '—')]), h('td', { class: 'n' }, h('b', null, sar(e.amount))), h('td', null, e.notes || ''),
+          h('td', { class: 'n' }, qty(e.quantity)), h('td', { class: 'n' }, e.breakdown?.method === 'split' ? `${qty(e.breakdown.gross_percent)}% إجمالي + ${qty(e.breakdown.basic_percent)}% أساسي` : e.percent + '%'), h('td', { class: 'n' }, sar(e.unit_wage)), ...(isOt ? [] : [h('td', { class: 'n' }, e.fixed_amount ? sar(e.fixed_amount) : '—')]), h('td', { class: 'n' }, h('b', null, sar(e.amount))), h('td', null, e.notes || ''),
           h('td', null, S.can.entries ? h('div', { class: 'row-acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => editEntry(e) }, 'تعديل'),
             h('button', { class: 'btn sm danger', type: 'button', onclick: () => confirmBox(`حذف بند ${e.full_name} (${sar(e.amount)} ر.س)؟`, async () => { await api('/entries/' + e.id, { method: 'DELETE' }); toast('تم الحذف'); await loadList(); }) }, 'حذف')) : null)))
           : [h('tr', null, h('td', { colspan: 10, class: 'hint' }, 'لا توجد بنود في هذا الشهر.'))]))));
@@ -295,25 +306,35 @@ async function settingsView() {
   const auto = h('input', { type: 'checkbox', checked: !!st.allowances_auto }), hp = num(st.housing_percent), tp = num(st.transport_percent);
   const days = num(st.days_per_month), hours = num(st.hours_per_day), cap = num(st.overtime_monthly_cap_hours);
   const calcIn = h('input', { type: 'text', inputmode: 'decimal', value: '8000', style: 'max-width:160px' }), calcOut = h('div', { class: 'formula' });
+  st.overtime_method = st.overtime_method || 'split';
+  const otMethod = h('select', { 'aria-label': 'طريقة احتساب الإضافي', onchange: e => { st.overtime_method = e.target.value; if (st.overtime_method === 'split') for (const t of st.overtime_types) { t.gross_percent ??= 100; t.basic_percent ??= 50; } otBox.redraw(); texts(); preview(); } },
+    [['split', 'مركّبة: نسبة من الإجمالي + نسبة من الأساسي'], ['single', 'نسبة واحدة من أساس الراتب']].map(([v, l]) => h('option', { value: v, selected: v === st.overtime_method }, l)));
   const typesBox = key => {
     const box = h('div', { class: 'types' });
-    const draw = () => box.replaceChildren(...st[key].map((t, i) => h('div', { class: 'trow' }, h('input', { type: 'text', value: t.name, placeholder: 'اسم النوع', oninput: e => { t.name = e.target.value; } }),
+    const split = () => key === 'overtime_types' && st.overtime_method === 'split';
+    const draw = () => box.replaceChildren(...(split() ? [h('div', { class: 'trow hd split' }, h('b', null, 'نوع الإضافي'), h('b', null, 'من الإجمالي %'), h('b', null, 'من الأساسي %'), h('span'))] : []), ...st[key].map((t, i) => split() ? h('div', { class: 'trow split' }, h('input', { type: 'text', value: t.name, placeholder: 'اسم النوع', oninput: e => { t.name = e.target.value; } }),
+      h('input', { type: 'text', inputmode: 'decimal', value: String(t.gross_percent ?? 100), 'aria-label': 'من الإجمالي %', oninput: e => { t.gross_percent = normNum(e.target.value); preview(); } }),
+      h('input', { type: 'text', inputmode: 'decimal', value: String(t.basic_percent ?? 50), 'aria-label': 'من الأساسي %', oninput: e => { t.basic_percent = normNum(e.target.value); preview(); } }),
+      h('button', { class: 'btn sm danger', type: 'button', onclick: () => { st[key].splice(i, 1); draw(); preview(); } }, '×')) : h('div', { class: 'trow' }, h('input', { type: 'text', value: t.name, placeholder: 'اسم النوع', oninput: e => { t.name = e.target.value; } }),
       h('input', { type: 'text', inputmode: 'decimal', value: String(t.percent), 'aria-label': 'النسبة %', oninput: e => { t.percent = normNum(e.target.value); preview(); } }), h('button', { class: 'btn sm danger', type: 'button', onclick: () => { st[key].splice(i, 1); draw(); preview(); } }, '×'))),
-    h('button', { class: 'btn sm', type: 'button', onclick: () => { st[key].push({ name: '', percent: 100 }); draw(); } }, '+ إضافة نوع'));
-    draw(); return box;
+    h('button', { class: 'btn sm', type: 'button', onclick: () => { st[key].push(key === 'overtime_types' ? { name: '', percent: 100, gross_percent: 100, basic_percent: 50 } : { name: '', percent: 100 }); draw(); } }, '+ إضافة نوع'));
+    draw(); box.redraw = draw; return box;
   };
   const collect = () => ({ assignment_rates: st.assignment_rates.map(r => ({ title: r.title, living: normNum(r.living), assignment: normNum(r.assignment), transport: normNum(r.transport) })), salary_basis: basis.value, allowances_auto: auto.checked, housing_percent: +normNum(hp.value) || 0, transport_percent: +normNum(tp.value) || 0, days_per_month: +normNum(days.value), hours_per_day: +normNum(hours.value), overtime_monthly_cap_hours: +normNum(cap.value) || 0,
-    overtime_types: st.overtime_types.map(t => ({ ...t, percent: +normNum(t.percent) })), assignment_types: st.assignment_types.map(t => ({ ...t, percent: +normNum(t.percent) })) });
+    overtime_method: otMethod.value, overtime_types: st.overtime_types.map(t => ({ ...t, percent: +normNum(t.percent), ...(otMethod.value === 'split' ? { gross_percent: +normNum(t.gross_percent ?? 100), basic_percent: +normNum(t.basic_percent ?? 50) } : {}) })), assignment_types: st.assignment_types.map(t => ({ ...t, percent: +normNum(t.percent) })) });
   function preview() {
     const c = collect(), s = +normNum(calcIn.value) || 0;
     if (!(c.days_per_month > 0 && c.hours_per_day > 0)) { calcOut.textContent = '—'; return; }
     const gs = c.allowances_auto ? s * (1 + (c.housing_percent + c.transport_percent) / 100) : s;
     const base = c.salary_basis === 'basic' ? s : gs, day = base / c.days_per_month, hr = day / c.hours_per_day;
     calcOut.replaceChildren(c.allowances_auto ? h('div', null, `أساسي ${sar(s)}: سكن ${sar(s * c.housing_percent / 100)} + نقل ${sar(s * c.transport_percent / 100)} = إجمالي ${sar(gs)} ر.س`) : null, h('div', null, `على أساس ${sar(base)} ر.س: الأجر اليومي ${sar(day)} · الأجر الساعي ${sar(hr)}`),
-      ...c.overtime_types.map(t => h('div', null, `• ${t.name || '—'}: ساعة إضافي واحدة = ${sar(hr * t.percent / 100)} ر.س`)), ...c.assignment_types.map(t => h('div', null, `• ${t.name || '—'}: يوم انتداب واحد = ${sar(day * t.percent / 100)} ر.س`)));
+      ...c.overtime_types.map(t => h('div', null, c.overtime_method === 'split' ? `• ${t.name || '—'}: ساعة إضافي واحدة = ${sar((gs / c.days_per_month / c.hours_per_day) * t.gross_percent / 100 + (s / c.days_per_month / c.hours_per_day) * t.basic_percent / 100)} ر.س (${t.gross_percent}% من الإجمالي + ${t.basic_percent}% من الأساسي)` : `• ${t.name || '—'}: ساعة إضافي واحدة = ${sar(hr * t.percent / 100)} ر.س`)), ...c.assignment_types.map(t => h('div', null, `• ${t.name || '—'}: يوم انتداب واحد = ${sar(day * t.percent / 100)} ر.س`)));
   }
   for (const el of [days, hours, cap, calcIn, basis, auto, hp, tp]) el.addEventListener('input', preview);
   const otBox = typesBox('overtime_types'), asBox = typesBox('assignment_types');
+  const otHint = h('p', { class: 'hint' });
+  const texts = () => { otHint.textContent = otMethod.value === 'split' ? 'لكل ساعة إضافي = (الأجر الساعي من الإجمالي × نسبة الإجمالي) + (الأجر الساعي من الأساسي × نسبة الأساسي). الافتراضي المعتمد: 100% من الإجمالي + 50% من الأساسي، أي ساعة من الإجمالي ونصف ساعة من الأساسي.' : 'مبلغ الإضافي = الساعات × الأجر الساعي × النسبة ÷ 100. مثال: 150 تعني ساعة ونصف الأجر الساعي.'; };
+  texts();
   st.assignment_rates = st.assignment_rates || [];
   const ratesBox = h('div', { class: 'types' });
   const drawRates = () => ratesBox.replaceChildren(
@@ -333,7 +354,7 @@ async function settingsView() {
     h('label', null, auto, ' احسبهما تلقائياً من الراتب الأساسي بالنسبة أدناه'),
     h('div', { class: 'form-2' }, h('div', null, h('label', { class: 'f' }, 'بدل السكن (% من الأساسي)'), hp), h('div', null, h('label', { class: 'f' }, 'بدل النقل (% من الأساسي)'), tp)),
     h('p', { class: 'hint' }, 'عند التفعيل لا تُدخل البدلين يدوياً: يُحسبان من الأساسي لكل موظف، ويظهران في الرواتب والتقارير. غير المفعّل يعيد الإدخال اليدوي.')),
-  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الإضافي (من الأجر الساعي)'), h('p', { class: 'hint' }, 'مبلغ الإضافي = الساعات × الأجر الساعي × النسبة ÷ 100. مثال: 150 تعني ساعة ونصف الأجر الساعي.'), otBox),
+  h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'احتساب الإضافي'), h('label', { class: 'f' }, 'طريقة الاحتساب'), otMethod, otHint, otBox),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'نسب الانتداب (من الأجر اليومي)'), h('p', { class: 'hint' }, 'مبلغ الانتداب = الأيام × الأجر اليومي × النسبة ÷ 100.'), asBox),
   h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'أجور الانتداب حسب مسمى الانتداب'),
     h('p', { class: 'hint' }, 'عرّف مسميات الانتداب (مثل: مدير إدارة، رئيس قسم، موظف) ثم أسنِد لكل موظف مسمى انتداب من جدول الرواتب، وقد يختلف عن مسماه الوظيفي. لكل مسمى: أجر المعيشة اليومي وأجر الانتداب اليومي، وأجر النقل مبلغ ثابت يُضاف مرة واحدة لكل انتداب ولا يتغير بعدد الأيام. مبلغ الانتداب = الأيام × (المعيشة + الانتداب) + أجر النقل. الموظف المُسنَد له مسمى انتداب يُحسب انتدابه بهذه الأجور، وغيره يُحسب بنسب الانتداب أعلاه من الأجر اليومي.'), ratesBox),
