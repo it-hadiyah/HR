@@ -1,6 +1,7 @@
 // لوحة تحكم البوابة: بديل admin/api.ashx (كان يكتب ملفات JSON على IIS). نفس الإجراءات، لكن على قاعدة البيانات.
 // الإجراءات: whoami، save، backups، restore، list، upload
 import { Router } from 'express';
+import ExcelJS from 'exceljs';
 import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,7 +22,7 @@ const ok = (res, body = {}) => res.json({ ok: true, ...body });
 const fail = (res, status, error) => res.status(status).json({ ok: false, error });
 
 // الصلاحية المطلوبة لكل إجراء (portal-admin): الحفظ والاستعادة تعديل، والرفع إضافة
-const NEED = { save: 'update', restore: 'update', upload: 'create', backups: 'access', list: 'access', whoami: 'access' };
+const NEED = { save: 'update', restore: 'update', upload: 'create', backups: 'access', list: 'access', whoami: 'access', 'export-xlsx': 'access', 'parse-xlsx': 'access' };
 
 r.use(wrap(async (req, res, next) => {
   const action = String(req.query.action || '').toLowerCase();
@@ -57,7 +58,7 @@ const fileParam = req => {
 
 // تحليل JSON حتى 20 ميجابايت لعمليات الحفظ، وmulter لعملية الرفع
 const readBody = (req, res, next) => {
-  if (req.action === 'upload') return uploadMiddleware(req, res, next);
+  if (req.action === 'upload' || req.action === 'parse-xlsx') return uploadMiddleware(req, res, next);
   let size = 0; const chunks = [];
   req.on('data', d => { size += d.length; if (size > 20 * 1024 * 1024) req.destroy(); else chunks.push(d); });
   req.on('end', () => { try { req.body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { req.body = null; } next(); });
@@ -80,6 +81,8 @@ r.post('/', readBody, wrap(async (req, res) => {
     return ok(res, { file });
   }
   if (req.action === 'upload') return doUpload(req, res);
+  if (req.action === 'export-xlsx') return exportXlsx(req, res);
+  if (req.action === 'parse-xlsx') return parseXlsx(req, res);
   fail(res, 400, 'إجراء غير معروف.');
 }));
 
@@ -101,6 +104,69 @@ r.get('/', wrap(async (req, res) => {
   }
   fail(res, 400, 'إجراء غير معروف.');
 }));
+
+// ---------- Excel الموظفين: تصدير الصفوف الظاهرة في اللوحة (بما فيها غير المحفوظة) واستيراد ملف معدَّل ----------
+const EMP_COLS = [['extension', 'التحويلة', 12], ['name', 'الاسم', 30], ['job', 'المسمى الوظيفي', 30], ['email', 'البريد الإلكتروني', 32], ['unit', 'الوحدة التنظيمية', 46], ['role', 'الدور في الوحدة', 16]];
+const cellText = v => {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') { if (v.result !== undefined) return cellText(v.result); if (v.text) return String(v.text).trim(); if (v.richText) return v.richText.map(x => x.text).join('').trim(); if (v.hyperlink) return String(v.hyperlink).replace(/^mailto:/i, ''); return ''; }
+  return String(v).trim();
+};
+
+async function exportXlsx(req, res) {
+  const rows = Array.isArray(req.body?.rows) ? req.body.rows.slice(0, 5000) : null;
+  if (!rows) return fail(res, 400, 'لا توجد صفوف للتصدير.');
+  const units = Array.isArray(req.body?.units) ? req.body.units.map(String).slice(0, 2000) : [];
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('الموظفون', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  ws.columns = EMP_COLS.map(([key, header, width]) => ({ key, header, width }));
+  const head = ws.getRow(1); head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  head.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF054D45' } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+  for (const x of rows) ws.addRow({ extension: x.extension === '' || x.extension === null ? '' : Number(x.extension), name: String(x.name ?? ''), job: String(x.job ?? ''), email: String(x.email ?? ''), unit: String(x.unit ?? ''), role: String(x.role ?? 'عضو') });
+  const uws = wb.addWorksheet('الوحدات', { views: [{ rightToLeft: true }] });
+  uws.columns = [{ header: 'الوحدات التنظيمية المتاحة (انسخ النص كما هو)', key: 'u', width: 70 }];
+  uws.getRow(1).font = { bold: true };
+  units.forEach(u => uws.addRow({ u }));
+  const last = Math.max(rows.length + 200, 400);
+  for (let r = 2; r <= last; r++) {
+    ws.getCell(`F${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"عضو,رئيس"'] };
+    if (units.length) ws.getCell(`E${r}`).dataValidation = { type: 'list', allowBlank: true, formulae: [`الوحدات!$A$2:$A$${units.length + 1}`], showErrorMessage: false };
+  }
+  const guide = wb.addWorksheet('تعليمات', { views: [{ rightToLeft: true }] });
+  guide.columns = [{ key: 'a', width: 110 }];
+  for (const t of ['طريقة التعديل ثم الرفع:', '١) عدّل الصفوف أو أضف صفوفاً جديدة في ورقة «الموظفون» (لا تغيّر عناوين الأعمدة).',
+    '٢) التحويلة رقم فريد لكل موظف: إن وُجدت في النظام تُحدَّث بياناته، وإن لم توجد يُضاف موظف جديد.',
+    '٣) الوحدة التنظيمية: اخترها من القائمة (أو انسخها من ورقة «الوحدات»)؛ اتركها فارغة لموظف بلا وحدة.', '٤) الدور: «عضو» أو «رئيس».',
+    '٥) ارفع الملف من لوحة التحكم ← الموظفون ← «استيراد Excel»؛ تُعرض معاينة قبل التطبيق ولا يُحفظ شيء حتى تضغط «حفظ التغييرات».',
+    'الصور واللجان لا تتغير بالاستيراد.']) guide.addRow({ a: t });
+  guide.getRow(1).font = { bold: true, size: 13 };
+  await audit(req, 'export', 'portal_file', 'employees-xlsx', null, { count: rows.length });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="employees.xlsx"');
+  await wb.xlsx.write(res); res.end();
+}
+
+async function parseXlsx(req, res) {
+  if (!req.file) return fail(res, 400, 'لم يُرفع ملف.');
+  const wb = new ExcelJS.Workbook();
+  try { if ((req.file.originalname || '').toLowerCase().endsWith('.csv')) await wb.csv.read((await import('node:stream')).Readable.from(req.file.buffer)); else await wb.xlsx.load(req.file.buffer); }
+  catch { return fail(res, 400, 'تعذّرت قراءة الملف؛ استخدم ملف Excel الذي صدّرته من اللوحة.'); }
+  const ws = wb.getWorksheet('الموظفون') || wb.worksheets[0];
+  if (!ws) return fail(res, 400, 'الملف فارغ.');
+  const labelToKey = new Map(EMP_COLS.map(([k, l]) => [l, k]));
+  const map = []; ws.getRow(1).eachCell((c, i) => { const k = labelToKey.get(cellText(c.value).replace(/\s+/g, ' ')); if (k) map[i] = k; });
+  if (!map.includes('extension') || !map.includes('name')) return fail(res, 400, 'أعمدة الملف لا تطابق النموذج (يلزم «التحويلة» و«الاسم»). صدّر الملف من اللوحة وعدّله.');
+  const out = [];
+  ws.eachRow((row, n) => {
+    if (n === 1) return;
+    const o = { row: n }; let any = false;
+    row.eachCell({ includeEmpty: false }, (c, i) => { const k = map[i]; if (k) { o[k] = cellText(c.value); if (o[k] !== '') any = true; } });
+    if (any) out.push(o);
+  });
+  if (!out.length) return fail(res, 400, 'لا توجد صفوف بيانات.');
+  if (out.length > 5000) return fail(res, 400, 'الحد الأقصى 5000 صف.');
+  ok(res, { rows: out, columns: [...new Set(map.filter(Boolean))] });
+}
 
 async function doUpload(req, res) {
   try {

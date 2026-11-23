@@ -47,6 +47,17 @@
           <div class="search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input type="search" id="q" placeholder="بحث..." aria-label="بحث"></div>
           <span class="muted" id="count" aria-live="polite"></span>
         </div>
+        <div class="bulkbar" id="bulkbar" hidden>
+          <button type="button" class="btn btn--ghost btn--sm" id="btnExport"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> تصدير Excel</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="btnImport"><i class="fa-solid fa-file-import" aria-hidden="true"></i> استيراد Excel</button>
+          <input type="file" id="importFile" accept=".xlsx,.csv" hidden>
+          <span class="bulk-sel" id="selGroup" hidden>
+            <span class="sel-info" id="selInfo"></span>
+            <button type="button" class="btn btn--ghost btn--sm" id="btnBulkEdit"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i> تعديل المحدد</button>
+            <button type="button" class="btn btn--danger btn--sm" id="btnBulkDelete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> حذف المحدد</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="btnClearSel">إلغاء التحديد</button>
+          </span>
+        </div>
 
         <div class="table-wrap"><table class="table" id="table"></table></div>
         <div class="empty" id="empty" hidden><i class="fa-solid fa-inbox" aria-hidden="true"></i><p>لا توجد عناصر.</p></div>
@@ -73,6 +84,13 @@
       <button type="submit" class="btn btn--primary" id="editorOk">تطبيق</button>
     </div>
   </form></dialog>
+
+  <dialog id="bulk" class="dlg"><div>
+    <h2 id="bulkTitle"></h2>
+    <div id="bulkBody"></div>
+    <p class="error" id="bulkError" role="alert" hidden></p>
+    <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn btn--ghost" id="bulkCancel">إلغاء</button><button type="button" class="btn btn--primary" id="bulkOk">تطبيق</button></div>
+  </div></dialog>
 
   <dialog id="history" class="dlg"><div>
     <h2>النسخ الاحتياطية</h2>

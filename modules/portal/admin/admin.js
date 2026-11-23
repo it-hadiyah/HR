@@ -14,6 +14,7 @@
   const saved = {};    // file name -> JSON text as last loaded/saved
   let current = "employees";
   let query = "";
+  const selected = new Set();   // مفاتيح صفوف الموظفين المحددة (للإجراءات الجماعية)
 
   // ---------- network ----------
   async function api(action, params = {}, options = {}) {
@@ -109,7 +110,7 @@
   const sections = {};
 
   sections.employees = {
-    title: "الموظفون", icon: "fa-users", files: [FILES.employees, FILES.org, FILES.committees, FILES.recognition],
+    bulk: true, title: "الموظفون", icon: "fa-users", files: [FILES.employees, FILES.org, FILES.committees, FILES.recognition],
     hint: "إضافة موظف أو تعديل بياناته. اختيار الوحدة التنظيمية يحدّث الهيكل التنظيمي تلقائيًا.",
     columns: ["", "التحويلة", "الاسم", "المسمى الوظيفي", "الوحدة التنظيمية"],
     rows() {
@@ -498,14 +499,138 @@
     $("#btnAdd").hidden = !!s.noAdd;
     $("#empty").hidden = rows.length > 0;
     $("#table").hidden = rows.length === 0;
-    $("#table").innerHTML = `<thead><tr>${s.columns.map(c => `<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((r, idx) => `
-      <tr data-key="${esc(r.key)}">${r.cells.map(c => `<td>${c}</td>`).join("")}
+    const bulk = !!s.bulk;
+    if (!bulk) selected.clear();
+    $("#bulkbar").hidden = !bulk;
+    $("#table").innerHTML = `<thead><tr>${bulk ? '<th class="sel"><input type="checkbox" id="selAll" aria-label="تحديد الكل"></th>' : ""}${s.columns.map(c => `<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((r, idx) => `
+      <tr data-key="${esc(r.key)}"${bulk && selected.has(String(r.key)) ? ' class="is-selected"' : ""}>${bulk ? `<td class="sel"><input type="checkbox" data-sel aria-label="تحديد"${selected.has(String(r.key)) ? " checked" : ""}></td>` : ""}${r.cells.map(c => `<td>${c}</td>`).join("")}
         <td class="actions">
           ${s.movable ? `<button type="button" class="icon-btn" data-act="up" ${canMove && idx > 0 ? "" : "disabled"} aria-label="أعلى"><i class="fa-solid fa-arrow-up"></i></button><button type="button" class="icon-btn" data-act="down" ${canMove && idx < rows.length - 1 ? "" : "disabled"} aria-label="أسفل"><i class="fa-solid fa-arrow-down"></i></button>` : ""}
           <button type="button" class="icon-btn" data-act="edit" aria-label="تعديل"><i class="fa-regular fa-pen-to-square"></i></button>
         </td></tr>`).join("")}</tbody>`;
     renderSide();
+    if (bulk) updateBulkbar(rows);
     $("#savebar").hidden = !anyDirty();
+  }
+
+  // ---------- تحديد جماعي + Excel (قسم الموظفين) ----------
+  function updateBulkbar(visibleRows) {
+    const n = selected.size;
+    $("#selGroup").hidden = n === 0;
+    $("#selInfo").textContent = `${n} محدد`;
+    const all = $("#selAll");
+    if (all) { const inView = visibleRows.filter(r => selected.has(String(r.key))).length; all.checked = visibleRows.length > 0 && inView === visibleRows.length; all.indeterminate = inView > 0 && inView < visibleRows.length; }
+  }
+  const empRowsFresh = () => sections.employees.rows();
+  const selectedRows = () => empRowsFresh().filter(r => selected.has(String(r.key)));
+
+  function bulkDialog(title, bodyHtml, okLabel, onOk, danger) {
+    $("#bulkTitle").textContent = title; $("#bulkBody").innerHTML = bodyHtml; $("#bulkError").hidden = true;
+    const ok = $("#bulkOk"); ok.textContent = okLabel; ok.className = `btn ${danger ? "btn--danger" : "btn--primary"}`;
+    ok.onclick = () => { try { onOk(); } catch (err) { $("#bulkError").textContent = err.message; $("#bulkError").hidden = false; } };
+    $("#bulkCancel").onclick = () => $("#bulk").close();
+    $("#bulk").showModal();
+  }
+
+  function bulkDelete() {
+    const rows = selectedRows();
+    if (!rows.length) return;
+    bulkDialog("حذف الموظفين المحددين", `<p>سيُحذف <b>${rows.length}</b> موظفاً نهائياً من الدليل والهيكل واللجان وموظف الشهر، وتبقى التغييرات غير محفوظة حتى تضغط «حفظ التغييرات».</p>
+      <div class="danger-note">${rows.slice(0, 8).map(r => esc(String(r.emp.Name).trim())).join("، ")}${rows.length > 8 ? ` و${rows.length - 8} آخرين…` : ""}</div>`, "حذف", () => {
+      const s = sections.employees;
+      [...rows].sort((a, b) => b.i - a.i).forEach(r => s.remove(r));   // من الأحدث فهرساً كي لا تتزحزح الفهارس
+      selected.clear(); $("#bulk").close(); render(); toast(`تم حذف ${rows.length} موظف (لم يُحفظ بعد)`);
+    }, true);
+  }
+
+  function bulkEdit() {
+    const rows = selectedRows();
+    if (!rows.length) return;
+    const units = allUnits();
+    bulkDialog(`تعديل ${rows.length} موظف`, `<p class="muted">اترك الحقل كما هو لعدم تغييره.</p><div class="bulk-grid">
+      <div><label for="bUnit">الوحدة التنظيمية</label><select id="bUnit"><option value="__keep__">— بدون تغيير —</option><option value="__none__">بدون وحدة (تظهر في «أخرى»)</option>${units.map(u => `<option value="${esc(u.id)}">${esc(u.path)}</option>`).join("")}</select></div>
+      <div><label for="bRole">الدور في الوحدة</label><select id="bRole"><option value="__keep__">— بدون تغيير —</option><option value="member">عضو</option></select></div>
+      <div><label for="bJob">المسمى الوظيفي</label><input type="text" id="bJob" placeholder="اتركه فارغاً لعدم التغيير"></div></div>`, "تطبيق على المحدد", () => {
+      const unit = $("#bUnit").value, role = $("#bRole").value, job = clean($("#bJob").value);
+      if (unit === "__keep__" && role === "__keep__" && !job) throw new Error("لم تغيّر أي حقل.");
+      const s = sections.employees; let n = 0;
+      rows.forEach(r0 => {
+        const row = empRowsFresh().find(x => String(x.emp.Extension) === String(r0.emp.Extension)); if (!row) return;
+        const place = row.place;
+        const v = { Name: String(row.emp.Name).trim(), JobName: job || row.emp.JobName, Extension: String(row.emp.Extension), email: row.emp.email || "", Photo: row.emp.Photo && row.emp.Photo !== NO_PHOTO ? row.emp.Photo : "",
+          unit: unit === "__keep__" ? (place ? place.unit.id : "") : unit === "__none__" ? "" : unit, role: role === "__keep__" ? (place ? place.role : "member") : role, committees: JSON.stringify(membershipsOf(row.emp.Extension)) };
+        s.commit(v, row); n++;
+      });
+      selected.clear(); $("#bulk").close(); render(); toast(`تم تعديل ${n} موظف (لم يُحفظ بعد)`);
+    });
+  }
+
+  async function exportEmployees() {
+    const rows = selected.size ? selectedRows() : empRowsFresh();
+    const payload = { rows: rows.map(r => ({ extension: r.emp.Extension, name: clean(r.emp.Name), job: r.emp.JobName || "", email: r.emp.email || "", unit: r.place ? r.place.unit.path : "", role: r.place && r.place.role === "head" ? "رئيس" : "عضو" })), units: allUnits().map(u => u.path) };
+    let res;
+    try { res = await fetch(`${API}?action=export-xlsx`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json; charset=utf-8", "X-Requested-With": "hadiyah-admin" }, body: JSON.stringify(payload) }); }
+    catch (err) { throw new Error("تعذر الاتصال بالخادم."); }
+    if (!res.ok) { let m = "فشل التصدير."; try { m = (await res.json()).error || m; } catch (e) { /* ignore */ } throw new Error(m); }
+    const blob = await res.blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `employees-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(`تم تصدير ${rows.length} موظف${selected.size ? " (المحددون)" : ""}`);
+  }
+
+  const normUnit = s => clean(s).replace(/[>\/\\‹»›]+/g, "›").replace(/\s*›\s*/g, " › ").replace(/\s+/g, " ");
+  async function importEmployees(file) {
+    const fd = new FormData(); fd.append("file", file);
+    let data;
+    try { const res = await fetch(`${API}?action=parse-xlsx`, { method: "POST", credentials: "same-origin", headers: { "X-Requested-With": "hadiyah-admin" }, body: fd }); data = await res.json(); }
+    catch (err) { throw new Error("تعذر الاتصال بالخادم."); }
+    if (!data.ok) throw new Error(data.error || "فشلت قراءة الملف.");
+    const s = sections.employees;
+    const units = allUnits(), byPath = new Map(units.map(u => [normUnit(u.path), u]));
+    const byTitle = new Map(); units.forEach(u => { const t = clean(u.node.title); byTitle.set(t, [...(byTitle.get(t) || []), u]); });
+    const hasUnitCol = data.columns.includes("unit"), hasRole = data.columns.includes("role");
+    const existing = new Map(raw[FILES.employees].map(e => [String(e.Extension), e]));
+    const seen = new Set(), plan = [], errors = [];
+    for (const r of data.rows) {
+      const err = msg => errors.push(`الصف ${r.row}: ${msg}`);
+      const ext = Number(String(r.extension || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+      if (!Number.isInteger(ext) || ext <= 0) { err("التحويلة غير صالحة"); continue; }
+      if (seen.has(ext)) { err(`التحويلة ${ext} مكررة في الملف`); continue; }
+      const old = existing.get(String(ext));
+      const name = clean(r.name) || (old ? clean(old.Name) : ""), job = clean(r.job) || (old ? old.JobName : ""), email = clean(r.email) || (old ? old.email : "");
+      if (!name) { err("الاسم مطلوب"); continue; }
+      if (!job) { err("المسمى الوظيفي مطلوب"); continue; }
+      if (!/^\S+@\S+\.\S+$/.test(email)) { err("البريد الإلكتروني غير صالح أو ناقص"); continue; }
+      let unit = old ? "__keep__" : "";
+      if (hasUnitCol) {
+        const t = clean(r.unit || "");
+        if (!t) unit = "";
+        else { const u = byPath.get(normUnit(t)) || (byTitle.get(t)?.length === 1 ? byTitle.get(t)[0] : null); if (!u) { err(`الوحدة «${t}» غير موجودة في الهيكل`); continue; } unit = u.id; }
+      }
+      const role = hasRole ? (clean(r.role) === "رئيس" ? "head" : "member") : "__keep__";
+      seen.add(ext); plan.push({ ext, old, name, job, email, unit, role, row: r.row });
+    }
+    const adds = plan.filter(p => !p.old).length, upd = plan.filter(p => p.old).length;
+    const missing = raw[FILES.employees].filter(e => !seen.has(Number(e.Extension)));
+    bulkDialog("استيراد الموظفين من Excel", `<div class="plan"><span class="ok">${adds} جديد</span><span class="ok">${upd} تحديث</span>${errors.length ? `<span class="warn">${errors.length} به أخطاء (يُتجاهل)</span>` : ""}</div>
+      ${errors.length ? `<div class="plan-errs">${errors.slice(0, 60).map(esc).join("<br>")}${errors.length > 60 ? `<br>… و${errors.length - 60} أخرى` : ""}</div>` : ""}
+      <p class="muted">لا يُحفظ شيء حتى تضغط «حفظ التغييرات»، ويمكنك «تجاهل» للتراجع.</p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" id="impSync"${missing.length ? "" : " disabled"}> <span>حذف الموظفين غير الموجودين في الملف (${missing.length} موظف) — مزامنة كاملة</span></label>`,
+      plan.length ? "تطبيق الاستيراد" : "إغلاق", () => {
+      if (!plan.length) { $("#bulk").close(); return; }
+      const sync = $("#impSync").checked && missing.length;
+      let applied = 0;
+      for (const p of plan) {
+        const row = p.old ? empRowsFresh().find(x => String(x.emp.Extension) === String(p.ext)) : null;
+        const place = row ? row.place : null;
+        const v = { Name: p.name, JobName: p.job, Extension: String(p.ext), email: p.email, Photo: row && row.emp.Photo && row.emp.Photo !== NO_PHOTO ? row.emp.Photo : "",
+          unit: p.unit === "__keep__" ? (place ? place.unit.id : "") : p.unit, role: p.role === "__keep__" ? (place ? place.role : "member") : p.role, committees: JSON.stringify(row ? membershipsOf(p.ext) : []) };
+        try { s.commit(v, row); applied++; } catch (err) { errors.push(`الصف ${p.row}: ${err.message}`); }
+      }
+      if (sync) [...empRowsFresh().filter(r => !seen.has(Number(r.emp.Extension)))].sort((a, b) => b.i - a.i).forEach(r => s.remove(r));
+      selected.clear(); $("#bulk").close(); render();
+      toast(`تم تجهيز ${applied} موظف${sync ? ` وحذف ${missing.length}` : ""} — اضغط «حفظ التغييرات»`, errors.length > 0 && applied === 0);
+    });
   }
 
   // ---------- editor dialog ----------
@@ -567,6 +692,7 @@
     $("#editorDelete").onclick = () => {
       if (!confirm(s.confirmText(row))) return;
       s.remove(row);
+      selected.clear();
       dlg.close();
       render();
     };
@@ -660,6 +786,7 @@
   async function discard() {
     if (!confirm("تجاهل كل التغييرات غير المحفوظة؟")) return;
     await Promise.all(Object.values(FILES).map(loadFile));
+    selected.clear();
     render();
   }
 
@@ -704,12 +831,31 @@
       const button = e.target.closest("[data-section]");
       if (!button) return;
       current = button.dataset.section;
+      selected.clear();
       query = "";
       $("#q").value = "";
       render();
     });
     $("#q").addEventListener("input", e => { query = e.target.value; render(); });
     $("#btnAdd").addEventListener("click", () => openEditor(null));
+    $("#table").addEventListener("change", e => {
+      if (e.target.id === "selAll") {
+        const s = sections[current], term = query.trim().toLowerCase();
+        s.rows().filter(r => !term || r.text.toLowerCase().includes(term)).forEach(r => (e.target.checked ? selected.add(String(r.key)) : selected.delete(String(r.key))));
+        render(); return;
+      }
+      const cb = e.target.closest("[data-sel]");
+      if (!cb) return;
+      const key = cb.closest("tr").dataset.key;
+      if (cb.checked) selected.add(key); else selected.delete(key);
+      render();
+    });
+    $("#btnBulkDelete").addEventListener("click", bulkDelete);
+    $("#btnBulkEdit").addEventListener("click", bulkEdit);
+    $("#btnClearSel").addEventListener("click", () => { selected.clear(); render(); });
+    $("#btnExport").addEventListener("click", () => exportEmployees().catch(err => toast(err.message, true)));
+    $("#btnImport").addEventListener("click", () => $("#importFile").click());
+    $("#importFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) importEmployees(f).catch(err => toast(err.message, true)); });
     $("#table").addEventListener("click", e => {
       const act = e.target.closest("[data-act]");
       if (!act) return;
