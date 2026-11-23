@@ -486,7 +486,7 @@
   const isInside = (node, ancestor) => node === ancestor || (ancestor.children || []).some(c => isInside(node, c));
 
   sections.org = {
-    title: "الهيكل التنظيمي", icon: "fa-diagram-project", files: [FILES.org, FILES.employees],
+    bulk: true, title: "الهيكل التنظيمي", icon: "fa-diagram-project", files: [FILES.org, FILES.employees],
     hint: "ابنِ الهيكل بنفسك: أضف القطاعات ثم الإدارات والأقسام تحتها. بعد الحفظ اضغط «المسميات» على أي وحدة لإضافة مسمياتها الوظيفية، ثم أسكن الموظفين عليها من صفحة الموظفين.",
     columns: ["الوحدة", "المستوى", "الوحدة الأعلى", "وحدات فرعية", "موظفون", "المسميات الوظيفية"],
     posAct: true, movable: true,
@@ -623,6 +623,7 @@
     const bulk = !!s.bulk;
     if (!bulk) selected.clear();
     $("#bulkbar").hidden = !bulk;
+    ["#btnExport", "#btnImport", "#btnBulkEdit"].forEach(id => { $(id).hidden = current !== "employees"; });
     $("#table").innerHTML = `<thead><tr>${bulk ? '<th class="sel"><input type="checkbox" id="selAll" aria-label="تحديد الكل"></th>' : ""}${s.columns.map(c => `<th>${c}</th>`).join("")}<th></th></tr></thead><tbody>${rows.map((r, idx) => `
       <tr data-key="${esc(r.key)}"${bulk && selected.has(String(r.key)) ? ' class="is-selected"' : ""}>${bulk ? `<td class="sel"><input type="checkbox" data-sel aria-label="تحديد"${selected.has(String(r.key)) ? " checked" : ""}></td>` : ""}${r.cells.map(c => `<td>${c}</td>`).join("")}
         <td class="actions">
@@ -644,7 +645,7 @@
     if (all) { const inView = visibleRows.filter(r => selected.has(String(r.key))).length; all.checked = visibleRows.length > 0 && inView === visibleRows.length; all.indeterminate = inView > 0 && inView < visibleRows.length; }
   }
   const empRowsFresh = () => sections.employees.rows();
-  const selectedRows = () => empRowsFresh().filter(r => selected.has(String(r.key)));
+  const selectedRows = () => (current === "org" ? sections.org : sections.employees).rows().filter(r => selected.has(String(r.key)));
 
   function bulkDialog(title, bodyHtml, okLabel, onOk, danger) {
     $("#bulkTitle").textContent = title; $("#bulkBody").innerHTML = bodyHtml; $("#bulkError").hidden = true;
@@ -654,7 +655,26 @@
     $("#bulk").showModal();
   }
 
+  // حذف جماعي للوحدات التنظيمية: تُحذف الوحدة المحددة مع كل وحداتها الفرعية، ويُفصل موظفوها عنها عند الحفظ
+  function bulkDeleteUnits() {
+    const rows = selectedRows();
+    if (!rows.length) return;
+    const chosen = new Set(rows.map(r => r.r.node));
+    const top = rows.filter(r => { for (let p = r.r.parent; p; p = orgFlat().find(x => x.node === p)?.parent) if (chosen.has(p)) return false; return true; });
+    let units = 0, staff = 0;
+    const count = node => { units++; staff += countStaff(node); (node.children || []).forEach(count); };
+    top.forEach(r => count(r.r.node));
+    bulkDialog("حذف الوحدات المحددة", `<p>سيُحذف <b>${top.length}</b> وحدة${units > top.length ? ` مع وحداتها الفرعية (المجموع <b>${units}</b> وحدة)` : ""}، ويُفصل <b>${staff}</b> موظف عن وحداتهم. لا يُحذف الموظفون أنفسهم، وتبقى التغييرات غير محفوظة حتى تضغط «حفظ التغييرات».</p>
+      <div class="danger-note">${top.slice(0, 8).map(r => esc(r.r.node.title)).join("، ")}${top.length > 8 ? ` و${top.length - 8} أخرى…` : ""}</div>`, "حذف", () => {
+      const nodes = top.map(r => r.r.node);
+      for (const n of nodes) { const f = orgFlat().find(x => x.node === n); if (f) f.list.splice(f.list.indexOf(n), 1); }
+      for (const x of orgFlat()) if (x.node.children && !x.node.children.length) delete x.node.children;
+      selected.clear(); $("#bulk").close(); render(); toast(`تم حذف ${units} وحدة (لم يُحفظ بعد)`);
+    }, true);
+  }
+
   function bulkDelete() {
+    if (current === "org") return bulkDeleteUnits();
     const rows = selectedRows();
     if (!rows.length) return;
     bulkDialog("حذف الموظفين المحددين", `<p>سيُحذف <b>${rows.length}</b> موظفاً نهائياً من الدليل والهيكل واللجان وموظف الشهر، وتبقى التغييرات غير محفوظة حتى تضغط «حفظ التغييرات».</p>
