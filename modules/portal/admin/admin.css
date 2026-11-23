@@ -118,3 +118,7 @@ tr.is-selected td{background:#eef8f6}
 .plan{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0} .plan span{border-radius:99px;padding:2px 12px;background:#eef0f0;font-weight:700} .plan .ok{background:#e4f6ec;color:#0a7a4a} .plan .warn{background:#fdecec;color:#b3261e}
 .plan-errs{max-height:200px;overflow:auto;border:1px solid #f1c3c0;border-radius:10px;padding:6px 12px;background:#fff7f6;font-size:.88rem;margin:8px 0}
 .danger-note{background:#fdecec;border:1px solid #f1c3c0;border-radius:10px;padding:8px 12px;margin-top:8px;color:#b3261e}
+
+/* شريط الحفظ لا يختبئ خلف زر «المنصة» وجرس التنبيهات العائمين (أسفل اليسار) */
+.savebar { padding-left: 240px; }
+@media (max-width: 640px) { .savebar { padding-left: 24px; padding-bottom: 70px; flex-wrap: wrap; } }
