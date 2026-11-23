@@ -152,3 +152,13 @@ td{vertical-align:middle} td:nth-child(4){white-space:nowrap}
 .star{border:0;background:none;font-size:2.3rem;line-height:1;color:#d3dcdb;cursor:pointer;padding:0 2px;transition:transform .1s,color .1s}
 .star:hover{transform:scale(1.12)} .star.on{color:#e3a600} .star:focus-visible{outline:2px solid var(--teal-d);outline-offset:2px;border-radius:6px}
 .star-hint{min-height:1.4em;font-size:.84rem;color:var(--muted);margin-top:2px}
+
+/* طلبات السلف */
+.steps{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.step{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:3px 12px;font-size:.84rem;color:var(--muted);background:#fff}
+.step b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#eef0f0;font-size:.74rem}
+.step.approved{border-color:#bfe3cf;color:var(--ok)} .step.approved b{background:#e4f6ec} .step.rejected{border-color:#f1c3c0;color:var(--bad)} .step.rejected b{background:#fdecec}
+.step.pending{border-color:#efe2c4;color:#7a5a00} .step.pending b{background:#fbf0d8}
+.card.loan{margin-bottom:10px}
+.kv{display:flex;gap:8px;justify-content:space-between;border-bottom:1px dotted var(--line);padding:3px 0;font-size:.9rem} .kv span{color:var(--muted)} .kv b{text-align:end}
+.ackrow{display:flex;gap:8px;align-items:flex-start;margin-top:12px;background:#fbf7ee;border:1px solid #efe2c4;border-radius:12px;padding:10px 12px;font-size:.9rem;cursor:pointer} .ackrow input{margin-top:5px}

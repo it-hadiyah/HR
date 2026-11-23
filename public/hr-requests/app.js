@@ -23,6 +23,7 @@ async function api(path, { method = 'GET', body } = {}) {
 }
 const toast = (msg, bad) => { const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg); document.getElementById('toasts').append(t); setTimeout(() => t.remove(), bad ? 6000 : 3500); };
 const guard = fn => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
+import { createLoans } from '/hr-requests/loans.js';
 const view = document.getElementById('view');
 const S = { meta: null, tab: 'mine', type: null, filter: { status: 'pending', type: '', q: '' } };
 const STATUS = { pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض', cancelled: 'ملغى' };
@@ -40,6 +41,7 @@ function modal(title, content, footBtns = []) {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 const confirmBox = (msg, onYes) => modal('تأكيد', h('p', null, msg), [h('button', { class: 'btn danger', type: 'button', onclick: guard(async () => { closeModal(); await onYes(); }) }, 'تأكيد')]);
+let loans = null;   // يُهيَّأ بعد تعريف الأدوات (modal وغيرها)
 const openDoc = x => window.open(`/hr-requests/doc.html?id=${x.id}`, '_blank', 'noopener');
 const starsText = n => (n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—');
 
@@ -73,14 +75,16 @@ function ratingDialog(x, onDone) {
 // ---------- طلباتي ----------
 async function mineView() {
   const me = S.meta.me;
-  const listBox = h('div'), formBox = h('div');
+  const listBox = h('div'), formBox = h('div'), loanBox = h('div');
+  loanBox.refresh = async () => { loanBox.replaceChildren(await loans.mineSection()); };
   const field = (label, el, hint) => h('div', null, h('label', { class: 'f' }, label), el, hint ? h('div', { class: 'hint' }, hint) : null);
   function drawForm() {
     if (!me) { formBox.replaceChildren(h('div', { class: 'note' }, 'حسابك غير مرتبط بسجل موظف، فلا يمكن رفع طلب. تواصل مع الموارد البشرية لربط حسابك برقمك الوظيفي.')); return; }
-    const opts = h('div', { class: 'opts' }, S.meta.types.map(t => h('button', { type: 'button', class: 'opt' + (S.type === t.id ? ' on' : ''), onclick: () => { S.type = t.id; drawForm(); } },
-      h('b', null, t.title), h('span', null, t.id === 'certificate' ? 'تعريف بك وبراتبك موجّه لجهة تحددها (مثل قسم المساعدات).' : 'تعهد للبنك بتحويل راتبك إلى حسابك ليتم تثبيته.'))));
+    const opts = h('div', { class: 'opts' }, [...S.meta.types, { id: 'loan', title: 'طلب سلفة' }].map(t => h('button', { type: 'button', class: 'opt' + (S.type === t.id ? ' on' : ''), onclick: () => { S.type = t.id; drawForm(); } },
+      h('b', null, t.title), h('span', null, t.id === 'loan' ? 'سلفة بكفيل من زملائك: يعتمدها الكفيل ثم الموارد البشرية، وتتابع حالتها هنا.' : t.id === 'certificate' ? 'تعريف بك وبراتبك موجّه لجهة تحددها (مثل قسم المساعدات).' : 'تعهد للبنك بتحويل راتبك إلى حسابك ليتم تثبيته.'))));
     let body = null;
-    if (S.type) {
+    if (S.type === 'loan') body = loans.newLoanForm(async () => { S.type = null; drawForm(); await loanBox.refresh(); });
+    else if (S.type) {
       const notes = h('textarea', { rows: 2, placeholder: 'ملاحظات للموارد البشرية (اختياري)', maxlength: 300 });
       let a, b;
       if (S.type === 'certificate') { a = h('input', { type: 'text', value: 'قسم المساعدات', maxlength: 120 }); }
@@ -109,7 +113,7 @@ async function mineView() {
           x.status === 'pending' ? h('button', { class: 'btn sm danger', type: 'button', onclick: () => confirmBox(`إلغاء الطلب ${x.ref_no}؟`, async () => { await api(`/${x.id}/cancel`, { method: 'POST' }); toast('أُلغي الطلب'); await loadList(); }) }, 'إلغاء') : null)))))))
       : h('div', { class: 'empty' }, 'لا توجد طلبات بعد.'));
   });
-  view.replaceChildren(formBox, listBox); drawForm(); await loadList();
+  view.replaceChildren(formBox, listBox, loanBox); drawForm(); await loadList(); await loanBox.refresh();
 }
 
 // ---------- الطلبات الواردة (الموارد البشرية) ----------
@@ -158,13 +162,17 @@ async function reviewDialog(x, onDone) {
 }
 
 // ---------- التشغيل ----------
-const TABS = () => [['mine', 'طلباتي', true], ['inbox', S.meta?.pending ? `الطلبات الواردة (${S.meta.pending})` : 'الطلبات الواردة', S.meta?.can.review]].filter(t => t[2]);
+const TABS = () => [['mine', 'طلباتي', true],
+  ['guarantee', S.meta?.loans?.guarantee_pending ? `طلبات الكفالة (${S.meta.loans.guarantee_pending})` : 'طلبات الكفالة', S.meta?.loans?.guarantee_total > 0],
+  ['inbox', S.meta?.pending ? `الطلبات الواردة (${S.meta.pending})` : 'الطلبات الواردة', S.meta?.can.review],
+  ['loans', S.meta?.loans?.pending_hr ? `السلف الواردة (${S.meta.loans.pending_hr})` : 'السلف الواردة', S.meta?.can.review]].filter(t => t[2]);
 async function show(tab) {
   S.tab = tab; history.replaceState(null, '', '#' + tab);
   document.getElementById('tabs').replaceChildren(...TABS().map(([k, l]) => h('button', { class: 'tab' + (k === tab ? ' on' : ''), type: 'button', onclick: () => show(k) }, l)));
   view.replaceChildren(h('div', { class: 'loading' }, 'جارٍ التحميل…'));
-  try { await ({ mine: mineView, inbox: inboxView }[tab])(); } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
+  try { await ({ mine: mineView, inbox: inboxView, guarantee: () => loans.guaranteeView(), loans: () => loans.inboxView() }[tab])(); } catch (e) { view.replaceChildren(h('div', { class: 'card' }, e.message)); }
 }
+loans = createLoans({ h, api, toast, guard, modal, closeModal, confirmBox, fmt, view, S });
 try {
   S.meta = await api('/meta');
   const want = location.hash.slice(1);

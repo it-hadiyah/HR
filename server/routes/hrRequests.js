@@ -14,6 +14,7 @@ import { httpError, isDate } from '../lib/util.js';
 import { renderTemplate, buildVars, defaultValues, missingRequired } from '../../public/hr-forms/engine.js';
 import { staffRows } from './payroll.js';
 import { renderDocumentHtml } from '../lib/hrDocument.js';
+import loansRouter from './hrLoans.js';
 
 const r = Router();
 r.param('id', (req, res, next, v) => (/^\d+$/.test(v) ? next() : next('route')));   // Express 5: بلا تعبير نمطي داخل المسار
@@ -64,6 +65,7 @@ async function stampState() {
   const a = (await q("SELECT mime, data, updated_at FROM hr_form_assets WHERE key = 'stamp'")).rows[0];
   return { enabled: en ? en.value !== false : true, mime: a?.mime || 'image/png', data: a?.data || fs.readFileSync(path.join(IMG, 'stamp.png')), version: a ? new Date(a.updated_at).getTime() : 0 };
 }
+r.use('/loans', loansRouter);   // طلبات السلف: مسارات منفصلة بخصوصية خاصة (انظر hrLoans.js)
 r.get('/stamp', wrap(async (req, res) => {
   const s = await stampState();
   res.set({ 'Content-Type': s.mime, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600', 'Content-Security-Policy': "default-src 'none'; sandbox" });
@@ -76,7 +78,9 @@ r.get('/meta', wrap(async (req, res) => {
   const staff = await myStaff(req.user);
   const st = await stampState();
   const counts = isReviewer(req.user) ? (await q("SELECT count(*)::int AS n FROM hr_requests WHERE status = 'pending'")).rows[0].n : 0;
-  res.json({ can: { review: isReviewer(req.user) }, types: Object.entries(TYPES).map(([id, t]) => ({ id, title: t.title })), pdf: chromeAvailable(), pending: counts, stamp: { enabled: st.enabled, version: st.version },
+  const gc = (await q("SELECT count(*)::int AS total, count(*) FILTER (WHERE status = 'pending_guarantor')::int AS pending FROM hr_loans WHERE guarantor_user_id = $1", [req.user.id])).rows[0];
+  const lp = isReviewer(req.user) ? (await q("SELECT count(*)::int AS n FROM hr_loans WHERE status = 'pending_hr'")).rows[0].n : 0;
+  res.json({ loans: { guarantee_total: gc.total, guarantee_pending: gc.pending, pending_hr: lp }, can: { review: isReviewer(req.user) }, types: Object.entries(TYPES).map(([id, t]) => ({ id, title: t.title })), pdf: chromeAvailable(), pending: counts, stamp: { enabled: st.enabled, version: st.version },
     me: staff ? { id: staff.id, full_name: staff.full_name, emp_no: staff.emp_no, job_title: staff.job_title, iban: staff.iban || '' } : null });
 }));
 
