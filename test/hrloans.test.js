@@ -39,6 +39,13 @@ test('رفع الطلب: التحقق من الكفيل والمبلغ ومنع 
   assert.equal((await a.post('/api/hr-requests/loans', { amount: '1000', months: 2, guarantor_staff_id: staffB })).status, 409);   // طلب قيد المعالجة
 });
 
+test('التنبيهات: الكفيل ينبَّه بطلب الكفالة، والموارد بعد اعتماد الكفيل، ويزول بالمعالجة', { skip }, async () => {
+  const nb = (await b.get('/api/notifications')).json;
+  assert.equal(nb.count, 1); assert.equal(nb.items[0].key, `loan-g-${loan1.id}`); assert.match(nb.items[0].text, /عبدالله الطالب/); assert.equal(nb.items[0].url, '/hr-requests/#guarantee');
+  for (const cl of [a, c, hr]) assert.equal((await cl.get('/api/notifications')).json.count, 0);   // لا ينبَّه إلا من ينتظر طلبه
+  assert.equal((await anon.get('/api/notifications')).status, 401);
+});
+
 test('العزل: غير الأطراف لا يرون الطلب، والموظف العادي لا يصل لمسارات المراجعة', { skip }, async () => {
   assert.equal((await c.get('/api/hr-requests/loans/mine')).json.loans.length, 0);
   assert.equal((await c.get('/api/hr-requests/loans/guarantee')).json.loans.length, 0);
@@ -64,6 +71,9 @@ test('الكفيل: يرى الطلب ويعتمد بشروط ويضع بيان�
   assert.equal((await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true, salary: '0' })).status, 400);
   const ok = await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true });
   assert.equal(ok.status, 200); assert.equal(ok.json.loan.my_decision, 'approved'); assert.equal(ok.json.loan.overall, 'pending_hr');
+  assert.equal((await b.get('/api/notifications')).json.count, 0);                                                   // زال تنبيه الكفيل
+  const nh = (await hr.get('/api/notifications')).json;                                                                // وظهر للموارد البشرية
+  assert.equal(nh.count, 1); assert.equal(nh.items[0].key, 'hr-loans'); assert.match(nh.items[0].title, /1 طلب سلفة بانتظار قرارك/); assert.equal((await a.get('/api/notifications')).json.count, 0);
   assert.equal((await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true })).status, 409);              // مرة واحدة
   assert.equal((await b.post(`/api/hr-requests/loans/guarantee/${loan1.id}/reject`, {})).status, 409);
 });

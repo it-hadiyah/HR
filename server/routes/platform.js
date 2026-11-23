@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { q } from '../db/pool.js';
 import { wrap, audit } from '../lib/auth.js';
 import { listApps, canUseApp, groupOf, groupChildren } from '../lib/apps.js';
+import { notificationsFor } from '../lib/notifications.js';
 import { hasGrant, resolveScope } from '../lib/rbac.js';
 import { directory } from '../services/employees.js';
 import { httpError } from '../lib/util.js';
@@ -20,6 +21,11 @@ r.get('/launcher', wrap(async (req, res) => {
   const emp = u.employee_id ? (await q('SELECT id, full_name, job_title, photo FROM employees WHERE id = $1', [u.employee_id])).rows[0] : null;
   const roles = (await q('SELECT name FROM roles WHERE key = ANY($1) ORDER BY id', [u.roleKeys])).rows.map(x => x.name);
   res.json({ user: { username: u.username, full_name: u.full_name, role: u.role, role_label: roles.join('، ') || u.role, employee: emp }, apps });
+}));
+
+// تنبيهات المستخدم الحالي (طلبات بانتظار مراجعته)
+r.get('/notifications', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store').json(await notificationsFor(req.user));
 }));
 
 // أقسام بوابة الموارد البشرية: الأنظمة التي يملك المستخدم دخولها فقط
