@@ -41,6 +41,7 @@ async function cleanFields(req, b, { creating = false, selfId = 0 } = {}) {
       out.position_id = pos.id; out.job_title = pos.title; out.org_unit_id = pos.org_unit_id;
     }
   }
+  if (creating && !out.position_id && (await q('SELECT 1 FROM hr_positions WHERE active LIMIT 1')).rows.length) throw httpError(400, 'اختر المسمى الوظيفي من الهيكل الوظيفي أولاً');
   if ('national_id' in b || 'iban' in b) {
     if (!hasGrant(req.user, 'hr-employees', 'sensitive')) throw httpError(403, 'لا تملك صلاحية تعديل رقم الهوية والآيبان');
     if ('national_id' in b) { const v = digits(b.national_id); if (v && !/^\d{10}$/.test(v)) throw httpError(400, 'رقم الهوية 10 أرقام'); out.national_id = v || null; }

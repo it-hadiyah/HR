@@ -65,15 +65,17 @@ function editDialog(emp, onSaved, preset = {}) {
   // الوظيفة من الهيكل الوظيفي: تحدد المسمى والوحدة تلقائياً (تُعرض الشاغرة + الوظيفة الحالية للموظف)
   const curPos = emp?.position_id ?? preset.position_id ?? '';
   const free = S.positions.filter(x => x.vacant > 0 || String(x.id) === String(curPos));
-  const pos = h('select', { 'aria-label': 'الوظيفة في الهيكل الوظيفي' }, [h('option', { value: '' }, '— بدون ربط بالهيكل الوظيفي —'),
+  const mustPos = !emp && S.positions.length > 0;   // موظف جديد: المسمى يُختار من الهيكل الوظيفي حصراً
+  const pos = h('select', { 'aria-label': 'الوظيفة في الهيكل الوظيفي', required: mustPos }, [h('option', { value: '' }, mustPos ? '— اختر المسمى الوظيفي من الهيكل —' : '— بدون ربط بالهيكل الوظيفي —'),
     ...free.map(x => h('option', { value: x.id, selected: String(x.id) === String(curPos) }, `${x.code ? x.code + ' · ' : ''}${x.title} — ${x.unit_path} (${x.vacant > 0 ? `شاغر ${x.vacant}` : 'مشغولة'})`))]);
   const syncPos = () => {
     const x = S.positions.find(z => String(z.id) === pos.value);
-    title.el.disabled = unit.disabled = !!x;
+    title.el.disabled = unit.disabled = !!x || mustPos;
     if (x) { title.el.value = x.title; unit.value = String(x.org_unit_id); }
   };
   pos.addEventListener('change', syncPos); setTimeout(syncPos, 0);
   const save = guard(async () => {
+    if (mustPos && !pos.value) { pos.focus(); throw new Error('اختر المسمى الوظيفي من الهيكل الوظيفي أولاً'); }
     const body = { full_name: name.el.value, emp_no: no.el.value, job_title: title.el.value, hire_date: hire.el.value, nationality: nat.el.value, phone: phone.el.value, org_unit_id: unit.value, position_id: pos.value };
     if (sens) { body.national_id = nid.el.value; body.iban = iban.el.value; }
     if (emp) body.version = emp.version;
@@ -81,7 +83,7 @@ function editDialog(emp, onSaved, preset = {}) {
     closeModal(); toast(emp ? 'تم حفظ التعديلات' : 'تمت إضافة الموظف'); onSaved?.(out.row);
   });
   modal(emp ? `تعديل — ${emp.full_name}` : 'إضافة موظف', h('div', null, dl,
-    h('div', { class: 'f2' }, h('div', { class: 'full' }, h('label', { class: 'f' }, 'الوظيفة في الهيكل الوظيفي'), pos, h('div', { class: 'hint' }, 'اختيار الوظيفة يملأ المسمى والوحدة تلقائياً ويُسكِن الموظف في مقعدها.')), name.node, no.node, title.node, h('div', { class: 'full' }, h('label', { class: 'f' }, 'الوحدة التنظيمية'), unit), hire.node, nat.node, phone.node, nid.node, iban.node),
+    h('div', { class: 'f2' }, h('div', { class: 'full' }, h('label', { class: 'f' + (mustPos ? ' req' : '') }, 'الوظيفة في الهيكل الوظيفي'), pos, h('div', { class: 'hint' }, mustPos ? 'اختر المسمى من الهيكل الوظيفي؛ يُملأ المسمى والوحدة تلقائياً ويُسكَن الموظف في المقعد. (لا توجد وظيفة مناسبة؟ أضفها من تبويب «الهيكل الوظيفي».)' : 'اختيار الوظيفة يملأ المسمى والوحدة تلقائياً ويُسكِن الموظف في مقعدها.')), name.node, no.node, title.node, h('div', { class: 'full' }, h('label', { class: 'f' }, 'الوحدة التنظيمية'), unit), hire.node, nat.node, phone.node, nid.node, iban.node),
     !sens ? h('p', { class: 'hint' }, 'رقم الهوية والآيبان لا يُعدَّلان إلا بصلاحية «رؤية وتعديل رقم الهوية والآيبان».') : null),
   [S.can.edit ? h('button', { class: 'btn primary', type: 'button', onclick: save }, 'حفظ') : null]);
 }

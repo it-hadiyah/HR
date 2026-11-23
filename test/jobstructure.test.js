@@ -38,6 +38,7 @@ test('منع الحلقات في التسلسل الإداري', { skip }, async
 });
 
 test('إنشاء الموظف وإسكانه: المسمى والوحدة من الوظيفة، والمقاعد محدودة', { skip }, async () => {
+  assert.equal((await hr.post('/api/hr-employees', { full_name: 'بلا وظيفة', job_title: 'حر' })).status, 400);   // موظف جديد يلزمه اختيار وظيفة من الهيكل
   let r = await hr.post('/api/hr-employees', { full_name: 'خالد المسكَّن', emp_no: 'JS1', position_id: p1.id, job_title: 'تجاهل هذا', org_unit_id: unitB });
   assert.equal(r.status, 201); e1 = r.json.row;
   assert.equal(e1.job_title, 'مدير الإدارة المالية'); assert.equal(e1.org_unit_id, unitA); assert.equal(e1.position_id, p1.id); assert.equal(e1.position_code, 'FIN-01');   // اشتُق من الوظيفة
