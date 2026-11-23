@@ -12,7 +12,7 @@ test('الرفض هو الأصل: مستخدم بلا أدوار لا يصل ل�
   const c = await t.as('nobody');
   for (const path of ['/api/core/dashboard', '/api/core/employees', '/api/core/users', '/api/employees', '/api/dashboard', '/api/directory', '/api/portal-admin?action=list&dir=policies'])
     assert.equal((await c.get(path)).status, 403, path);
-  assert.deepEqual((await c.get('/api/launcher')).json.apps, []);
+  assert.deepEqual((await c.get('/api/launcher')).json.apps.map(x => x.slug), ['my-profile']);   // صفحة الحساب الشخصي فقط (متاحة لكل مستخدم مسجّل)
   assert.equal((await c.get('/hr/')).status, 403);
 });
 

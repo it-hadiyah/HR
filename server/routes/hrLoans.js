@@ -13,6 +13,7 @@ import { hasGrant } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
 import { myStaff, userForStaff, HAS_ACCOUNT_SQL } from '../lib/hrIdentity.js';
 import { loanText, renderLoanHtml } from '../lib/hrLoan.js';
+import { signatureDataUrl } from './myProfile.js';
 import { staffRows } from './payroll.js';
 import { unitPaths } from './tracking.js';
 
@@ -42,12 +43,15 @@ const ownerOut = x => ({ id: x.id, ref_no: x.ref_no, amount: Number(x.amount), m
 const guarantorOut = x => ({ id: x.id, ref_no: x.ref_no, requester_name: x.employee_name, requester_emp_no: x.emp_no, requester_job: x.employee_job, amount: Number(x.amount), months: x.months, installment: round2(x.amount / x.months), reason: x.reason, created_at: x.created_at,
   my_decision: x.status === 'pending_guarantor' ? 'pending' : x.status === 'cancelled' && !x.guarantor_decided_at ? 'cancelled' : (x.rejected_by === 'guarantor' ? 'rejected' : 'approved'),
   overall: x.status === 'pending_guarantor' ? 'pending_guarantor' : x.status === 'cancelled' ? 'cancelled' : x.status === 'rejected' && x.rejected_by === 'guarantor' ? 'rejected_by_guarantor' : x.status === 'pending_hr' ? 'pending_hr' : x.status === 'approved' ? 'approved' : 'rejected_by_hr',
-  my_data: x.guarantor_data || null });
+  my_data: withoutSig(x.guarantor_data) });
 /** المراجع: كل شيء */
 const reviewerOut = x => ({ id: x.id, ref_no: x.ref_no, employee_id: x.employee_id, employee_name: x.employee_name, emp_no: x.emp_no, employee_job: x.employee_job, amount: Number(x.amount), months: x.months, reason: x.reason, created_at: x.created_at,
-  guarantor_name: x.guarantor_name, guarantor_emp_no: x.guarantor_emp_no, guarantor_job: x.guarantor_job, status: x.status, outcome: outcome(x), rejected_by: x.rejected_by, guarantor_decided_at: x.guarantor_decided_at, guarantor_note: x.guarantor_note, guarantor_data: x.guarantor_data,
+  guarantor_name: x.guarantor_name, guarantor_emp_no: x.guarantor_emp_no, guarantor_job: x.guarantor_job, status: x.status, outcome: outcome(x), rejected_by: x.rejected_by, guarantor_decided_at: x.guarantor_decided_at, guarantor_note: x.guarantor_note, guarantor_data: withoutSig(x.guarantor_data),
   hr_decided_by: x.hr_decided_by, hr_decided_at: x.hr_decided_at, hr_note: x.hr_note, approved_amount: x.approved_amount === null ? null : Number(x.approved_amount), approved_months: x.approved_months, has_document: !!x.document_text });
 
+// التوقيع شرط لرفع الطلب واعتماد الكفالة: تُؤخذ لقطة من توقيع المستخدم المحفوظ في «ملفي الشخصي»
+const noSignature = res => res.status(400).json({ error: 'أضف توقيعك أولاً من «ملفي الشخصي» لتتمكن من التوقيع على الطلب', code: 'signature_required' });
+const withoutSig = gd => (gd ? { ...gd, signature: undefined, has_signature: !!gd.signature } : null);   // لا تُرسَل صور التواقيع في القوائم
 const requireReviewer = (req, res, next) => (isReviewer(req.user) ? next() : next(httpError(403, 'هذا الإجراء للموارد البشرية فقط')));
 
 // ---- بحث الكفلاء: موظفون نشطون لهم حساب على المنصة (غير صاحب الطلب) ----
@@ -75,10 +79,12 @@ r.post('/', wrap(async (req, res) => {
   const gu = await userForStaff(gid);
   if (!gu) throw httpError(400, 'الكفيل المختار ليس له حساب على المنصة فلا يمكنه اعتماد الطلب؛ اختر كفيلاً آخر');
   if ((await q("SELECT 1 FROM hr_loans WHERE requester_user_id = $1 AND status IN ('pending_guarantor','pending_hr')", [req.user.id])).rows.length) throw httpError(409, 'لديك طلب سلفة قيد المعالجة');
+  const mySig = await signatureDataUrl(req.user.id);
+  if (!mySig) return noSignature(res);
   const seq = (await q("SELECT nextval('hr_loans_ref_seq')::int AS n")).rows[0].n;
   const ref = `LN-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
-  const row = (await q(`INSERT INTO hr_loans(ref_no, employee_id, requester_user_id, amount, months, reason, guarantor_staff_id, guarantor_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-    [ref, me.id, req.user.id, amount, months, str(b.reason, 300) || null, gid, gu.id])).rows[0];
+  const row = (await q(`INSERT INTO hr_loans(ref_no, employee_id, requester_user_id, amount, months, reason, guarantor_staff_id, guarantor_user_id, requester_signature) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+    [ref, me.id, req.user.id, amount, months, str(b.reason, 300) || null, gid, gu.id, mySig])).rows[0];
   await audit(req, 'create', 'hr_loan', row.id, null, { ref_no: ref, amount, months, guarantor_staff_id: gid });
   res.status(201).json({ loan: ownerOut((await q(`${SELECT} WHERE l.id = $1`, [row.id])).rows[0]) });
 }));
@@ -121,7 +127,9 @@ r.post('/guarantee/:id/approve', wrap(async (req, res) => {
   const hire_date = str(b.hire_date, 10); if (!isDate(hire_date)) throw httpError(400, 'تاريخ بداية العمل غير صالح');
   const phone = digits(b.phone); if (!/^\+?\d{7,15}$/.test(phone)) throw httpError(400, 'رقم الجوال غير صالح');
   const salary = round2(num(b.salary)); if (!(salary > 0 && salary <= 10_000_000)) throw httpError(400, 'الراتب الشهري غير صالح');
-  const data = { national_id, hire_date, phone, salary };
+  const sig = await signatureDataUrl(req.user.id);
+  if (!sig) return noSignature(res);
+  const data = { national_id, hire_date, phone, salary, signature: sig };
   const upd = (await q("UPDATE hr_loans SET status = 'pending_hr', guarantor_decided_at = now(), guarantor_data = $2, guarantor_note = $3, updated_at = now() WHERE id = $1 AND status = 'pending_guarantor' RETURNING id", [row.id, JSON.stringify(data), str(b.note, 300) || null])).rows[0];
   if (!upd) throw httpError(409, 'الطلب لم يعد بانتظار اعتمادك');
   await audit(req, 'approve', 'hr_loan', row.id, { status: 'pending_guarantor' }, { status: 'pending_hr', ref_no: row.ref_no, stage: 'guarantor' });
@@ -162,7 +170,7 @@ r.get('/review/:id', requireReviewer, wrap(async (req, res) => {
     defaults: { amount: Number(row.amount), months: row.months, gratuity_employee: 0, gratuity_guarantor: 0, previous_balance: 0 } });
 }));
 
-function buildDocument(row, ctx, b, reviewer) {
+function buildDocument(row, ctx, b, reviewer, hrSignature) {
   const amount = round2(num(b.amount ?? row.amount)), months = Math.trunc(num(b.months ?? row.months));
   if (!(amount > 0 && amount <= 1_000_000)) throw httpError(400, 'المبلغ المعتمد غير صالح');
   if (!(months >= 1 && months <= 60)) throw httpError(400, 'عدد الأقساط بين 1 و60 شهراً');
@@ -173,10 +181,10 @@ function buildDocument(row, ctx, b, reviewer) {
   const issue = dmy(now);
   const d = {
     ref_no: row.ref_no, issue_date: issue,
-    employee: { name: ctx.es.full_name, emp_no: ctx.es.emp_no, job_title: ctx.es.job_title, department: ctx.eu.department, section: ctx.eu.section, hire_date: dateOnly(ctx.es.hire_date), basic: ctx.emp?.basic ?? 0, gross: ctx.emp?.gross ?? 0 },
-    guarantor: { name: ctx.gs.full_name, emp_no: ctx.gs.emp_no, job_title: ctx.gs.job_title, department: ctx.gu.department, section: ctx.gu.section, hire_date: g.hire_date, national_id: g.national_id, phone: g.phone, salary: g.salary },
+    employee: { signature: row.requester_signature || null, name: ctx.es.full_name, emp_no: ctx.es.emp_no, job_title: ctx.es.job_title, department: ctx.eu.department, section: ctx.eu.section, hire_date: dateOnly(ctx.es.hire_date), basic: ctx.emp?.basic ?? 0, gross: ctx.emp?.gross ?? 0 },
+    guarantor: { signature: g.signature || null, name: ctx.gs.full_name, emp_no: ctx.gs.emp_no, job_title: ctx.gs.job_title, department: ctx.gu.department, section: ctx.gu.section, hire_date: g.hire_date, national_id: g.national_id, phone: g.phone, salary: g.salary },
     loan: { requested_amount: Number(row.amount), amount, months, installment: round2(amount / months), reason: row.reason },
-    hr: { gratuity_employee, gratuity_guarantor, previous_balance, first_installment: first, covers_employee: gratuity_employee >= amount, covers_both: gratuity_employee + gratuity_guarantor >= amount, note: str(b.note, 300), name: reviewer.full_name },
+    hr: { gratuity_employee, gratuity_guarantor, previous_balance, first_installment: first, covers_employee: gratuity_employee >= amount, covers_both: gratuity_employee + gratuity_guarantor >= amount, note: str(b.note, 300), name: reviewer.full_name, signature: hrSignature || null },
     timeline: { requested: dmy(row.created_at), guarantor: dmy(row.guarantor_decided_at), hr: issue, hr_by: reviewer.full_name },
   };
   return { d, amount, months };
@@ -187,7 +195,7 @@ r.post('/review/:id/approve', requireReviewer, wrap(async (req, res) => {
   if (!row) throw httpError(404, 'الطلب غير موجود');
   if (row.status !== 'pending_hr') throw httpError(409, 'الطلب ليس بانتظار قرار الموارد البشرية');
   const ctx = await reviewContext(row);
-  const { d, amount, months } = buildDocument(row, ctx, req.body || {}, req.user);
+  const { d, amount, months } = buildDocument(row, ctx, req.body || {}, req.user, await signatureDataUrl(req.user.id));
   const text = loanText(d);
   const hash = crypto.createHash('sha256').update(`${row.ref_no}\n${text}`).digest('hex');
   const upd = (await q(`UPDATE hr_loans SET status = 'approved', hr_decided_by = $2, hr_decided_at = now(), hr_note = $3, approved_amount = $4, approved_months = $5, document_text = $6, document_data = $7, document_hash = $8, updated_at = now()

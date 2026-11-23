@@ -24,7 +24,16 @@ async function hrRequestsProvider(user) {
   return out;
 }
 
-const PROVIDERS = [hrRequestsProvider];
+// أكمل ملفك: تأكيد البيانات المعبّأة وإضافة التوقيع (يظهر لمن لم يفعل بعد)
+async function profileProvider(user) {
+  const { profileStatus } = await import('../routes/myProfile.js');
+  const s = await profileStatus(user);
+  if (!s.needs_attention) return [];
+  const todo = [s.needs_confirm && 'تأكيد بياناتك', s.needs_signature && 'إضافة توقيعك'].filter(Boolean).join(' و');
+  return [{ key: 'profile', sig: `profile:${s.needs_confirm}:${s.needs_signature}`, icon: 'user', title: 'أكمل ملفك الشخصي', text: `يلزم ${todo} للتوقيع على الطلبات داخل المنصة`, url: '/my-profile/', at: new Date().toISOString() }];
+}
+
+const PROVIDERS = [hrRequestsProvider, profileProvider];
 
 export async function notificationsFor(user) {
   const items = [];

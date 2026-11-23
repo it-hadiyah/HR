@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bootApp } from './helpers.js';
+import { pngDataUrl } from './png.js';
 
 const t = await bootApp('hrloan');
 const skip = !t && 'لا توجد قاعدة PostgreSQL للاختبار';
@@ -25,6 +26,10 @@ test('إعداد', { skip }, async () => {
   hr = await t.as('ln_hr'); a = await t.as('ln_a'); b = await t.as('ln_b'); c = await t.as('ln_c'); anon = t.client();
   await t.q('INSERT INTO payroll_salaries(employee_id, basic, housing, transport) VALUES ($1, 6000, 1500, 600)', [staffA]);
   assert.equal((await anon.get('/api/hr-requests/loans/mine')).status, 401);
+  // التوقيع شرط: بدونه يُرفض رفع الطلب (والكفالة لاحقاً)
+  const no = await a.post('/api/hr-requests/loans', { amount: '5000', months: 5, guarantor_staff_id: staffB });
+  assert.equal(no.status, 400); assert.equal(no.json.code, 'signature_required');
+  for (const cl of [a, b, hr]) assert.equal((await cl.post('/api/my-profile/signature', { image: pngDataUrl(120, 40) })).status, 200);
 });
 
 test('رفع الطلب: التحقق من الكفيل والمبلغ ومنع التكرار', { skip }, async () => {
@@ -40,9 +45,10 @@ test('رفع الطلب: التحقق من الكفيل والمبلغ ومنع 
 });
 
 test('التنبيهات: الكفيل ينبَّه بطلب الكفالة، والموارد بعد اعتماد الكفيل، ويزول بالمعالجة', { skip }, async () => {
-  const nb = (await b.get('/api/notifications')).json;
+  const only = async cl => (await cl.get('/api/notifications')).json.items.filter(i => i.key !== 'profile');   // نتجاهل تنبيه «أكمل ملفك»
+  const nb = { items: await only(b), count: (await only(b)).length };
   assert.equal(nb.count, 1); assert.equal(nb.items[0].key, `loan-g-${loan1.id}`); assert.match(nb.items[0].text, /عبدالله الطالب/); assert.equal(nb.items[0].url, '/hr-requests/#guarantee');
-  for (const cl of [a, c, hr]) assert.equal((await cl.get('/api/notifications')).json.count, 0);   // لا ينبَّه إلا من ينتظر طلبه
+  for (const cl of [a, c, hr]) assert.equal((await only(cl)).length, 0);   // لا ينبَّه إلا من ينتظر طلبه
   assert.equal((await anon.get('/api/notifications')).status, 401);
 });
 
@@ -71,9 +77,10 @@ test('الكفيل: يرى الطلب ويعتمد بشروط ويضع بيان�
   assert.equal((await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true, salary: '0' })).status, 400);
   const ok = await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true });
   assert.equal(ok.status, 200); assert.equal(ok.json.loan.my_decision, 'approved'); assert.equal(ok.json.loan.overall, 'pending_hr');
-  assert.equal((await b.get('/api/notifications')).json.count, 0);                                                   // زال تنبيه الكفيل
-  const nh = (await hr.get('/api/notifications')).json;                                                                // وظهر للموارد البشرية
-  assert.equal(nh.count, 1); assert.equal(nh.items[0].key, 'hr-loans'); assert.match(nh.items[0].title, /1 طلب سلفة بانتظار قرارك/); assert.equal((await a.get('/api/notifications')).json.count, 0);
+  const keep = async cl => (await cl.get('/api/notifications')).json.items.filter(i => i.key !== 'profile');
+  assert.equal((await keep(b)).length, 0);                                                                            // زال تنبيه الكفيل
+  const nh = await keep(hr);                                                                                          // وظهر للموارد البشرية
+  assert.equal(nh.length, 1); assert.equal(nh[0].key, 'hr-loans'); assert.match(nh[0].title, /1 طلب سلفة بانتظار قرارك/); assert.equal((await keep(a)).length, 0);
   assert.equal((await post({ ...SECRET, hire_date: '2019-03-01', acknowledge: true })).status, 409);              // مرة واحدة
   assert.equal((await b.post(`/api/hr-requests/loans/guarantee/${loan1.id}/reject`, {})).status, 409);
 });

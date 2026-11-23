@@ -42,6 +42,7 @@ body{font-family:Tahoma,"Segoe UI","Noto Naskh Arabic","Noto Sans Arabic",sans-s
 .ack u{font-weight:700;text-decoration:none;border-bottom:1px solid #444;padding:0 2mm}
 .sg{display:flex;gap:4mm;margin-top:1.2mm}
 .sg div{flex:1;border-bottom:1px dotted #7d9a95;min-height:5mm;font-size:8pt;color:#555} .sg b{color:#0a2a26;font-weight:700}
+.sgn{position:relative;min-height:9mm} .sigimg{position:absolute;inset-inline-start:11mm;bottom:-1mm;max-height:10mm;max-width:34mm;mix-blend-mode:multiply}
 .chk{display:inline-block;width:3.2mm;height:3.2mm;border:1px solid #222;margin:0 1mm;vertical-align:-.5mm;text-align:center;line-height:3mm;font-size:8pt} .chk.on::after{content:"✔"}
 table{width:100%;border-collapse:collapse;margin:1mm 0} td,th{border:1px solid #8aa6a1;padding:.8mm 2mm;font-size:8.3pt} th{background:#eaf5f2;width:60%;text-align:right} td.v{text-align:center;font-weight:700}
 .ft{margin-top:auto;font-size:7.2pt;color:#444;display:flex;justify-content:space-between;gap:3mm;border-top:1px solid #9fb8b3;padding-top:1.2mm}
@@ -52,7 +53,7 @@ export function renderLoanHtml({ row, d, code, imgDir }) {
   const logo = fs.existsSync(logoSvg) ? `<img src="data:image/svg+xml;base64,${fs.readFileSync(logoSvg).toString('base64')}" alt="هدية">` : '<b>هدية</b>';
   const e = d.employee, g = d.guarantor, l = d.loan, h = d.hr, t = d.timeline;
   const f = (label, val, cls = '') => `<div class="f ${cls}"><span>${label}:</span><b>${esc(val ?? '')}</b></div>`;
-  const sign = (name, date) => `<div class="sg"><div>الاسم: <b>${esc(name)}</b></div><div>التوقيع:</div><div>التاريخ: <b>${esc(date)}</b></div></div>`;
+  const sign = (name, date, sig) => `<div class="sg"><div>الاسم: <b>${esc(name)}</b></div><div class="sgn">التوقيع: ${sig ? `<img class="sigimg" src="${esc(sig)}" alt="توقيع">` : ''}</div><div>التاريخ: <b>${esc(date)}</b></div></div>`;
   const box = (n, label, title, en, inner) => `<div class="box"><div class="side"><div class="n">${n}</div><div class="vt">${label}</div></div><div class="body"><div class="ttl">${title}<small>${en}</small></div>${inner}</div></div>`;
   const chk = v => `<span class="chk${v ? ' on' : ''}"></span>`;
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(row.ref_no)}</title><style>${CSS}</style></head><body>
@@ -63,12 +64,12 @@ export function renderLoanHtml({ row, d, code, imgDir }) {
       <div class="g">${f('الاسم', e.name, 's3')}${f('الرقم الوظيفي', e.emp_no, 's3')}${f('المسمى الوظيفي', e.job_title, 's3')}${f('الإدارة', e.department, 's3')}${f('القسم', e.section, 's3')}${f('بداية العمل', e.hire_date, 's3')}
         ${f('الراتب الأساسي', money(e.basic), 's2')}${f('الراتب الإجمالي', money(e.gross), 's2')}${f('مبلغ السلفة المطلوب', money(l.requested_amount), 's2')}</div>
       <div class="ack">أقر أنا الموقع أدناه أنني أطلب مبلغاً وقدره <u>${esc(money(l.requested_amount))}</u> ريال فقط لا غير كسلفة يتم تسديدها حسب النظام الداخلي للجمعية.${l.reason ? ` <span style="color:#555">(السبب: ${esc(l.reason)})</span>` : ''}</div>
-      ${sign(e.name, t.requested)}`)}
+      ${sign(e.name, t.requested, e.signature)}`)}
     ${box(2, 'Warrantor', 'بيانات الضامن', 'warrantor data', `
       <div class="g">${f('الاسم', g.name, 's3')}${f('الرقم الوظيفي', g.emp_no, 's3')}${f('الوظيفة', g.job_title, 's3')}${f('القسم', g.section, 's3')}${f('الإدارة', g.department, 's3')}${f('الراتب', money(g.salary), 's3')}
         ${f('بداية العمل', g.hire_date, 's2')}${f('رقم الهوية', g.national_id, 's2')}${f('الجوال', g.phone, 's2')}</div>
       <div class="ack">الإقرار: أوافق على ضمان المستفيد من السلفة ضماناً شاملاً في مبلغ السلفة المذكور أعلاه فقط <u>${esc(tafqeet(l.requested_amount))}</u></div>
-      ${sign(g.name, t.guarantor)}`)}
+      ${sign(g.name, t.guarantor, g.signature)}`)}
     ${box(3, 'Human Capital', 'إدارة رأس المال البشري', 'Human Capital Management', `
       <div class="ack">هل تغطي مستحقاته المالية مبلغ السلفة؟ ${chk(h.covers_employee)} نعم ${chk(!h.covers_employee)} لا &nbsp;&nbsp;·&nbsp;&nbsp; بداية العمل: <b>${esc(e.hire_date)}</b></div>
       <table><tbody>
@@ -77,7 +78,7 @@ export function renderLoanHtml({ row, d, code, imgDir }) {
         <tr><th>مجموع إجمالي مكافآت (الموظف والضامن)</th><td class="v">${esc(money(h.gratuity_employee + h.gratuity_guarantor))}</td></tr>
       </tbody></table>
       <div class="ack">هل تغطي مجموع مستحقات الموظف والضامن مبلغ السلفة؟ ${chk(h.covers_both)} نعم ${chk(!h.covers_both)} لا &nbsp;&nbsp;·&nbsp;&nbsp; ملحوظة إن وجد: <b>${esc(h.note || '—')}</b></div>
-      ${sign(h.name, t.hr)}`)}
+      ${sign(h.name, t.hr, h.signature)}`)}
     ${box(4, 'Financial', 'الإدارة المالية', 'Financial', `
       <div class="g">${f('القسط الشهري', money(l.installment), 's2')}${f('رصيد السلف السابقة', money(h.previous_balance), 's2')}${f('المبلغ المعتمد', money(l.amount), 's2')}
         ${f('فترة التسديد', l.months + ' شهراً', 's3')}${f('بداية أول قسط', h.first_installment || '', 's3')}</div>

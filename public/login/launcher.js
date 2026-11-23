@@ -13,7 +13,7 @@ const nextUrl = () => {
   return n && /^\/(?![\/\\])[^\\\u0000-\u001f]*$/.test(n) ? n : null;
 };
 
-const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/hr-forms/': 'نماذج الموارد البشرية', '/payroll/': 'الرواتب والإضافي', '/sales-reports/': 'تقارير مبيعات', '/members/': 'أعضاء الجمعية العمومية', '/hr-portal/': 'بوابة الموارد البشرية', '/hr-employees/': 'إدارة الموظفين', '/hr-requests/': 'طلبات الموظفين', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
+const TARGETS = { '/hr/': 'نظام الأرصدة', '/report-builder/': 'منشئ التقارير', '/hr-forms/': 'نماذج الموارد البشرية', '/payroll/': 'الرواتب والإضافي', '/sales-reports/': 'تقارير مبيعات', '/members/': 'أعضاء الجمعية العمومية', '/hr-portal/': 'بوابة الموارد البشرية', '/hr-employees/': 'إدارة الموظفين', '/hr-requests/': 'طلبات الموظفين', '/my-profile/': 'ملفي الشخصي', '/card/': 'بطاقة الموظف', '/portal/admin/': 'لوحة تحكم البوابة', '/admin/': 'الإدارة المركزية' };
 
 function showLogin() {
   $('home').hidden = true; $('login').hidden = false;
@@ -56,6 +56,8 @@ $('loginForm').addEventListener('submit', async e => {
     await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: $('u').value, password: $('p').value }) });
     const next = nextUrl();
     if (next) { location.href = next; return; }
+    // أول دخول (أو ملف غير مكتمل): يطّلع الموظف على بياناته المعبّأة ويؤكدها ويضيف توقيعه
+    try { const st = await api('/my-profile/status'); if (st.needs_attention) { location.href = '/my-profile/?welcome=1'; return; } } catch { /* لا يمنع الدخول */ }
     await showHome();
   } catch (err) { $('err').textContent = err.message; } finally { btn.disabled = false; }
 });

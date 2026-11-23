@@ -44,10 +44,12 @@ export function createLoans(ctx) {
       const out = await api('/loans', { method: 'POST', body: { amount: norm(amount.value), months: norm(months.value), reason: reason.value, guarantor_staff_id: guarantor.id } });
       toast(`تم رفع الطلب ${out.loan.ref_no} وأُرسل للكفيل`); await onDone();
     });
+    const noSig = !S.meta.has_signature;
     return h('div', { class: 'card' }, h('h2', { class: 'sec' }, 'طلب سلفة'),
+      noSig ? h('div', { class: 'note' }, 'لرفع طلب السلفة أضف توقيعك أولاً: ', h('a', { href: '/my-profile/', target: '_top' }, 'ملفي الشخصي ← توقيعي الخاص')) : null,
       h('div', { class: 'note' }, 'يُرسل طلبك أولاً إلى الكفيل ليعتمده ويضع بياناته، ثم يذهب إلى الموارد البشرية. ستتابع هنا حالة الطلب فقط.'),
       h('div', { class: 'f2' }, fieldBox('مبلغ السلفة (ريال)', amount, true), fieldBox('عدد الأقساط (أشهر)', months, true), h('div', { class: 'full' }, fieldBox('الكفيل', gBox, true)), h('div', { class: 'full' }, fieldBox('السبب', reason))),
-      h('div', { class: 'actions', style: 'margin-top:10px' }, h('button', { class: 'btn primary', type: 'button', onclick: submit }, 'رفع الطلب')));
+      h('div', { class: 'actions', style: 'margin-top:10px' }, h('button', { class: 'btn primary', type: 'button', disabled: noSig, onclick: submit }, 'رفع الطلب' + (noSig ? ' (يلزم التوقيع)' : ''))));
   }
 
   // ---- طلباتي من السلف (حالة فقط) ----
@@ -82,14 +84,16 @@ export function createLoans(ctx) {
     const inp = (v, o = {}) => h('input', { type: 'text', value: v ?? '', autocomplete: 'off', ...o });
     const nid = inp(prefill.national_id, { dir: 'ltr', placeholder: '10 أرقام' }), hire = inp(prefill.hire_date, { type: 'date' }), phone = inp(prefill.phone, { dir: 'ltr', placeholder: '05xxxxxxxx' }), salary = inp('', { inputmode: 'decimal', placeholder: 'راتبك الشهري' });
     const note = inp('', { placeholder: 'ملاحظة (اختياري)', maxlength: 300 }), ack = h('input', { type: 'checkbox' });
+    const noSig = !S.meta.has_signature;
     const approve = guard(async () => { await api(`/loans/guarantee/${id}/approve`, { method: 'POST', body: { national_id: nid.value, hire_date: hire.value, phone: phone.value, salary: norm(salary.value), acknowledge: ack.checked, note: note.value } }); closeModal(); toast('تم اعتماد الكفالة وإرسال الطلب للموارد البشرية'); await onDone(); });
     const reject = guard(async () => { await api(`/loans/guarantee/${id}/reject`, { method: 'POST', body: { note: note.value } }); closeModal(); toast('تم رفض الكفالة'); await onDone(); });
     modal(`طلب كفالة — ${x.ref_no}`, h('div', null,
       h('div', { class: 'note' }, `طالب السلفة: ${x.requester_name}${x.requester_emp_no ? ` (رقم ${x.requester_emp_no})` : ''} · المبلغ ${sar(x.amount)} ر.س على ${x.months} أشهر (القسط ${sar(x.installment)} ر.س)${x.reason ? ` · السبب: ${x.reason}` : ''}`),
+      noSig ? h('div', { class: 'note' }, 'لتوقّع كفالتك أضف توقيعك أولاً: ', h('a', { href: '/my-profile/', target: '_top' }, 'ملفي الشخصي ← توقيعي الخاص')) : null,
       h('h3', { style: 'font-size:1rem' }, 'بياناتك كضامن'),
       h('div', { class: 'f2' }, fieldBox('رقم الهوية', nid, true), fieldBox('تاريخ بداية العمل', hire, true), fieldBox('رقم الجوال', phone, true), fieldBox('الراتب الشهري (ريال)', salary, true), h('div', { class: 'full' }, fieldBox('ملاحظة', note))),
       h('label', { class: 'ackrow' }, ack, ' أوافق على ضمان المستفيد من السلفة ضماناً شاملاً في مبلغ السلفة المذكور أعلاه، وأقرّ بصحة بياناتي.')),
-    [h('button', { class: 'btn primary', type: 'button', onclick: approve }, 'اعتماد الكفالة'), h('button', { class: 'btn danger', type: 'button', onclick: reject }, 'رفض')]);
+    [h('button', { class: 'btn primary', type: 'button', disabled: noSig, onclick: approve }, noSig ? 'اعتماد الكفالة (يلزم توقيعك)' : 'اعتماد الكفالة'), h('button', { class: 'btn danger', type: 'button', onclick: reject }, 'رفض')]);
   }
 
   // ---- الموارد البشرية ----

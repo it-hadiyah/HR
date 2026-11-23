@@ -15,6 +15,7 @@ import { renderTemplate, buildVars, defaultValues, missingRequired } from '../..
 import { staffRows } from './payroll.js';
 import { renderDocumentHtml } from '../lib/hrDocument.js';
 import loansRouter from './hrLoans.js';
+import { signatureDataUrl, hasSignature } from './myProfile.js';
 
 const r = Router();
 r.param('id', (req, res, next, v) => (/^\d+$/.test(v) ? next() : next('route')));   // Express 5: بلا تعبير نمطي داخل المسار
@@ -80,7 +81,8 @@ r.get('/meta', wrap(async (req, res) => {
   const counts = isReviewer(req.user) ? (await q("SELECT count(*)::int AS n FROM hr_requests WHERE status = 'pending'")).rows[0].n : 0;
   const gc = (await q("SELECT count(*)::int AS total, count(*) FILTER (WHERE status = 'pending_guarantor')::int AS pending FROM hr_loans WHERE guarantor_user_id = $1", [req.user.id])).rows[0];
   const lp = isReviewer(req.user) ? (await q("SELECT count(*)::int AS n FROM hr_loans WHERE status = 'pending_hr'")).rows[0].n : 0;
-  res.json({ loans: { guarantee_total: gc.total, guarantee_pending: gc.pending, pending_hr: lp }, can: { review: isReviewer(req.user) }, types: Object.entries(TYPES).map(([id, t]) => ({ id, title: t.title })), pdf: chromeAvailable(), pending: counts, stamp: { enabled: st.enabled, version: st.version },
+  const hasSig = await hasSignature(req.user.id);
+  res.json({ has_signature: hasSig, loans: { guarantee_total: gc.total, guarantee_pending: gc.pending, pending_hr: lp }, can: { review: isReviewer(req.user) }, types: Object.entries(TYPES).map(([id, t]) => ({ id, title: t.title })), pdf: chromeAvailable(), pending: counts, stamp: { enabled: st.enabled, version: st.version },
     me: staff ? { id: staff.id, full_name: staff.full_name, emp_no: staff.emp_no, job_title: staff.job_title, iban: staff.iban || '' } : null });
 }));
 
@@ -184,7 +186,7 @@ r.post('/:id/approve', wrap(async (req, res) => {
   const { text, values } = buildDocument(row, staff, tpl, req.body?.data || {}, issueDate);
   const hash = crypto.createHash('sha256').update(`${row.ref_no}\n${text}`).digest('hex');
   const upd = (await q(`UPDATE hr_requests SET status = 'approved', decided_by = $2, decided_at = now(), decision_note = $3, document_text = $4, document_data = $5, document_hash = $6, updated_at = now()
-    WHERE id = $1 AND status = 'pending' RETURNING id`, [id, req.user.username, str(req.body?.note, 300) || null, text, JSON.stringify({ issue_date: issueDate, values }), hash])).rows[0];
+    WHERE id = $1 AND status = 'pending' RETURNING id`, [id, req.user.username, str(req.body?.note, 300) || null, text, JSON.stringify({ issue_date: issueDate, values, signature: await signatureDataUrl(req.user.id) }), hash])).rows[0];
   if (!upd) throw httpError(409, 'تم البت في الطلب من مراجع آخر');
   // تحديث بيانات الموظف الناقصة من البيانات المعتمدة (الحساسة بصلاحية hr-employees/sensitive)
   const sets = []; const vals = [staff.id];

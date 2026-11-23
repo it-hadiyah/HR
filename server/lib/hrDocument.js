@@ -53,6 +53,7 @@ td.l{background:#f4faf8;font-weight:700;color:#054d45;width:19%;text-align:right
 .line{margin:0 0 1.5mm}
 .sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto}
 .sign .who{font-weight:800;font-size:11pt;line-height:1.9} .sign .who small{display:block;font-weight:400;font-size:9pt;color:#555}
+.sigimg{display:block;max-height:15mm;max-width:46mm;margin:0 0 1mm;mix-blend-mode:multiply}
 .stamp{width:27mm;height:auto;mix-blend-mode:multiply}
 .foot{position:absolute;right:19mm;left:19mm;bottom:41mm;font-size:7.5pt;color:#555;display:flex;justify-content:space-between;gap:6mm;border-top:1px solid #cfdcd9;padding-top:1.6mm}
 .gen p{margin:0 0 2.2mm;text-align:right;white-space:pre-wrap;word-break:break-word;line-height:1.95} .gen h2{margin:0 0 5mm;font-size:13pt;text-align:center;color:#054d45}
@@ -116,7 +117,8 @@ export function renderDocumentHtml({ row, code, stamp, imgDir }) {
   const note = String(row.document_text).split('\n').find(l => l.startsWith('ملاحظة')) || '';
   const gen = cert ? null : genericBody(row.document_text);
   const body = cert ? certificateBody(cert) : gen.html;
-  const who = cert ? `<div>إدارة رأس المال البشري</div><small>ص/ لملف الموظف.</small>` : gen.sig.map((l, k) => (/^(التوقيع|ص\/)/.test(l) ? `<small style="margin-top:2mm">${esc(l)}</small>` : `<div>${esc(l)}</div>`)).join('');
+  const sigImg = row.document_data?.signature ? `<img class="sigimg" src="${esc(row.document_data.signature)}" alt="التوقيع">` : '';
+  const who = cert ? `${sigImg}<div>إدارة رأس المال البشري</div><small>ص/ لملف الموظف.</small>` : sigImg + gen.sig.map((l, k) => (/^(التوقيع|ص\/)/.test(l) ? `<small style="margin-top:2mm">${esc(l)}</small>` : `<div>${esc(l)}</div>`)).join('');
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(row.ref_no)}</title><style>${CSS}</style></head><body>
   <div class="paper" style="background-image:url(${bg(imgDir, 'letterhead.png')})">
     ${body}

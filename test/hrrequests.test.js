@@ -43,7 +43,7 @@ test('الموظف يرفع الطلبات ويُمنع التكرار والت�
   assert.equal((await e1.get('/api/hr-requests/mine')).json.requests.length, 2);
   const nh = (await hr.get('/api/notifications')).json;                                  // تنبيه الموارد البشرية بالخطابات المنتظرة
   assert.ok(nh.items.some(i => i.key === 'hr-letters' && /2 طلبات خطابات بانتظار مراجعتك/.test(i.title)), JSON.stringify(nh));
-  assert.equal((await e2.get('/api/notifications')).json.count, 0);
+  assert.equal((await e2.get('/api/notifications')).json.items.filter(i => i.key !== 'profile').length, 0);
   assert.equal((await e2.get('/api/hr-requests/mine')).json.requests.length, 0);
 });
 

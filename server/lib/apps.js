@@ -13,6 +13,7 @@ export const resetAppsCache = () => { cache.at = 0; };
 /** بوابات مجمّعة: تضم أنظمة موجودة وتظهر لمن يملك الدخول لأي نظام منها (بلا صلاحية خاصة بها) */
 export const APP_GROUPS = { 'hr-portal': ['hr-employees', 'hr-requests', 'hr', 'hr-forms', 'payroll'] };
 const CHILD_OF = Object.fromEntries(Object.entries(APP_GROUPS).flatMap(([g, kids]) => kids.map(k => [k, g])));
+export const ALWAYS_ON = new Set(['my-profile']);
 export const groupOf = slug => CHILD_OF[slug] || null;
 
 /** أنظمة المجموعة التي يستطيع المستخدم دخولها (بترتيب المجموعة) */
@@ -26,6 +27,7 @@ export async function groupChildren(user, group) {
 export async function canUseApp(user, slug) {
   const app = (await listApps()).find(a => a.slug === slug);
   if (!app || !app.active) return false;
+  if (ALWAYS_ON.has(slug)) return true;   // صفحات الحساب الشخصي متاحة لكل مستخدم مسجّل
   if (APP_GROUPS[slug]) return (await groupChildren(user, slug)).length > 0;
   return hasGrant(user, slug, 'access');
 }
