@@ -473,9 +473,68 @@
     commit(v, row) { raw[FILES.home][row.field] = v.value.trim(); },
   };
 
+  // ---------- الهيكل التنظيمي: بناء الوحدات (قطاع/إدارة/قسم…) يدوياً؛ يُحفظ مع «حفظ التغييرات» ويُزامَن إلى قاعدة البيانات ----------
+  const orgRoots = () => (raw[FILES.org].sections = raw[FILES.org].sections || []);
+  const LEVELS = ["", "قطاع / جهة", "إدارة", "قسم", "وحدة فرعية"];
+  const orgFlat = () => {
+    const out = [];
+    const walk = (list, parent, depth) => list.forEach((node, idx) => { out.push({ node, parent, list, idx, depth }); walk(node.children || [], node, depth + 1); });
+    walk(orgRoots(), null, 1);
+    return out;
+  };
+  const countStaff = node => (node.heads || []).length + (node.members || []).length;
+  const isInside = (node, ancestor) => node === ancestor || (ancestor.children || []).some(c => isInside(node, c));
+
+  sections.org = {
+    title: "الهيكل التنظيمي", icon: "fa-diagram-project", files: [FILES.org, FILES.employees],
+    hint: "ابنِ الهيكل بنفسك: أضف القطاعات ثم الإدارات والأقسام تحتها. بعد الحفظ اضغط «المسميات» على أي وحدة لإضافة مسمياتها الوظيفية، ثم أسكن الموظفين عليها من صفحة الموظفين.",
+    columns: ["الوحدة", "المستوى", "الوحدة الأعلى", "وحدات فرعية", "موظفون", "المسميات الوظيفية"],
+    posAct: true, movable: true,
+    rows() {
+      return orgFlat().map(r => ({
+        key: r.node.id, r, text: `${r.node.title} ${LEVELS[Math.min(r.depth, 4)]}`,
+        cells: [`<span style="padding-inline-start:${(r.depth - 1) * 22}px">${r.depth > 1 ? "↳ " : ""}<b>${esc(r.node.title)}</b></span>`, esc(LEVELS[Math.min(r.depth, 4)]), esc(r.parent ? r.parent.title : "—"),
+          String((r.node.children || []).length), String(countStaff(r.node)), '<span class="muted">زر «المسميات» ←</span>'],
+      }));
+    },
+    form(row) {
+      const cur = row ? row.r.node : null;
+      const opts = [{ v: "", l: "— مستوى أعلى (قطاع / جهة) —" }, ...orgFlat().filter(x => !cur || !isInside(x.node, cur)).map(x => ({ v: x.node.id, l: `${"— ".repeat(x.depth - 1)}${x.node.title}` }))];
+      return [
+        { name: "title", label: "اسم الوحدة", value: cur ? cur.title : "", required: true, wide: true },
+        { name: "parent", label: "تتبع لـ", value: row && row.r.parent ? row.r.parent.id : (row ? "" : (orgFocus || "")), options: opts, wide: true, hint: "اختر القطاع أو الإدارة التي تتبعها هذه الوحدة. اتركها فارغة لإنشاء قطاع/جهة جديدة." },
+      ];
+    },
+    commit(v, row) {
+      const title = v.title.trim();
+      if (!title) throw new Error("اسم الوحدة مطلوب.");
+      const parent = v.parent ? orgFlat().find(x => x.node.id === v.parent)?.node : null;
+      if (v.parent && !parent) throw new Error("الوحدة الأعلى غير موجودة.");
+      const target = parent ? (parent.children = parent.children || []) : orgRoots();
+      if (row) {
+        const node = row.r.node;
+        if (parent && isInside(parent, node)) throw new Error("لا يمكن نقل الوحدة تحت إحدى وحداتها الفرعية.");
+        node.title = title;
+        if ((row.r.parent || null) !== (parent || null)) { row.r.list.splice(row.r.idx, 1); target.push(node); }
+      } else {
+        target.push({ id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), title });
+      }
+      for (const x of orgFlat()) if (x.node.children && !x.node.children.length) delete x.node.children;
+    },
+    remove(row) {
+      const node = row.r.node;
+      if ((node.children || []).length) throw new Error("احذف الوحدات الفرعية أو انقلها أولاً.");
+      row.r.list.splice(row.r.idx, 1);
+      if (row.r.parent && !row.r.parent.children.length) delete row.r.parent.children;
+    },
+    move(row, dir) { const { list, idx } = row.r; const j = idx + dir; if (j >= 0 && j < list.length) [list[idx], list[j]] = [list[j], list[idx]]; },
+    confirmText: row => `حذف الوحدة «${row.r.node.title}»؟ سيُفصل موظفوها عنها (${countStaff(row.r.node)}) وتُحذف مسمياتها غير المشغولة عند الحفظ.`,
+  };
+
   // ---------- الهيكل الوظيفي (حيّ: يُحفظ مباشرة في قاعدة البيانات عبر /api/hr-employees، لا ينتظر «حفظ التغييرات») ----------
   const HRAPI = "/api/hr-employees";
-  const struct = { list: [], units: [], can: {}, error: "" };
+  const struct = { list: [], units: [], can: {}, error: "", pre: "" };
+  let orgFocus = "";
   async function hrApi(path, method = "GET", body) {
     const override = method === "PUT" || method === "DELETE";
     const res = await fetch(HRAPI + path, { method: override ? "POST" : method, credentials: "same-origin",
@@ -517,7 +576,7 @@
         { name: "title", label: "المسمى الوظيفي", value: x.title || "", required: true, wide: true },
         { name: "code", label: "الرمز", value: x.code || "" },
         { name: "grade", label: "الدرجة", value: x.grade || "" },
-        { name: "org_unit_id", label: "الوحدة التنظيمية", value: x.org_unit_id ? String(x.org_unit_id) : "", required: true, wide: true, options: [{ v: "", l: "— اختر —" }, ...unitLabels()] },
+        { name: "org_unit_id", label: "الوحدة التنظيمية", value: x.org_unit_id ? String(x.org_unit_id) : (row ? "" : struct.pre), required: true, wide: true, options: [{ v: "", l: "— اختر —" }, ...unitLabels()], hint: "الوحدات الجديدة تظهر هنا بعد ضغط «حفظ التغييرات» في الهيكل التنظيمي." },
         { name: "parent_id", label: "ترفع إلى", value: x.parent_id ? String(x.parent_id) : "", wide: true, options: [{ v: "", l: "— لا أحد —" }, ...struct.list.filter(z => !row || z.id !== x.id).map(z => ({ v: String(z.id), l: `${z.title} — ${z.unit_path}` }))] },
         { name: "headcount", label: "عدد المقاعد", type: "number", value: x.headcount || 1 },
         { name: "active", label: "الحالة", value: x.active === false ? "0" : "1", options: [{ v: "1", l: "فعّالة" }, { v: "0", l: "موقوفة" }] },
@@ -568,6 +627,7 @@
       <tr data-key="${esc(r.key)}"${bulk && selected.has(String(r.key)) ? ' class="is-selected"' : ""}>${bulk ? `<td class="sel"><input type="checkbox" data-sel aria-label="تحديد"${selected.has(String(r.key)) ? " checked" : ""}></td>` : ""}${r.cells.map(c => `<td>${c}</td>`).join("")}
         <td class="actions">
           ${s.movable ? `<button type="button" class="icon-btn" data-act="up" ${canMove && idx > 0 ? "" : "disabled"} aria-label="أعلى"><i class="fa-solid fa-arrow-up"></i></button><button type="button" class="icon-btn" data-act="down" ${canMove && idx < rows.length - 1 ? "" : "disabled"} aria-label="أسفل"><i class="fa-solid fa-arrow-down"></i></button>` : ""}
+          ${s.posAct ? '<button type="button" class="btn btn--ghost btn--sm" data-act="positions"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> المسميات</button>' : ""}
           <button type="button" class="icon-btn" data-act="edit" aria-label="تعديل"><i class="fa-regular fa-pen-to-square"></i></button>
         </td></tr>`).join("")}</tbody>`;
     renderSide();
@@ -852,6 +912,17 @@
     render();
   }
 
+  // من وحدة في الهيكل التنظيمي إلى مسمياتها الوظيفية (يُفلتر القسم الحيّ على اسم الوحدة)
+  async function openUnitPositions(row) {
+    const node = row.r.node;
+    current = "positions"; selected.clear(); query = node.title; $("#q").value = query; render();
+    await sections.positions.load();
+    const hit = struct.units.filter(u => u.name === node.title);
+    struct.pre = hit.length === 1 ? String(hit[0].id) : "";
+    if (!hit.length) alert("هذه الوحدة جديدة: اضغط «حفظ التغييرات» أولاً ثم افتح «المسميات» مرة أخرى.");
+    render();
+  }
+
   async function openHistory() {
     const s = sections[current];
     const box = $("#historyList");
@@ -896,6 +967,7 @@
       selected.clear();
       query = "";
       $("#q").value = "";
+      struct.pre = "";
       render();
       if (sections[current].load) sections[current].load().then(() => { if (sections[current].load) render(); });
     });
@@ -925,6 +997,7 @@
       const s = sections[current];
       const row = s.rows().find(r => String(r.key) === act.closest("tr").dataset.key);
       if (!row) return;
+      if (act.dataset.act === "positions") return openUnitPositions(row);
       if (act.dataset.act === "edit") openEditor(row);
       else { s.move(row, act.dataset.act === "up" ? -1 : 1); render(); }
     });
