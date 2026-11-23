@@ -24,6 +24,7 @@ test('الوظائف: إنشاء وتحقق وصلاحية الإدارة للم
   assert.equal((await hr.post('/api/hr-employees/positions', { title: 'محاسب', org_unit_id: unitA, headcount: 0 })).status, 400);
   let r = await hr.post('/api/hr-employees/positions', { title: 'مدير الإدارة المالية', code: 'FIN-01', org_unit_id: unitA, grade: 'الدرجة 12', headcount: 1 });
   assert.equal(r.status, 201); p1 = r.json.position; assert.equal(p1.vacant, 1); assert.equal(p1.occupied, 0); assert.match(p1.unit_path, /إدارة المالية/);
+  { const a = await hr.post('/api/hr-employees/positions', { title: 'سكرتير', org_unit_id: unitA }); const b2 = await hr.post('/api/hr-employees/positions', { title: 'سكرتيرة تنفيذية', org_unit_id: unitA }); assert.equal(a.json.position.code, 'H-Sec-0001'); assert.equal(b2.json.position.code, 'H-Sec-0002'); await hr.del('/api/hr-employees/positions/' + a.json.position.id); await hr.del('/api/hr-employees/positions/' + b2.json.position.id); }   // رمز تلقائي متسلسل
   assert.equal((await hr.post('/api/hr-employees/positions', { title: 'تكرار', code: 'FIN-01', org_unit_id: unitA })).status, 409);   // رمز فريد
   r = await hr.post('/api/hr-employees/positions', { title: 'محاسب', code: 'FIN-02', org_unit_id: unitA, headcount: 2, parent_id: p1.id });
   assert.equal(r.status, 201); p2 = r.json.position; assert.equal(p2.parent_id, p1.id); assert.equal(p2.parent_title, 'مدير الإدارة المالية');
@@ -81,4 +82,9 @@ test('توليد الهيكل من الموظفين الحاليين', { skip },
   const net = (await hr.get('/api/hr-employees/positions?q=مهندس شبكات')).json.positions[0];
   assert.equal(net.headcount, 2); assert.equal(net.occupied, 2);
   assert.equal((await hr.post('/api/hr-employees/positions/seed-from-employees', {})).json.created, 0);          // لا تكرار
+});
+
+test('رموز الوظائف: اختصار المسمى وتوليد H-Sec-0001', async () => {
+  const { abbrOf } = await import('../server/lib/poscode.js');
+  assert.equal(abbrOf('سكرتير تنفيذي'), 'Sec'); assert.equal(abbrOf('مدير الإدارة المالية'), 'Mgr'); assert.equal(abbrOf('محاسبة'), 'Acc'); assert.match(abbrOf('طبيب'), /^[A-Z][a-z]+$/);
 });

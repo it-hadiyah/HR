@@ -174,7 +174,7 @@ async function structureView() {
   function posDialog(x) {
     const e = x || {};
     const inp = (v, o = {}) => h('input', { type: 'text', value: v ?? '', autocomplete: 'off', ...o });
-    const title = inp(e.title), code = inp(e.code, { dir: 'ltr', placeholder: 'اختياري، مثل HR-001' }), grade = inp(e.grade), notes = h('textarea', { rows: 2 }, e.notes ?? '');
+    const title = inp(e.title), code = inp(e.code, { dir: 'ltr', placeholder: 'يُولَّد تلقائياً إن تُرك فارغاً (H-Sec-0001)' }), grade = inp(e.grade), notes = h('textarea', { rows: 2 }, e.notes ?? '');
     const head = h('input', { type: 'number', min: 1, max: 500, value: e.headcount ?? 1 });
     const unit = h('select', null, [['', '— اختر الوحدة —'], ...unitOptions()].map(([v, l]) => h('option', { value: v, selected: String(v) === String(e.org_unit_id ?? S.pf.unit ?? '') }, l)));
     const parent = h('select', null, [h('option', { value: '' }, '— لا أحد (أعلى الهيكل) —'), ...S.allPos.filter(z => z.id !== e.id).map(z => h('option', { value: z.id, selected: z.id === e.parent_id }, `${z.title} — ${z.unit_path}`))]);
@@ -189,10 +189,12 @@ async function structureView() {
       x ? h('p', { class: 'hint full' }, 'تغيير المسمى أو الوحدة ينعكس تلقائياً على الموظفين المسكَّنين فيها.') : null),
       [h('button', { class: 'btn primary', type: 'button', onclick: save }, 'حفظ')]);
   }
+  const genCodes = guard(async () => { const r = await api('/positions/generate-codes', { method: 'POST', body: {} }); toast(r.generated ? `تم توليد ${r.generated} رمز` : 'كل الوظائف لها رموز'); await reloadAll(); });
   const seed = () => confirmBox('سيُنشأ الهيكل الوظيفي من الموظفين الحاليين: وظيفة لكل (وحدة + مسمى) وربط الموظفين بها. يمكنك تعديلها بعد ذلك. المتابعة؟', async () => {
     const r = await api('/positions/seed-from-employees', { method: 'POST', body: {} }); toast(`أُنشئت ${r.created} وظيفة وربط ${r.linked} موظفاً`); await reloadAll();
   }, false);
   view.replaceChildren(h('div', { class: 'bar' }, search, unitSel, h('label', { class: 'chk' }, vac, ' الشاغرة فقط'), modeSel, h('div', { class: 'sp' }),
+    S.can.structure ? h('button', { class: 'btn', type: 'button', onclick: genCodes }, 'توليد الرموز الناقصة') : null,
     S.can.structure ? h('button', { class: 'btn', type: 'button', onclick: seed }, 'توليد الهيكل من الموظفين الحاليين') : null,
     S.can.structure ? h('button', { class: 'btn primary', type: 'button', onclick: () => posDialog(null) }, '+ وظيفة جديدة') : null), kpis, box);
   await load();

@@ -7,6 +7,7 @@ import { audit, wrap } from '../lib/auth.js';
 import { requireGrant, hasGrant, resolveScope } from '../lib/rbac.js';
 import { httpError, isDate } from '../lib/util.js';
 import { unitPaths } from './tracking.js';
+import { assignCodes } from '../lib/poscode.js';
 
 const r = Router();
 const G = action => requireGrant('hr-employees', action);
@@ -132,6 +133,7 @@ r.post('/positions', G('structure'), wrap(async (req, res) => {
   const keys = Object.keys(f); let row;
   try { row = (await q(`INSERT INTO hr_positions(${keys.join(', ')}, created_by) VALUES (${keys.map((_, i) => `$${i + 1}`).join(', ')}, $${keys.length + 1}) RETURNING id`, [...keys.map(k => f[k]), req.user.username])).rows[0]; }
   catch (e) { if (e.code === '23505') throw httpError(409, 'رمز الوظيفة مستخدم لوظيفة أخرى'); throw e; }
+  if (!f.code) await assignCodes([row.id]);   // بلا رمز يدوي: يُولَّد تلقائياً بصيغة H-Sec-0001
   await audit(req, 'create', 'hr_position', row.id, null, f);
   res.status(201).json({ position: (await positionsList(req)).find(x => x.id === row.id) });
 }));
@@ -162,6 +164,11 @@ r.delete('/positions/:id', G('structure'), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 // توليد الهيكل من الموظفين الحاليين: وظيفة لكل (وحدة، مسمى) ويُربط بها موظفوه
+r.post('/positions/generate-codes', G('structure'), wrap(async (req, res) => {
+  const n = await assignCodes();
+  await audit(req, 'update', 'hr_position', 'codes', null, { generated: n });
+  res.json({ generated: n });
+}));
 r.post('/positions/seed-from-employees', G('structure'), wrap(async (req, res) => {
   const sc = await posScope(req, 'structure');
   if (!sc.all) throw httpError(403, 'التوليد التلقائي لصاحب نطاق شامل فقط');
@@ -174,6 +181,7 @@ r.post('/positions/seed-from-employees', G('structure'), wrap(async (req, res) =
     else if (pos.occ + g.ids.length > pos.headcount) await q('UPDATE hr_positions SET headcount = LEAST(500, $2), version = version + 1, updated_at = now() WHERE id = $1', [pos.id, pos.occ + g.ids.length]);
     await q('UPDATE leave_staff SET position_id = $1, version = version + 1, updated_at = now() WHERE id = ANY($2::int[])', [pos.id, g.ids]); linked += g.ids.length;
   }
+  await assignCodes();
   await audit(req, 'create', 'hr_position', 'seed', null, { created, linked });
   res.json({ created, linked });
 }));

@@ -561,6 +561,7 @@
         struct.units = m.units || []; struct.can = m.can || {}; struct.list = d.positions || []; struct.error = "";
       } catch (err) { struct.list = []; struct.error = err.message; }
       $("#btnAdd").hidden = !struct.can.structure;
+      $("#btnGenCodes").hidden = current !== "positions" || !struct.can.structure;
     },
     rows() {
       return struct.list.map(x => ({
@@ -574,7 +575,7 @@
       const x = row ? row.x : {};
       return [
         { name: "title", label: "المسمى الوظيفي", value: x.title || "", required: true, wide: true },
-        { name: "code", label: "الرمز", value: x.code || "" },
+        { name: "code", label: "الرمز", value: x.code || "", hint: "اتركه فارغاً ليُولَّد تلقائياً بصيغة H-Sec-0001" },
         { name: "grade", label: "الدرجة", value: x.grade || "" },
         { name: "org_unit_id", label: "الوحدة التنظيمية", value: x.org_unit_id ? String(x.org_unit_id) : (row ? "" : struct.pre), required: true, wide: true, options: [{ v: "", l: "— اختر —" }, ...unitLabels()], hint: "الوحدات الجديدة تظهر هنا بعد ضغط «حفظ التغييرات» في الهيكل التنظيمي." },
         { name: "parent_id", label: "ترفع إلى", value: x.parent_id ? String(x.parent_id) : "", wide: true, options: [{ v: "", l: "— لا أحد —" }, ...struct.list.filter(z => !row || z.id !== x.id).map(z => ({ v: String(z.id), l: `${z.title} — ${z.unit_path}` }))] },
@@ -616,6 +617,7 @@
     const canMove = s.movable && !term;
     $("#count").textContent = term ? `${rows.length} من ${all.length}` : `${all.length} عنصر`;
     $("#btnHistory").hidden = s.files.length === 0;
+    $("#btnGenCodes").hidden = current !== "positions" || !struct.can.structure;
     $("#btnAdd").hidden = !!s.noAdd || (current === "positions" && !struct.can.structure);
     if (current === "positions" && struct.error) $("#secHint").textContent = "تعذر تحميل الهيكل الوظيفي: " + struct.error;
     $("#empty").hidden = rows.length > 0;
@@ -1031,6 +1033,10 @@
       input.hidden = !isNew;
       input.value = isNew ? "" : select.value;
       if (isNew) input.focus();
+    });
+    $("#btnGenCodes").addEventListener("click", async () => {
+      try { const r = await hrApi("/positions/generate-codes", "POST", {}); await sections.positions.load(); render(); toast(r.generated ? `تم توليد ${r.generated} رمز` : "كل الوظائف لها رموز"); }
+      catch (err) { toast(err.message, true); }
     });
     $("#btnSave").addEventListener("click", saveAll);
     $("#btnDiscard").addEventListener("click", discard);
