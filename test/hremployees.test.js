@@ -15,8 +15,8 @@ test('إعداد', { skip }, async () => {
 
 test('الصلاحيات: الموارد البشرية تدير، المالية تعرض فقط، والموظف العادي ممنوع', { skip }, async () => {
   assert.equal((await emp.get('/api/hr-employees/meta')).status, 403);
-  assert.deepEqual((await hr.get('/api/hr-employees/meta')).json.can, { view: true, edit: true, archive: true, delete: false, sensitive: true });
-  assert.deepEqual((await fin.get('/api/hr-employees/meta')).json.can, { view: true, edit: false, archive: false, delete: false, sensitive: false });
+  assert.deepEqual((await hr.get('/api/hr-employees/meta')).json.can, { view: true, edit: true, archive: true, delete: false, sensitive: true, structure: true });
+  assert.deepEqual((await fin.get('/api/hr-employees/meta')).json.can, { view: true, edit: false, archive: false, delete: false, sensitive: false, structure: false });
   assert.equal((await fin.post('/api/hr-employees', { full_name: 'ممنوع' })).status, 403);
 });
 

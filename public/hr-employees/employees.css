@@ -130,3 +130,12 @@ tr.arch td{opacity:.6}
 a.btn{text-decoration:none;color:inherit;display:inline-block;white-space:nowrap}
 td{vertical-align:middle} td:nth-child(4){white-space:nowrap}
 .row-acts{flex-wrap:wrap}
+
+.tab{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 16px;color:inherit}
+.tab.on{background:#054d45;color:#fff;border-color:#054d45}
+.occ{display:inline-block;border-radius:99px;padding:0 10px;font-weight:700;font-size:.85rem}
+.occ.open{background:#e3f4ea;color:#14633a}.occ.full{background:#ece8df;color:#5b5648}
+.chip{display:inline-block;background:#eef3f2;border-radius:8px;padding:1px 8px;margin:2px;font-size:.82rem}
+.muted{color:var(--muted)}tr.off{opacity:.55}
+h3.grp{margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chk{display:inline-flex;gap:6px;align-items:center}
