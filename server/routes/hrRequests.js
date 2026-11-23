@@ -40,8 +40,17 @@ async function template(type) {
   return t;
 }
 const rowOut = x => ({ id: x.id, ref_no: x.ref_no, type: x.type, type_title: TYPES[x.type]?.title, status: x.status, employee_id: x.employee_id, employee_name: x.employee_name, emp_no: x.emp_no,
-  requester_name: x.requester_name, params: x.params, created_at: x.created_at, decided_by: x.decided_by, decided_at: x.decided_at, decision_note: x.decision_note });
+  requester_name: x.requester_name, params: x.params, created_at: x.created_at, decided_by: x.decided_by, decided_at: x.decided_at, decision_note: x.decision_note,
+  rated: !!x.rated_at, rating_service: x.rating_service ?? null, rating_speed: x.rating_speed ?? null, rating_comment: x.rating_comment ?? null });
 const SELECT = `SELECT h.*, s.full_name AS employee_name, s.emp_no FROM hr_requests h JOIN leave_staff s ON s.id = h.employee_id`;
+// يشترط تقييم الخدمة قبل تحميل المستند: يسري على صاحب الطلب نفسه (المراجعون من الموارد البشرية يطّلعون دون تقييم)
+function ratingGate(req, res, row) {
+  if (row.requester_user_id === req.user.id && !row.rated_at) {
+    res.status(403).json({ error: 'قيّم الخدمة أولاً لتتمكن من تحميل المستند', code: 'rating_required', id: row.id });
+    return true;
+  }
+  return false;
+}
 async function loadRequest(req, id) {
   const row = (await q(`${SELECT} WHERE h.id = $1`, [id])).rows[0];
   if (!row) throw httpError(404, 'الطلب غير موجود');
@@ -109,7 +118,8 @@ r.get('/', wrap(async (req, res) => {
   const term = str(req.query.q, 60);
   if (term) { p.push(`%${term}%`); where.push(`(s.full_name ILIKE $${p.length} OR s.emp_no ILIKE $${p.length} OR h.ref_no ILIKE $${p.length})`); }
   const rows = (await q(`${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY (h.status = 'pending') DESC, h.created_at DESC, h.id DESC LIMIT 500`, p)).rows;
-  res.json({ requests: rows.map(rowOut) });
+  const sum = (await q("SELECT count(rated_at)::int AS n, round(avg(rating_service), 2)::float8 AS service, round(avg(rating_speed), 2)::float8 AS speed FROM hr_requests WHERE rated_at IS NOT NULL")).rows[0];
+  res.json({ requests: rows.map(rowOut), ratings: { count: sum.n, service: sum.service, speed: sum.speed } });
 }));
 
 // ---- تفاصيل طلب (للمراجع: بيانات مقترحة من سجل الموظف والرواتب لتعبئة النموذج) ----
@@ -203,11 +213,28 @@ r.post('/:id/cancel', wrap(async (req, res) => {
   res.json({ request: rowOut((await q(`${SELECT} WHERE h.id = $1`, [id])).rows[0]) });
 }));
 
+// ---- تقييم الخدمة بالنجوم (مرة واحدة، من صاحب الطلب بعد الاعتماد) ----
+r.post('/:id/rating', wrap(async (req, res) => {
+  const row = await loadRequest(req, +req.params.id);
+  if (row.requester_user_id !== req.user.id) throw httpError(403, 'التقييم لصاحب الطلب فقط');
+  if (row.status !== 'approved') throw httpError(409, 'التقييم متاح بعد اعتماد الطلب');
+  if (row.rated_at) throw httpError(409, 'سبق تقييم هذا الطلب');
+  const star = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null; };
+  const service = star(req.body?.service), speed = star(req.body?.speed);
+  if (!service || !speed) throw httpError(400, 'قيّم السؤالين بعدد النجوم من 1 إلى 5');
+  const comment = str(req.body?.comment, 300) || null;
+  const upd = (await q('UPDATE hr_requests SET rating_service = $2, rating_speed = $3, rating_comment = $4, rated_at = now(), updated_at = now() WHERE id = $1 AND rated_at IS NULL RETURNING id', [row.id, service, speed, comment])).rows[0];
+  if (!upd) throw httpError(409, 'سبق تقييم هذا الطلب');
+  await audit(req, 'update', 'hr_request', row.id, null, { ref_no: row.ref_no, rating_service: service, rating_speed: speed });
+  res.json({ request: rowOut((await q(`${SELECT} WHERE h.id = $1`, [row.id])).rows[0]) });
+}));
+
 // ---- المستند المعتمد ----
 const verifyCode = row => String(row.document_hash || '').slice(0, 10).toUpperCase();
 r.get('/:id/document', wrap(async (req, res) => {
   const row = await loadRequest(req, +req.params.id);
   if (row.status !== 'approved' || !row.document_text) throw httpError(409, 'المستند غير متاح: الطلب لم يُعتمد');
+  if (ratingGate(req, res, row)) return;
   const st = await stampState();
   res.json({ ref_no: row.ref_no, type_title: TYPES[row.type].title, text: row.document_text, issue_date: row.document_data?.issue_date, approved_by: row.decided_by, code: verifyCode(row), stamp: st.enabled, stamp_version: st.version, employee_name: row.employee_name });
 }));
@@ -217,12 +244,14 @@ async function documentPage(row) { return renderDocumentHtml({ row, code: verify
 r.get('/:id/view', wrap(async (req, res) => {
   const row = await loadRequest(req, +req.params.id);
   if (row.status !== 'approved' || !row.document_text) throw httpError(409, 'المستند غير متاح: الطلب لم يُعتمد');
+  if (ratingGate(req, res, row)) return;
   res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
   res.send(await documentPage(row));
 }));
 r.get('/:id/pdf', wrap(async (req, res) => {
   const row = await loadRequest(req, +req.params.id);
   if (row.status !== 'approved' || !row.document_text) throw httpError(409, 'المستند غير متاح: الطلب لم يُعتمد');
+  if (ratingGate(req, res, row)) return;
   if (!chromeAvailable()) throw httpError(501, 'توليد PDF من الخادم غير متاح؛ استخدم «طباعة / حفظ PDF» من صفحة المستند');
   const { htmlToPdf } = require('../../modules/members/src/services/exporter');
   const buf = await htmlToPdf(await documentPage(row), { landscape: false });

@@ -67,6 +67,22 @@ test('المراجعة: اقتراحات من الرواتب والسجل ثم �
   const ok = await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: { ...d.review.values, hire_date: '2020-01-15', national_id: '1023456789' }, note: 'تم' });
   assert.equal(ok.status, 200); assert.equal(ok.json.request.status, 'approved');
   assert.equal((await hr.post(`/api/hr-requests/${reqCert.id}/approve`, { data: d.review.values })).status, 409);   // لا اعتماد مزدوج
+  // تقييم الخدمة شرط لتحميل المستند: يُمنع صاحب الطلب (document / view / pdf) حتى يقيّم، والمراجع لا يُشترط عليه
+  for (const ep of ['document', 'view', 'pdf']) {
+    const g = await e1.get(`/api/hr-requests/${reqCert.id}/${ep}`);
+    assert.equal(g.status, 403, ep); assert.equal(g.json.code, 'rating_required', ep);
+  }
+  assert.equal((await hr.get(`/api/hr-requests/${reqCert.id}/document`)).status, 200);
+  assert.equal((await e2.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 5, speed: 5 })).status, 404);   // غير صاحب الطلب
+  assert.equal((await hr.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 5, speed: 5 })).status, 403);   // المراجع ليس صاحب الطلب
+  assert.equal((await e1.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 5 })).status, 400);            // ينقص السؤال الثاني
+  assert.equal((await e1.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 0, speed: 5 })).status, 400);
+  assert.equal((await e1.post(`/api/hr-requests/${reqFix.id}/rating`, { service: 5, speed: 5 })).status, 409);   // طلب غير معتمد
+  const rated = await e1.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 5, speed: 4, comment: 'خدمة ممتازة' });
+  assert.equal(rated.status, 200); assert.equal(rated.json.request.rated, true); assert.equal(rated.json.request.rating_speed, 4);
+  assert.equal((await e1.post(`/api/hr-requests/${reqCert.id}/rating`, { service: 1, speed: 1 })).status, 409);   // مرة واحدة فقط
+  const sumRes = (await hr.get('/api/hr-requests?status=approved')).json.ratings;
+  assert.equal(sumRes.count, 1); assert.equal(sumRes.service, 5); assert.equal(sumRes.speed, 4);
   // المستند يصل للموظف صاحب الطلب فقط
   const doc = await e1.get(`/api/hr-requests/${reqCert.id}/document`);
   assert.equal(doc.status, 200); assert.equal(doc.json.ref_no, reqCert.ref_no); assert.equal(doc.json.stamp, true); assert.match(doc.json.code, /^[0-9A-F]{10}$/);

@@ -144,3 +144,11 @@ td{vertical-align:middle} td:nth-child(4){white-space:nowrap}
 .docframe{display:block;width:210mm;height:297mm;border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.1);margin:0 auto 30px;background:#fff}
 @media (max-width:820px){.docframe{zoom:.42}}
 @media print{body{background:#fff} .docbar,.top,.toasts,#hd-appbar,#appbar-host{display:none !important} .docframe{box-shadow:none;border:0;margin:0}}
+
+/* تقييم الخدمة بالنجوم */
+.qrow{margin:14px 0;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.qrow .q{font-weight:700;color:var(--deep);margin-bottom:6px}
+.stars{display:flex;gap:4px;direction:rtl}
+.star{border:0;background:none;font-size:2.3rem;line-height:1;color:#d3dcdb;cursor:pointer;padding:0 2px;transition:transform .1s,color .1s}
+.star:hover{transform:scale(1.12)} .star.on{color:#e3a600} .star:focus-visible{outline:2px solid var(--teal-d);outline-offset:2px;border-radius:6px}
+.star-hint{min-height:1.4em;font-size:.84rem;color:var(--muted);margin-top:2px}

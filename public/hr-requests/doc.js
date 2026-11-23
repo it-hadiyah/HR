@@ -6,7 +6,9 @@ try {
   if (!/^\d+$/.test(id || '')) throw new Error('رقم الطلب غير صالح');
   const [dRes, mRes] = await Promise.all([fetch(`/api/hr-requests/${id}/document`, { credentials: 'same-origin' }), fetch('/api/hr-requests/meta', { credentials: 'same-origin' })]);
   if (dRes.status === 401) { location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search); }
-  const d = await dRes.json(); if (!dRes.ok) throw new Error(d.error || 'تعذّر تحميل المستند');
+  const d = await dRes.json();
+  if (dRes.status === 403 && d.code === 'rating_required') { location.replace(`/hr-requests/?rate=${id}`); throw new Error('يلزم تقييم الخدمة أولاً…'); }   // تقييم الخدمة شرط لتحميل المستند
+  if (!dRes.ok) throw new Error(d.error || 'تعذّر تحميل المستند');
   const meta = await mRes.json().catch(() => ({}));
   document.title = `${d.type_title} — ${d.ref_no}`;
   const frame = el('iframe', 'docframe'); frame.title = d.type_title; frame.src = `/api/hr-requests/${id}/view`;
