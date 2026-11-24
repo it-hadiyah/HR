@@ -188,7 +188,7 @@ r.post('/positions/seed-from-employees', G('structure'), wrap(async (req, res) =
 
 r.get('/meta', G('access'), wrap(async (req, res) => {
   const can = a => hasGrant(req.user, 'hr-employees', a);
-  const units = (await q('SELECT id, name, unit_type, parent_id FROM org_units WHERE active ORDER BY id')).rows;
+  const units = (await q('SELECT id, name, unit_type, parent_id, slug FROM org_units WHERE active ORDER BY id')).rows;
   const titles = (await q("SELECT DISTINCT job_title FROM leave_staff WHERE job_title IS NOT NULL AND btrim(job_title) <> '' ORDER BY job_title")).rows.map(x => x.job_title);
   const positions = can('view') ? (await positionsList(req)).filter(x => x.active).map(x => ({ id: x.id, code: x.code, title: x.title, unit_path: x.unit_path, org_unit_id: x.org_unit_id, headcount: x.headcount, occupied: x.occupied, vacant: x.vacant })) : [];
   res.json({ units, positions, job_titles: titles, can: { view: can('view'), edit: can('edit'), archive: can('archive'), delete: can('delete'), sensitive: can('sensitive'), structure: can('structure') } });

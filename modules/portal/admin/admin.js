@@ -109,6 +109,27 @@
   // ---------- sections ----------
   const sections = {};
 
+  // المسمى الوظيفي: قائمة من الهيكل الوظيفي (إن تعذّر تحميله يبقى حقل نص)
+  function jobField(emp, place) {
+    const cur = String(emp.JobName || "").trim();
+    if (!struct.list.length) return { name: "JobName", label: "المسمى الوظيفي", value: cur, required: true };
+    const act = struct.list.filter(x => x.active);
+    const unitSlug = place && place.unit.id;
+    const match = act.filter(x => x.title === cur);
+    const best = match.find(x => struct.units.find(u => u.id === x.org_unit_id)?.slug === unitSlug) || match[0];
+    return { name: "JobName", label: "المسمى الوظيفي (من الهيكل الوظيفي)", required: true, value: best ? "p" + best.id : (cur ? "__keep" : ""),
+      options: [{ v: "", l: "— اختر المسمى من الهيكل الوظيفي —" }, ...(cur && !best ? [{ v: "__keep", l: `الحالي: ${cur} (غير موجود في الهيكل)` }] : []),
+        ...act.map(x => ({ v: "p" + x.id, l: `${x.title} — ${x.unit_path}${x.vacant > 0 ? "" : " (مكتملة)"}` }))],
+      hint: "تُضاف المسميات من قسم «الهيكل الوظيفي». اختيار المسمى يحدد الوحدة التنظيمية تلقائياً." };
+  }
+  const jobTitleOf = (val, row) => {
+    if (!struct.list.length) return String(val).trim();
+    if (val === "__keep") return String(row?.emp.JobName || "").trim();
+    const pos = struct.list.find(x => "p" + x.id === val);
+    if (!pos) throw new Error("اختر المسمى الوظيفي من الهيكل الوظيفي.");
+    return pos.title;
+  };
+
   sections.employees = {
     bulk: true, title: "الموظفون", icon: "fa-users", files: [FILES.employees, FILES.org, FILES.committees, FILES.recognition],
     hint: "إضافة موظف أو تعديل بياناته. اختيار الوحدة التنظيمية يحدّث الهيكل التنظيمي تلقائيًا.",
@@ -132,7 +153,7 @@
       const place = row ? row.place : null;
       return [
         { name: "Name", label: "الاسم", value: emp.Name ? String(emp.Name).trim() : "", required: true },
-        { name: "JobName", label: "المسمى الوظيفي", value: emp.JobName || "", required: true },
+        jobField(emp, place),
         { name: "Extension", label: "التحويلة (الرقم الداخلي)", type: "number", value: emp.Extension ?? "", required: true, hint: "رقم فريد لكل موظف." },
         { name: "email", label: "البريد الإلكتروني", type: "email", value: emp.email || "", required: true },
         { name: "unit", label: "الوحدة التنظيمية", value: place ? place.unit.id : "", options: [{ v: "", l: "— بدون وحدة (تظهر في «أخرى») —" }, ...allUnits().map(u => ({ v: u.id, l: u.path }))], wide: true },
@@ -141,12 +162,21 @@
         { name: "Photo", label: "الصورة", value: emp.Photo && emp.Photo !== NO_PHOTO ? emp.Photo : "", upload: "employee-photos", hint: "اتركها فارغة لاستخدام الصورة الافتراضية.", wide: true },
       ];
     },
+    afterRender(form) {   // اختيار المسمى من الهيكل الوظيفي يحدد الوحدة تلقائياً
+      const job = form.elements.JobName, unit = form.elements.unit;
+      if (!job || job.tagName !== "SELECT" || !unit) return;
+      job.addEventListener("change", () => {
+        const pos = struct.list.find(x => "p" + x.id === job.value);
+        const slug = pos && struct.units.find(u => u.id === pos.org_unit_id)?.slug;
+        if (slug && [...unit.options].some(o => o.value === slug)) unit.value = slug;
+      });
+    },
     commit(v, row) {
       const ext = Number(v.Extension);
       if (!Number.isInteger(ext) || ext <= 0) throw new Error("التحويلة يجب أن تكون رقمًا صحيحًا.");
       if (raw[FILES.employees].some((e, i) => Number(e.Extension) === ext && (!row || i !== row.i))) throw new Error(`التحويلة ${ext} مستخدمة لموظف آخر.`);
       if (!/^\S+@\S+\.\S+$/.test(v.email)) throw new Error("البريد الإلكتروني غير صالح.");
-      const emp = { ...(row ? row.emp : { Section: "" }), Extension: ext, Name: v.Name.trim(), JobName: v.JobName.trim(), Photo: v.Photo.trim() || NO_PHOTO, email: v.email.trim() };
+      const emp = { ...(row ? row.emp : { Section: "" }), Extension: ext, Name: v.Name.trim(), JobName: jobTitleOf(v.JobName, row), Photo: v.Photo.trim() || NO_PHOTO, email: v.email.trim() };
       const oldExt = row ? row.emp.Extension : null;
       const old = row ? row.place : null;
       const samePlacement = row && Number(oldExt) === ext && ((old && old.unit.id === v.unit && old.role === v.role) || (!old && !v.unit));
