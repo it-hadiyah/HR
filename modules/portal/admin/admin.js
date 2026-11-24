@@ -482,6 +482,9 @@
     walk(orgRoots(), null, 1);
     return out;
   };
+  // موقع الجهة العليا في مخطط البوابة: sector = داخل الهيكل الرسمي (تحت الرئيس التنفيذي)، بلا نوع = خارج الهيكل الرسمي، company = شركة تابعة تحت المجلس
+  const KIND_LABEL = { sector: "داخل الهيكل", company: "شركة تابعة", board: "مجلس الإدارة", ceo: "الرئيس التنفيذي" };
+  const FIXED_KINDS = ["board", "ceo"];
   const countStaff = node => (node.heads || []).length + (node.members || []).length;
   const isInside = (node, ancestor) => node === ancestor || (ancestor.children || []).some(c => isInside(node, c));
 
@@ -493,7 +496,7 @@
     rows() {
       return orgFlat().map(r => ({
         key: r.node.id, r, text: `${r.node.title} ${LEVELS[Math.min(r.depth, 4)]}`,
-        cells: [`<span style="padding-inline-start:${(r.depth - 1) * 22}px">${r.depth > 1 ? "↳ " : ""}<b>${esc(r.node.title)}</b></span>`, esc(LEVELS[Math.min(r.depth, 4)]), esc(r.parent ? r.parent.title : "—"),
+        cells: [`<span style="padding-inline-start:${(r.depth - 1) * 22}px">${r.depth > 1 ? "↳ " : ""}<b>${esc(r.node.title)}</b></span>`, esc(LEVELS[Math.min(r.depth, 4)]) + (r.depth === 1 ? (KIND_LABEL[r.node.kind] ? ` <span class="tag">${esc(KIND_LABEL[r.node.kind])}</span>` : ' <span class="tag tag--warn">خارج الهيكل</span>') : ""), esc(r.parent ? r.parent.title : "—"),
           String((r.node.children || []).length), String(countStaff(r.node)), '<span class="muted">زر «المسميات» ←</span>'],
       }));
     },
@@ -502,6 +505,8 @@
       const opts = [{ v: "", l: "— مستوى أعلى (قطاع / جهة) —" }, ...orgFlat().filter(x => !cur || !isInside(x.node, cur)).map(x => ({ v: x.node.id, l: `${"— ".repeat(x.depth - 1)}${x.node.title}` }))];
       return [
         { name: "title", label: "اسم الوحدة", value: cur ? cur.title : "", required: true, wide: true },
+        ...(cur && FIXED_KINDS.includes(cur.kind) ? [] : [{ name: "kind", label: "موقعها في الهيكل الرسمي (للجهات العليا)", value: cur ? (cur.kind || "") : "sector", wide: true,
+          options: [{ v: "sector", l: "داخل الهيكل الرسمي (تحت الرئيس التنفيذي)" }, { v: "", l: "خارج الهيكل الرسمي" }, { v: "company", l: "شركة تابعة (بجانب الرئيس التنفيذي تحت المجلس)" }], hint: "يظهر هذا الخيار عند إنشاء قطاع/جهة عليا فقط." }]),
         { name: "parent", label: "تتبع لـ", value: row && row.r.parent ? row.r.parent.id : (row ? "" : (orgFocus || "")), options: opts, wide: true, hint: "اختر القطاع أو الإدارة التي تتبعها هذه الوحدة. اتركها فارغة لإنشاء قطاع/جهة جديدة." },
       ];
     },
@@ -515,11 +520,21 @@
         const node = row.r.node;
         if (parent && isInside(parent, node)) throw new Error("لا يمكن نقل الوحدة تحت إحدى وحداتها الفرعية.");
         node.title = title;
+        if (!FIXED_KINDS.includes(node.kind)) { if (parent) delete node.kind; else if ("kind" in v) { if (v.kind) node.kind = v.kind; else delete node.kind; } }
         if ((row.r.parent || null) !== (parent || null)) { row.r.list.splice(row.r.idx, 1); target.push(node); }
       } else {
-        target.push({ id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), title });
+        const node = { id: "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), title };
+        if (!parent && v.kind) node.kind = v.kind;
+        target.push(node);
       }
       for (const x of orgFlat()) if (x.node.children && !x.node.children.length) delete x.node.children;
+    },
+    afterRender(form) {
+      const kind = form.elements.kind, parent = form.elements.parent;
+      if (!kind || !parent) return;
+      const box = kind.closest("label");
+      const sync = () => { box.hidden = !!parent.value; };
+      parent.addEventListener("change", sync); sync();
     },
     remove(row) {
       const node = row.r.node;
